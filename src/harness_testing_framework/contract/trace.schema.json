@@ -1,0 +1,192 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/asuka1975/harness-testing-framework/main/contract/trace.schema.json",
+    "title": "Trace event",
+    "description": "実行記録の一行（契約 第6節）。実行記録は、この形の出来事を seq の順に並べた JSON Lines",
+    "type": "object",
+    "required": ["seq", "event"],
+    "properties": {
+        "seq": { "description": "実行の中での通し番号（0 から）", "type": "integer", "minimum": 0 },
+        "event": { "enum": ["run_start", "stage_start", "stage_end", "evaluation", "transition", "escalation", "warning", "run_end"] }
+    },
+    "oneOf": [
+        { "$ref": "#/$defs/run_start" },
+        { "$ref": "#/$defs/stage_start" },
+        { "$ref": "#/$defs/stage_end" },
+        { "$ref": "#/$defs/evaluation" },
+        { "$ref": "#/$defs/transition" },
+        { "$ref": "#/$defs/escalation" },
+        { "$ref": "#/$defs/warning" },
+        { "$ref": "#/$defs/run_end" }
+    ],
+    "$defs": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "edge": {
+            "description": "rollback の辺。元ステージ、end_state、戻り先",
+            "type": "object",
+            "properties": {
+                "stage": { "$ref": "#/$defs/id" },
+                "state": { "$ref": "#/$defs/id" },
+                "target": { "$ref": "#/$defs/id" }
+            },
+            "required": ["stage", "state", "target"],
+            "additionalProperties": false
+        },
+        "run_start": {
+            "type": "object",
+            "properties": {
+                "seq": true,
+                "event": { "const": "run_start" },
+                "workflow": { "type": "string" },
+                "seed": { "type": "integer" }
+            },
+            "required": ["event", "workflow", "seed"],
+            "additionalProperties": false
+        },
+        "stage_start": {
+            "type": "object",
+            "properties": {
+                "seq": true,
+                "event": { "const": "stage_start" },
+                "stage": { "$ref": "#/$defs/id" },
+                "visit": { "type": "integer", "minimum": 1 },
+                "snapshot": { "$ref": "#/$defs/sha256" }
+            },
+            "required": ["event", "stage", "visit", "snapshot"],
+            "additionalProperties": false
+        },
+        "stage_end": {
+            "type": "object",
+            "properties": {
+                "seq": true,
+                "event": { "const": "stage_end" },
+                "stage": { "$ref": "#/$defs/id" },
+                "visit": { "type": "integer", "minimum": 1 },
+                "snapshot": { "$ref": "#/$defs/sha256" },
+                "error": {
+                    "description": "本体の例外か契約違反。無ければ null",
+                    "oneOf": [
+                        { "type": "null" },
+                        {
+                            "type": "object",
+                            "properties": {
+                                "kind": { "enum": ["stage_error", "contract_violation"] },
+                                "message": { "type": "string" }
+                            },
+                            "required": ["kind", "message"],
+                            "additionalProperties": false
+                        }
+                    ]
+                }
+            },
+            "required": ["event", "stage", "visit", "snapshot", "error"],
+            "additionalProperties": false
+        },
+        "evaluation": {
+            "type": "object",
+            "properties": {
+                "seq": true,
+                "event": { "const": "evaluation" },
+                "scope": { "enum": ["stage", "phase"] },
+                "stage": { "$ref": "#/$defs/id" },
+                "phase": { "$ref": "#/$defs/id" },
+                "visit": { "type": "integer", "minimum": 1 },
+                "metrics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "value": { "type": ["boolean", "number", "null"] },
+                            "passed": { "type": "boolean" },
+                            "error": { "type": "string" }
+                        },
+                        "required": ["value", "passed"],
+                        "additionalProperties": false
+                    }
+                },
+                "classification": {
+                    "oneOf": [
+                        { "type": "null" },
+                        {
+                            "type": "object",
+                            "properties": {
+                                "options": { "type": "array", "items": { "type": "string" } },
+                                "choice": { "type": ["string", "null"] },
+                                "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+                            },
+                            "required": ["options", "choice", "confidence"],
+                            "additionalProperties": false
+                        }
+                    ]
+                },
+                "outcome": { "description": "goal、end_state の id、unknown のいずれか", "$ref": "#/$defs/id" }
+            },
+            "required": ["event", "scope", "stage", "phase", "visit", "metrics", "classification", "outcome"],
+            "additionalProperties": false
+        },
+        "transition": {
+            "type": "object",
+            "properties": {
+                "seq": true,
+                "event": { "const": "transition" },
+                "kind": { "enum": ["next", "gate_pass", "rollback", "escalate", "complete", "abort", "suspend", "resume"] },
+                "from": { "$ref": "#/$defs/id" },
+                "to": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/id" }] },
+                "edge": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/edge" }] },
+                "count": { "type": ["integer", "null"], "minimum": 1 },
+                "crosses_phase": { "type": "boolean" }
+            },
+            "required": ["event", "kind", "from", "to", "edge", "count", "crosses_phase"],
+            "additionalProperties": false
+        },
+        "escalation": {
+            "type": "object",
+            "properties": {
+                "seq": true,
+                "event": { "const": "escalation" },
+                "stage": { "$ref": "#/$defs/id" },
+                "reason": { "enum": ["max_exceeded", "unknown", "stage_error", "contract_violation"] },
+                "edge": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/edge" }] },
+                "decision": {
+                    "oneOf": [
+                        { "type": "null" },
+                        {
+                            "type": "object",
+                            "properties": {
+                                "kind": { "enum": ["rerun", "rollback", "continue_as_goal", "abort"] },
+                                "stage": { "$ref": "#/$defs/id" },
+                                "carry": { "type": "array", "items": { "type": "string" } },
+                                "note": { "type": "string" }
+                            },
+                            "required": ["kind"],
+                            "additionalProperties": false
+                        }
+                    ]
+                }
+            },
+            "required": ["event", "stage", "reason", "edge", "decision"],
+            "additionalProperties": false
+        },
+        "warning": {
+            "type": "object",
+            "properties": {
+                "seq": true,
+                "event": { "const": "warning" },
+                "message": { "type": "string" }
+            },
+            "required": ["event", "message"],
+            "additionalProperties": false
+        },
+        "run_end": {
+            "type": "object",
+            "properties": {
+                "seq": true,
+                "event": { "const": "run_end" },
+                "status": { "enum": ["completed", "aborted", "suspended", "awaiting_operator"] }
+            },
+            "required": ["event", "status"],
+            "additionalProperties": false
+        }
+    }
+}

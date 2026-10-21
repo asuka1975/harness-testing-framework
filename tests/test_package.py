@@ -43,6 +43,21 @@ def test_packaged_schema_matches_canonical() -> None:
     assert load_workflow_schema() == canonical
 
 
+@pytest.mark.parametrize(
+    ("name", "canonical"),
+    [
+        ("snapshot.schema.json", "contract/snapshot.schema.json"),
+        ("trace.schema.json", "contract/trace.schema.json"),
+        ("scenario.schema.json", "contract/conformance/scenario.schema.json"),
+    ],
+)
+def test_packaged_contract_schema_matches_canonical(name: str, canonical: str) -> None:
+    from harness_testing_framework.contract import load_contract_schema
+
+    expected = json.loads((ROOT / canonical).read_text(encoding="utf-8"))
+    assert load_contract_schema(name) == expected
+
+
 def test_license_is_gpl3_or_later() -> None:
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert pyproject["project"]["license"] == "GPL-3.0-or-later"

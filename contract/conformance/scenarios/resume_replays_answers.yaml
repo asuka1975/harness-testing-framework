@@ -1,0 +1,60 @@
+scenario: resume_replays_answers
+description: 二つの質問のうち二つ目で中断し、再開では一つ目の回答を再生して二つ目に新しい回答を使う
+workflow: ../workflows/basic.yaml
+metrics: conformance
+seed: 1
+inputs:
+  in.txt: 依頼
+visits:
+  s1#1:
+    files:
+      s1.txt: s1
+      s1.flag: 'true'
+    classify:
+      choice: goal
+      confidence: 0.9
+    ask:
+    - 主題は何か
+    - 読者は誰か
+  s2#1:
+    files:
+      s2.txt: s2
+      s2.flag: 'true'
+      gate1.flag: 'true'
+    classify: &id001
+      choice: goal
+      confidence: 0.9
+  s3#1:
+    files:
+      s3.txt: s3
+      s3.flag: 'true'
+      gate2.num: '0'
+    classify: *id001
+gates:
+  p1#1: *id001
+  p2#1: *id001
+user:
+- answer: 主題は A
+- defer: true
+- answer: 読者は B
+expect:
+  status: completed
+  trace:
+  - start s1#1
+  - suspend s1
+  - end suspended
+  - resume s1
+  - start s1#1
+  - eval stage s1 = goal
+  - next s1 -> s2
+  - start s2#1
+  - eval stage s2 = goal
+  - eval phase p1 = goal
+  - gate_pass s2
+  - next s2 -> s3
+  - start s3#1
+  - eval stage s3 = goal
+  - eval phase p2 = goal
+  - gate_pass s3
+  - complete
+  - end completed

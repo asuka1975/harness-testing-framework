@@ -4,14 +4,27 @@
 節の番号はその文書の節を指す。
 """
 
+import json
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
+from importlib.resources import files
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 type JSONValue = bool | int | float | str | list[JSONValue] | dict[str, JSONValue] | None
 
 CONTRACT_VERSION = "0.1"
+
+# 正はリポジトリ最上位の contract/ にあり、ここにはその複製を同梱する（一致はテストで保証する）
+SCHEMA_FILES = ("snapshot.schema.json", "trace.schema.json", "scenario.schema.json")
+
+
+def load_contract_schema(name: str) -> dict[str, Any]:
+    """同梱した契約の JSON Schema（SCHEMA_FILES のいずれか）を読む。"""
+    if name not in SCHEMA_FILES:
+        raise KeyError(name)
+    schema: dict[str, Any] = json.loads(files(__package__).joinpath(name).read_text("utf-8"))
+    return schema
 
 
 # --- 7.3 ユーザー入出力 ---
@@ -217,4 +230,5 @@ __all__ = [
     "StageBody",
     "StageContext",
     "UserIO",
+    "load_contract_schema",
 ]

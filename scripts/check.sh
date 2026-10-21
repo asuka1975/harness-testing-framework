@@ -17,6 +17,8 @@ uv run python -c "
 import sys, zipfile, glob
 whl = glob.glob(sys.argv[1] + '/*.whl')[0]
 names = zipfile.ZipFile(whl).namelist()
-assert 'harness_testing_framework/schema/workflow.schema.json' in names, names
-print('wheel: schema packaged')
+for n in ['schema/workflow.schema.json', 'contract/trace.schema.json',
+          'contract/snapshot.schema.json', 'contract/scenario.schema.json']:
+    assert 'harness_testing_framework/' + n in names, (n, names)
+print('wheel: schemas packaged')
 " "$out"

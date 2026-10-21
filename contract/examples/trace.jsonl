@@ -23,8 +23,8 @@
 {"seq": 22, "event": "stage_start", "stage": "inspect", "visit": 3, "snapshot": "0000000000000000000000000000000000000000000000000000000000000008"}
 {"seq": 23, "event": "stage_end", "stage": "inspect", "visit": 3, "snapshot": "0000000000000000000000000000000000000000000000000000000000000009", "error": null}
 {"seq": 24, "event": "evaluation", "scope": "stage", "stage": "inspect", "phase": "build", "visit": 3, "metrics": {"defect_count": {"value": 1, "passed": false}}, "classification": {"options": ["defects_found", "unknown"], "choice": "defects_found", "confidence": 0.9}, "outcome": "defects_found"}
-{"seq": 25, "event": "escalation", "stage": "inspect", "reason": "max_exceeded", "edge": {"stage": "inspect", "state": "defects_found", "target": "produce"}, "decision": {"kind": "continue_as_goal", "note": "残る食い違いは許容する"}}
-{"seq": 26, "event": "transition", "kind": "escalate", "from": "inspect", "to": null, "edge": {"stage": "inspect", "state": "defects_found", "target": "produce"}, "count": 2, "crosses_phase": false}
+{"seq": 25, "event": "transition", "kind": "escalate", "from": "inspect", "to": null, "edge": {"stage": "inspect", "state": "defects_found", "target": "produce"}, "count": 2, "crosses_phase": false}
+{"seq": 26, "event": "escalation", "stage": "inspect", "reason": "max_exceeded", "edge": {"stage": "inspect", "state": "defects_found", "target": "produce"}, "decision": {"kind": "continue_as_goal", "note": "残る食い違いは許容する"}}
 {"seq": 27, "event": "evaluation", "scope": "phase", "stage": "inspect", "phase": "build", "visit": 3, "metrics": {}, "classification": {"options": ["goal", "defects_found", "unknown"], "choice": "goal", "confidence": 0.8}, "outcome": "goal"}
 {"seq": 28, "event": "transition", "kind": "gate_pass", "from": "inspect", "to": null, "edge": null, "count": null, "crosses_phase": false}
 {"seq": 29, "event": "transition", "kind": "complete", "from": "inspect", "to": null, "edge": null, "count": null, "crosses_phase": false}

@@ -1,0 +1,104 @@
+workflow:
+  name: conformance-basic
+  description: >-
+    契約適合テストの合成ワークフロー。二つのフェーズに三つのステージ。ユーザー待ち、同じフェーズの中の戻り、
+    フェーズ境界を越える戻り、自分自身への戻り、各フェーズのゲート（集約述語）を含む。
+  inputs: [in.txt]
+  phases:
+    - id: p1
+      name: P1
+      description: 前半
+      goal:
+        qualitative: 前半の成果物がそろっている
+        quantitative:
+          flag:
+            description: gate1.flag が true
+            equals: true
+            args: {path: gate1.flag}
+      stages:
+        - id: s1
+          name: S1
+          description: in.txt を読み s1.txt を書く。ユーザーに尋ねることがある
+          awaits_user: true
+          artifacts:
+            reads: [in.txt]
+            writes: [s1.txt, s1.flag]
+            memory_in: [m21]
+          goal:
+            qualitative: s1.txt がある
+            quantitative:
+              flag:
+                description: s1.flag が true
+                equals: true
+                args: {path: s1.flag}
+          end_state:
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback: []
+        - id: s2
+          name: S2
+          description: s1.txt を読み s2.txt を書く
+          artifacts:
+            reads: [s1.txt]
+            writes: [s2.txt, s2.flag, gate1.flag]
+            memory_in: [m32]
+            memory_out: [m21]
+          goal:
+            qualitative: s2.txt がある
+            quantitative:
+              flag:
+                description: s2.flag が true
+                equals: true
+                args: {path: s2.flag}
+          end_state:
+            - id: e2_back
+              description: s1.txt に直すべき点がある。直すべき点が記憶 m21 にある。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: e2_back
+              stage: s1
+              carry: [m21]
+              max: 2
+    - id: p2
+      name: P2
+      description: 後半
+      goal:
+        qualitative: 後半の成果物がそろっている
+        quantitative:
+          number:
+            description: gate2.num の値
+            max: 0
+            args: {path: gate2.num}
+      stages:
+        - id: s3
+          name: S3
+          description: s2.txt を読み s3.txt と out/ を書く
+          artifacts:
+            reads: [s2.txt]
+            writes: [s3.txt, s3.flag, gate2.num, out/]
+            memory_in: [m33]
+            memory_out: [m32, m33]
+          goal:
+            qualitative: s3.txt がある
+            quantitative:
+              flag:
+                description: s3.flag が true
+                equals: true
+                args: {path: s3.flag}
+          end_state:
+            - id: e3_back
+              description: s2.txt に直すべき点がある。直すべき点が記憶 m32 にある。この状態は e3_retry に優先する。
+            - id: e3_retry
+              description: s3.txt に直すべき点がある。直すべき点が記憶 m33 にある。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: e3_back
+              stage: s2
+              carry: [m32]
+              max: 1
+            - state: e3_retry
+              stage: s3
+              carry: [m33]
+              max: 1

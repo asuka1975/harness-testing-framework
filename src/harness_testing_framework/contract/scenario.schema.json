@@ -1,0 +1,113 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/asuka1975/harness-testing-framework/main/contract/conformance/scenario.schema.json",
+    "title": "Conformance scenario",
+    "description": "契約適合テストと決定論テストのシナリオ（README.md）",
+    "type": "object",
+    "properties": {
+        "scenario": { "description": "シナリオの名前", "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+        "description": { "type": "string", "minLength": 1 },
+        "workflow": { "description": "ワークフロー定義のパス。シナリオのファイルからの相対パス", "type": "string" },
+        "metrics": { "description": "conformance なら契約適合テストの指標レジストリを使う。省略時はハーネスが束縛する", "enum": ["conformance"] },
+        "seed": { "type": "integer", "default": 0 },
+        "threshold": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.5 },
+        "inputs": {
+            "description": "ワークフローの inputs に置くファイルの内容",
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+        },
+        "visits": {
+            "type": "object",
+            "propertyNames": { "pattern": "^[a-z][a-z0-9_-]*#[1-9][0-9]*$" },
+            "additionalProperties": { "$ref": "#/$defs/visit" }
+        },
+        "gates": {
+            "type": "object",
+            "propertyNames": { "pattern": "^[a-z][a-z0-9_-]*#[1-9][0-9]*$" },
+            "additionalProperties": { "$ref": "#/$defs/classify" }
+        },
+        "operator": { "type": "array", "items": { "$ref": "#/$defs/decision" } },
+        "user": { "type": "array", "items": { "$ref": "#/$defs/answer" } },
+        "expect": {
+            "type": "object",
+            "properties": {
+                "status": { "enum": ["completed", "aborted", "suspended", "awaiting_operator"] },
+                "trace": { "type": "array", "items": { "type": "string" } },
+                "memory": { "type": "object" },
+                "annotations": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["status", "trace"],
+            "additionalProperties": false
+        }
+    },
+    "required": ["scenario", "description", "workflow", "visits", "expect"],
+    "additionalProperties": false,
+    "$defs": {
+        "classify": {
+            "type": "object",
+            "properties": {
+                "choice": { "type": ["string", "null"] },
+                "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+            },
+            "required": ["choice", "confidence"],
+            "additionalProperties": false
+        },
+        "visit": {
+            "type": "object",
+            "properties": {
+                "ask": { "type": "array", "items": { "type": "string" } },
+                "fixture": { "type": "string" },
+                "files": { "type": "object", "additionalProperties": { "type": ["string", "null"] } },
+                "memory": { "type": "object" },
+                "raise": { "const": "stage_error" },
+                "classify": { "$ref": "#/$defs/classify" }
+            },
+            "additionalProperties": false
+        },
+        "decision": {
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": { "kind": { "enum": ["rerun", "abort", "defer"] } },
+                    "required": ["kind"],
+                    "additionalProperties": false
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "kind": { "const": "rollback" },
+                        "stage": { "type": "string" },
+                        "carry": { "type": "array", "items": { "type": "string" } }
+                    },
+                    "required": ["kind", "stage"],
+                    "additionalProperties": false
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "kind": { "const": "continue_as_goal" },
+                        "note": { "type": "string" }
+                    },
+                    "required": ["kind", "note"],
+                    "additionalProperties": false
+                }
+            ]
+        },
+        "answer": {
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": { "answer": { "type": "string" } },
+                    "required": ["answer"],
+                    "additionalProperties": false
+                },
+                {
+                    "type": "object",
+                    "properties": { "defer": { "const": true } },
+                    "required": ["defer"],
+                    "additionalProperties": false
+                }
+            ]
+        }
+    }
+}

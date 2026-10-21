@@ -1,0 +1,47 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/asuka1975/harness-testing-framework/main/contract/snapshot.schema.json",
+    "title": "Snapshot manifest",
+    "description": "スナップショットのマニフェスト（契約 第5節）。ファイルの内容は SHA-256 の名前で内容アドレスの置き場に置く",
+    "type": "object",
+    "properties": {
+        "format_version": { "description": "マニフェストの形式の版", "const": "0.1" },
+        "files": {
+            "description": "範囲内の各ファイルの、作業領域からの相対パスと内容の SHA-256（16 進小文字）",
+            "type": "object",
+            "propertyNames": {
+                "type": "string",
+                "pattern": "^(?![/\\\\])(?!(?:.*/)?\\.\\.(?:/|$))[^\\\\]*[^/\\\\]$"
+            },
+            "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        },
+        "memory": {
+            "description": "記憶の名前と値",
+            "type": "object",
+            "propertyNames": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+        },
+        "gates": {
+            "description": "ゲートを通過済みのフェーズの id。ワークフロー定義のフェーズの順に並べる",
+            "type": "array",
+            "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+            "uniqueItems": true
+        },
+        "annotations": {
+            "description": "注記。goal 到達扱いで続行した記録など。古い順",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "kind": { "enum": ["forced_goal"] },
+                    "stage": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+                    "note": { "type": "string" },
+                    "by": { "type": "string" }
+                },
+                "required": ["kind", "stage", "note"],
+                "additionalProperties": false
+            }
+        }
+    },
+    "required": ["format_version", "files", "memory", "gates", "annotations"],
+    "additionalProperties": false
+}
