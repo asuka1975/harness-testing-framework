@@ -33,8 +33,9 @@ extend-exclude = ["reports"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
-# 日本語の文と注釈の全角記号を曖昧な文字として扱わない
-ignore = ["RUF001", "RUF002", "RUF003"]
+# 日本語の文と注釈の全角記号を曖昧な文字として扱わない。
+# 行の長さはコードについては formatter が揃える。日本語の文（全角は 2 桁と数える）の docstring と注釈は E501 で縛らない
+ignore = ["RUF001", "RUF002", "RUF003", "E501"]
 
 [tool.mypy]
 python_version = "3.12"

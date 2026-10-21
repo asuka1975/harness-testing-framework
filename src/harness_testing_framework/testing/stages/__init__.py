@@ -9,6 +9,15 @@ from harness_testing_framework.testing.stages.expectations import (
     load_expectations,
     wilson_interval,
 )
+from harness_testing_framework.testing.stages.independence import (
+    IndependenceResult,
+    Transition,
+    chi_square,
+    independence,
+    transition_counts,
+    transition_matrix,
+    transitions,
+)
 from harness_testing_framework.testing.stages.runs import (
     RunRecord,
     RunSet,
@@ -22,12 +31,19 @@ __all__ = [
     "ExpectationReport",
     "Expectations",
     "ExpectationsInvalid",
+    "IndependenceResult",
     "RunRecord",
     "RunSet",
+    "Transition",
+    "chi_square",
     "evaluate_expectations",
+    "independence",
     "load_expectations",
     "record_run",
     "run_many",
     "runs_from_environment",
+    "transition_counts",
+    "transition_matrix",
+    "transitions",
     "wilson_interval",
 ]

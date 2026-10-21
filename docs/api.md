@@ -142,3 +142,10 @@
 | `ExpectationReport` | 判定の結果（`passed`、`lines()`） |
 | `CriterionResult` | 一つの基準の判定（観測値、件数、Wilson の 95% 区間、成否） |
 | `wilson_interval` | 二項の割合の Wilson の区間 |
+| `transitions` | 実行の集まりの、評価から次の評価（または実行の終わり）への遷移の一覧 |
+| `Transition` | 一つの遷移（状態、代表、次の状態） |
+| `transition_counts` | 状態ごとの次の状態の件数 |
+| `transition_matrix` | 状態ごとの次の状態の経験分布（遷移行列） |
+| `independence` | 同じクラスの代表どうしで、次の状態の分布が揃うかの検定（カイ二乗統計量の並べ替え検定） |
+| `IndependenceResult` | 検定の結果（代表ごとの件数、統計量、p 値、independent / violated / undetermined） |
+| `chi_square` | 分割表のカイ二乗統計量 |
