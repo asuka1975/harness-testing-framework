@@ -523,6 +523,8 @@ class Runtime:
         outcome, result = classify(
             self.classifier, document, choices, self.threshold, self.recorder, key
         )
+        # 分類器が見た状態文書を残す（オラクルのコーパスとトリアージが読む。契約 2.4・第6節）
+        state_id = self.store.put(document.encode("utf-8"))
         self._emit(
             state,
             {
@@ -536,6 +538,7 @@ class Runtime:
                     "options": [o.id for o in choices],
                     "choice": result.choice,
                     "confidence": result.confidence,
+                    "state": state_id,
                 },
                 "outcome": outcome,
             },

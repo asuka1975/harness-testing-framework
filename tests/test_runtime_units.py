@@ -412,7 +412,9 @@ def test_invalid_classifier_output_is_no_answer(classifier: object, tmp_path: Pa
     result = runtime.start(0, {"in.txt": b"x"})
     evaluation = next(e for e in result.events if e["event"] == "evaluation")
     assert evaluation["outcome"] == "unknown"
-    assert evaluation["classification"] == {
+    classification = evaluation["classification"]
+    assert isinstance(classification, dict)
+    assert {k: v for k, v in classification.items() if k != "state"} == {
         "options": ["goal", "unknown"],
         "choice": None,
         "confidence": 0.0,
@@ -595,3 +597,16 @@ def test_wrapped_suspension_still_suspends(tmp_path: Path) -> None:
 
     result = _runtime(tmp_path, {"s1": body}, user_io=Deferring()).start(0, {"in.txt": b"x"})
     assert result.status == "suspended"
+
+
+def test_state_documents_are_kept_in_the_store(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path, {})
+    result = runtime.start(0, {"in.txt": b"x"})
+    evaluations = [e for e in result.events if e["event"] == "evaluation"]
+    assert evaluations
+    for e in evaluations:
+        classification = e["classification"]
+        assert isinstance(classification, dict)
+        document = runtime.store.get(str(classification["state"])).decode("utf-8")
+        target = e["stage"] if e["scope"] == "stage" else e["phase"]
+        assert document.startswith(f"# 評価: {e['scope']} {target} visit {e['visit']}")
