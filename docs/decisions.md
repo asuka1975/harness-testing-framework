@@ -603,3 +603,27 @@ F2 の完了条件を実行可能にする（シナリオと期待する実行�
 ### 推奨
 
 上記のとおり。
+
+## D-5 利用者が読む文書の範囲（F2 T14、2026-10-22）
+
+- 状態: 承認（2026-10-22、包括指示による推奨の採用）
+- 強制点: F2（adopting.md の初版）、F4（利用者セッションの読取制限）
+- 関係: plan.md 第7節の F4 のプロンプト、#9
+- 決定: 「フレームワークの公開 API の文書」は docs/api.md と、そこに列挙した言語に依存しない仕様（schema/workflow.schema.json、contract/contract.md、contract/*.schema.json、contract/conformance/README.md と scenario.schema.json）とする
+
+### 文脈
+
+F4 のセッションは adopting.md、雛形、toy-minimal、公開 API の文書だけを読む。何が公開 API の文書に当たるかが決まっていないと、利用者が契約やシナリオの形式を読んでよいかが曖昧になる。
+
+### 選択肢と帰結
+
+- (a) docs/api.md だけを公開 API の文書とする
+  - 範囲が狭く明確
+  - 契約とシナリオの形式を api.md に写すことになり、二重管理になる
+- (b) docs/api.md と、そこに列挙した仕様の文書を公開 API の文書とする
+  - 利用者は契約そのものを読める。二重管理が無い
+  - 本体の実装（src/）、plan / progress / decisions は含めない。tests/test_docs.py が、adopting.md と api.md がそれらを参照しないことを検査する
+
+### 推奨
+
+(b)。
