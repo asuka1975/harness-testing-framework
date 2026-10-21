@@ -278,7 +278,7 @@ adopting.md と雛形だけでは判断できなかったこと、足りなか�
 
 ## 付録 A 基底スキーマ
 
-F1 の初期化タスクで schema/workflow.schema.json にそのまま置く。F1 で拡張する属性は、rollback の carry と max、stage の artifacts（reads / writes / memory\_in / memory\_out）、quantitative の各指標の形（description と equals / min / max）、必要なら additionalProperties を false にすること。既存の意味（goal は正常系、end\_state は準正常系、unknown は例外系、rollback は前方のみ）は変えない。
+F1 の初期化タスクで schema/workflow.schema.json にそのまま置く。F1 で拡張する属性は、rollback の carry と max、stage の artifacts（reads / writes / memory\_in / memory\_out）、quantitative の各指標の形（description と equals / min / max）、必要なら additionalProperties を false にすること。既存の意味（goal は正常系、end\_state は準正常系、unknown は例外系、rollback は前方のみ）は変えない。注記（2026-10-22、決定 A2）: rollback の戻り先にそのステージ自身も含める。
 
 ```json
 {
@@ -420,4 +420,4 @@ toy-minimal と software factory の workflow.yaml はこの形で書く。goal 
       max: 1
 ```
 
-整合性検査器が見るのは、unknown を除く end\_state と rollback.state が一対一に対応すること、戻り先がそのステージより前にあること、全ての rollback に max があり有界であること、carry の各項目が元の memory\_out と戻り先の memory\_in にあること、quantitative の指標名が指標レジストリにあること。end\_state の記述の良し悪し（成果物から観測できるか、互いに排他か）は人間のレビューで見る。
+整合性検査器が見るのは、unknown を除く end\_state と rollback.state が一対一に対応すること、戻り先がそのステージ自身かそれより前にあること（2026-10-22、決定 A2）、全ての rollback に max があり有界であること、carry の各項目が元の memory\_out と戻り先の memory\_in にあること、quantitative の指標名が指標レジストリにあること。end\_state の記述の良し悪し（成果物から観測できるか、互いに排他か）は人間のレビューで見る。

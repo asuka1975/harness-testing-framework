@@ -131,7 +131,7 @@
             "type": "object",
             "properties": {
                 "state": { "description": "end_stateで定義された状態ID", "$ref": "#/$defs/class_id" },
-                "stage": { "description": "workflow以下で定義されたこのステージより以前の全てのステージの中から一つのID", "$ref": "#/$defs/id" },
+                "stage": { "description": "戻り先のステージID。このステージ自身か、workflow の中でこのステージより前のステージ", "$ref": "#/$defs/id" },
                 "carry": { "description": "戻り先へ持ち帰る記憶の項目。各項目は元ステージの memory_out と戻り先の memory_in の両方にある", "$ref": "#/$defs/names" },
                 "max": { "description": "この辺を通る回数の上限。超えたら escalate する", "type": "integer", "minimum": 1 }
             },

@@ -43,9 +43,9 @@ def test_packaged_schema_matches_canonical() -> None:
     assert load_workflow_schema() == canonical
 
 
-def test_license_is_gpl3_only() -> None:
+def test_license_is_gpl3_or_later() -> None:
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert pyproject["project"]["license"] == "GPL-3.0-only"
+    assert pyproject["project"]["license"] == "GPL-3.0-or-later"
     text = (ROOT / "LICENSE").read_text(encoding="utf-8")
     assert "GNU GENERAL PUBLIC LICENSE" in text.splitlines()[0]
     assert "Version 3, 29 June 2007" in text

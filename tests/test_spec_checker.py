@@ -94,7 +94,7 @@ def test_memory_unused_is_a_warning_and_others_are_errors() -> None:
 def test_cli_exit_codes(capsys: pytest.CaptureFixture[str]) -> None:
     registry = str(EXAMPLES / "registry.yaml")
     assert main([str(VALID[0]), "--metrics-file", registry]) == 0
-    bad = EXAMPLES / "invalid-spec/rollback_forward/rollback_to_self.yaml"
+    bad = EXAMPLES / "invalid-spec/rollback_forward/rollback_to_later_stage.yaml"
     assert main([str(bad), "--metrics-file", registry]) == 1
     assert "rollback_forward" in capsys.readouterr().out
 

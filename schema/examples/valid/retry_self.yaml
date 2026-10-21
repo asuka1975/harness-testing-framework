@@ -1,8 +1,7 @@
-# check: rollback_forward
-# 説明: 自分自身へ戻る（決定 追加の論点 A で禁止）
+# 説明: produce が自分自身へ戻る。carry の format_errors は produce の memory_out と memory_in の両方にある
 workflow:
-  name: minimal
-  description: 一つのフェーズに二つのステージを持つ最小の正例。後のステージが前のステージへ carry を持って戻る
+  name: retry-self
+  description: 自分自身へのロールバック（carry を持ってそのステージをやり直す）の正例
   inputs:
   - request.md
   phases:
@@ -21,8 +20,11 @@ workflow:
         - request.md
         writes:
         - output.txt
-        memory_in: []
-        memory_out: []
+        memory_in:
+        - defects
+        - format_errors
+        memory_out:
+        - format_errors
       goal:
         qualitative: output.txt が request.md の全項目を含む
         quantitative:
@@ -30,9 +32,16 @@ workflow:
             description: output.txt が存在する
             equals: true
       end_state:
+      - id: format_broken
+        description: output.txt の形式が壊れていて読めない。壊れた箇所が記憶 format_errors に列挙されている。
       - id: unknown
         description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
-      rollback: []
+      rollback:
+      - state: format_broken
+        stage: produce
+        carry:
+        - format_errors
+        max: 2
     - id: inspect
       name: Inspect
       description: output.txt を request.md と突き合わせ、結果を inspection.json に書く
@@ -43,7 +52,8 @@ workflow:
         writes:
         - inspection.json
         memory_in: []
-        memory_out: []
+        memory_out:
+        - defects
       goal:
         qualitative: output.txt に要求との食い違いが無いことが inspection.json に記録されている
         quantitative:
@@ -57,6 +67,7 @@ workflow:
         description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
       rollback:
       - state: defects_found
-        stage: inspect
-        carry: []
+        stage: produce
+        carry:
+        - defects
         max: 2

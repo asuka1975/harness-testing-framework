@@ -50,7 +50,7 @@ def test_contract_document_lists_six_transition_kinds() -> None:
 
 
 def test_contract_version_matches_document() -> None:
-    assert DOC.splitlines()[0] == f"# ハーネス契約 v{contract.CONTRACT_VERSION}（下書き）"
+    assert DOC.splitlines()[0] == f"# ハーネス契約 v{contract.CONTRACT_VERSION}"
 
 
 @pytest.mark.parametrize("name", ["snapshot", "trace"])

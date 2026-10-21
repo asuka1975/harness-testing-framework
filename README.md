@@ -18,4 +18,4 @@ scripts/check.sh   # 依存の同期、lint、format、型検査、テスト、�
 
 ## ライセンス
 
-GPL-3.0-only。[LICENSE](LICENSE) を参照。
+GPL-3.0-or-later（GNU GPL 第 3 版、またはそれ以降の版）。[LICENSE](LICENSE) を参照。

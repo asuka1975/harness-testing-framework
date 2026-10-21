@@ -39,7 +39,7 @@ CODES: dict[str, tuple[Severity, str]] = {
         Severity.ERROR,
         "unknown を除く end_state と rollback が一対一に対応しない",
     ),
-    "rollback_forward": (Severity.ERROR, "戻り先がそのステージより前に無い"),
+    "rollback_forward": (Severity.ERROR, "戻り先がそのステージ自身でもそれより前でもない"),
     "carry_undeclared": (
         Severity.ERROR,
         "carry の項目が元の memory_out か戻り先の memory_in に無い",
@@ -211,7 +211,7 @@ def _check_semantics(doc: dict[str, Any], metrics: Collection[str]) -> Iterator[
                 yield _v(where, "unresolved_reference", f"ステージ {rb['stage']!r} が無い")
                 carried_to_unresolved.update(rb.get("carry", []))
                 continue
-            if target.position >= s.position:
+            if target.position > s.position:
                 yield _v(where, "rollback_forward", f"{s.id} → {target.id}")
             for item in rb.get("carry", []):
                 if item not in target.artifacts("memory_in"):
