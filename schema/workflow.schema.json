@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://example.com/workflow.schema.json",
+    "$id": "https://raw.githubusercontent.com/asuka1975/harness-testing-framework/main/schema/workflow.schema.json",
     "title": "Agentic Workflow",
     "description": "ワークフロー型のエージェント向けハーネスのワークフロー定義",
     "type": "object",
@@ -11,81 +11,177 @@
             "properties": {
                 "name": { "description": "ワークフロー名", "type": "string" },
                 "description": { "description": "ワークフローの説明", "type": "string" },
+                "inputs": {
+                    "description": "ワークフローの外から与えられる成果物。どのステージも書かずに読むものは、ここに宣言する",
+                    "$ref": "#/$defs/paths"
+                },
                 "phases": {
                     "description": "ワークフローに含まれるフェーズのリスト",
                     "type": "array",
-                    "items": {
-                        "type": "object",
-                        "description": "フェーズ定義",
-                        "properties": {
-                            "id": { "type": "string", "description": "フェーズID" },
-                            "name": { "type": "string", "description": "フェーズ名" },
-                            "description": { "type": "string", "description": "フェーズの説明" },
-                            "goal": {
-                                "description": "フェーズのゴール定義",
-                                "type": "object",
-                                "properties": {
-                                    "qualitative": { "description": "フェーズの定性的ゴール", "type": "string" },
-                                    "quantitative": { "description": "フェーズの定量的ゴール。各指標をオブジェクトで定義し、満たすべき数値基準を記述する", "type": "object" }
-                                },
-                                "required": ["qualitative", "quantitative"]
-                            },
-                            "stages": {
-                                "description": "フェーズ内のより細かいステージのリスト",
-                                "type": "array",
-                                "items": {
-                                    "description": "ステージの定義",
-                                    "type": "object",
-                                    "properties": {
-                                        "id": { "type": "string", "description": "ステージID" },
-                                        "name": { "type": "string", "description": "ステージ名" },
-                                        "description": { "type": "string", "description": "ステージの説明" },
-                                        "goal": {
-                                            "description": "ステージのゴール定義",
-                                            "type": "object",
-                                            "properties": {
-                                                "qualitative": { "description": "ステージの定性的ゴール", "type": "string" },
-                                                "quantitative": { "description": "ステージの定量的ゴール。各指標をオブジェクトで定義し、満たすべき数値基準を記述する (ユーザーの承認がtrueかどうかや、ファイルの有無、テストの結果やカバレッジ等)", "type": "object" }
-                                            },
-                                            "required": ["qualitative", "quantitative"]
-                                        },
-                                        "end_state": {
-                                            "description": "ステージ終了時の状態の大まかな分類",
-                                            "type": "array",
-                                            "items": {
-                                                "description": "終了時の状態の分類の個別定義",
-                                                "type": "object",
-                                                "properties": {
-                                                    "id": { "description": "終了時の状態の分類ID", "type": "string" },
-                                                    "description": { "description": "終了時の状態の定性的説明", "type": "string" }
-                                                },
-                                                "required": ["id", "description"]
-                                            }
-                                        },
-                                        "rollback": {
-                                            "description": "前のステージにロールバックすべき状態とどこにロールバックするか",
-                                            "type": "array",
-                                            "items": {
-                                                "description": "各ロールバックすべき状態とどこにロールバックするかの組み合わせ",
-                                                "type": "object",
-                                                "properties": {
-                                                    "state": { "description": "end_stateで定義された状態ID", "type": "string" },
-                                                    "stage": { "description": "workflow以下で定義されたこのステージより以前の全てのステージの中から一つのID", "type": "string" }
-                                                },
-                                                "required": ["state", "stage"]
-                                            }
-                                        }
-                                    },
-                                    "required": ["id", "name", "description", "goal", "end_state", "rollback"]
-                                }
-                            }
-                        },
-                        "required": ["id", "name", "description", "goal", "stages"]
-                    }
+                    "minItems": 1,
+                    "items": { "$ref": "#/$defs/phase" }
                 }
             },
-            "required": ["name", "description", "phases"]
+            "required": ["name", "description", "phases"],
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
         }
     },
-    "required": ["workflow"]
+    "required": ["workflow"],
+    "patternProperties": { "^x-": {} },
+    "additionalProperties": false,
+    "$defs": {
+        "id": {
+            "description": "識別子。小文字で始まり、小文字・数字・下線・ハイフンから成る",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "name": {
+            "description": "指標名や記憶の項目名。小文字で始まり、小文字・数字・下線から成る",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "path": {
+            "description": "作業領域からの相対パス。/ で終わるものはディレクトリ全体を表す。絶対パスと .. は書けない",
+            "type": "string",
+            "pattern": "^(?![/\\\\])(?!(?:.*/)?\\.\\.(?:/|$))[^\\\\]+$"
+        },
+        "paths": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/path" },
+            "uniqueItems": true
+        },
+        "names": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/name" },
+            "uniqueItems": true
+        },
+        "metric": {
+            "description": "指標の基準。指標の実装はハーネス側の指標レジストリにあり、quantitative のキー（指標名）で参照する。equals か、min と max の少なくとも一方を書く。equals と min / max は同時に書けない",
+            "type": "object",
+            "properties": {
+                "description": { "description": "指標が何を測るか", "type": "string", "minLength": 1 },
+                "equals": { "description": "測った値がこの値に等しい", "type": ["boolean", "number"] },
+                "min": { "description": "測った値がこの値以上", "type": "number" },
+                "max": { "description": "測った値がこの値以下", "type": "number" },
+                "args": { "description": "指標の実装に渡す引数", "type": "object" }
+            },
+            "required": ["description"],
+            "anyOf": [
+                { "required": ["equals"] },
+                { "required": ["min"] },
+                { "required": ["max"] }
+            ],
+            "not": {
+                "anyOf": [
+                    { "required": ["equals", "min"] },
+                    { "required": ["equals", "max"] }
+                ]
+            },
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+        },
+        "goal": {
+            "type": "object",
+            "properties": {
+                "qualitative": { "description": "定性的ゴール", "type": "string", "minLength": 1 },
+                "quantitative": {
+                    "description": "定量的ゴール。キーは指標名、値はその指標が満たすべき基準",
+                    "type": "object",
+                    "propertyNames": { "$ref": "#/$defs/name" },
+                    "additionalProperties": { "$ref": "#/$defs/metric" }
+                }
+            },
+            "required": ["qualitative", "quantitative"],
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+        },
+        "artifacts": {
+            "description": "ステージの成果物の宣言。チェックポイントの範囲、carry の検査、分類器に渡す状態の投影は、この宣言から導出する",
+            "type": "object",
+            "properties": {
+                "reads": { "description": "ステージが読む成果物。ワークフローの inputs か、前のステージの writes にあるもの", "$ref": "#/$defs/paths" },
+                "writes": { "description": "ステージが書く成果物", "$ref": "#/$defs/paths" },
+                "memory_in": { "description": "ステージが受け取る記憶の項目（carry で運ばれてくるもの、または前のステージの memory_out）", "$ref": "#/$defs/names" },
+                "memory_out": { "description": "ステージが生成する記憶の項目（carry や後のステージの memory_in で使うもの）", "$ref": "#/$defs/names" }
+            },
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+        },
+        "end_state": {
+            "description": "終了時の状態の分類の個別定義",
+            "type": "object",
+            "properties": {
+                "id": { "description": "終了時の状態の分類ID", "$ref": "#/$defs/id" },
+                "description": { "description": "終了時の状態の定性的説明", "type": "string", "minLength": 1 }
+            },
+            "required": ["id", "description"],
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+        },
+        "rollback": {
+            "description": "ロールバックすべき状態と戻り先の組み合わせ",
+            "type": "object",
+            "properties": {
+                "state": { "description": "end_stateで定義された状態ID", "$ref": "#/$defs/id" },
+                "stage": { "description": "workflow以下で定義されたこのステージより以前の全てのステージの中から一つのID", "$ref": "#/$defs/id" },
+                "carry": { "description": "戻り先へ持ち帰る記憶の項目。各項目は元ステージの memory_out と戻り先の memory_in の両方にある", "$ref": "#/$defs/names" },
+                "max": { "description": "この辺を通る回数の上限。超えたら escalate する", "type": "integer", "minimum": 1 }
+            },
+            "required": ["state", "stage", "max"],
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+        },
+        "stage": {
+            "description": "ステージの定義",
+            "type": "object",
+            "properties": {
+                "id": { "description": "ステージID", "$ref": "#/$defs/id" },
+                "name": { "type": "string", "description": "ステージ名" },
+                "description": { "type": "string", "description": "ステージの説明" },
+                "awaits_user": {
+                    "description": "ステージ本体がユーザー入出力で回答を待つことがある。宣言の無いステージはユーザー入出力を使えない",
+                    "type": "boolean"
+                },
+                "artifacts": { "$ref": "#/$defs/artifacts" },
+                "goal": { "description": "ステージのゴール定義", "$ref": "#/$defs/goal" },
+                "end_state": {
+                    "description": "ステージ終了時の状態の大まかな分類",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "$ref": "#/$defs/end_state" }
+                },
+                "rollback": {
+                    "description": "前のステージにロールバックすべき状態とどこにロールバックするか",
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/rollback" }
+                }
+            },
+            "required": ["id", "name", "description", "artifacts", "goal", "end_state", "rollback"],
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+        },
+        "phase": {
+            "description": "フェーズ定義",
+            "type": "object",
+            "properties": {
+                "id": { "description": "フェーズID", "$ref": "#/$defs/id" },
+                "name": { "type": "string", "description": "フェーズ名" },
+                "description": { "type": "string", "description": "フェーズの説明" },
+                "goal": {
+                    "description": "フェーズのゴール定義。最終ステージが goal に達した直後にフェーズゲートとして評価する。quantitative はフェーズの成果物の集約述語",
+                    "$ref": "#/$defs/goal"
+                },
+                "stages": {
+                    "description": "フェーズ内のより細かいステージのリスト",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "$ref": "#/$defs/stage" }
+                }
+            },
+            "required": ["id", "name", "description", "goal", "stages"],
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+        }
+    }
 }

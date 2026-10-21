@@ -1,0 +1,8 @@
+# 正例・負例が参照する指標の名前。検査器のテストでレジストリの代わりに使う
+metrics:
+  - output_exists
+  - defect_count
+  - spec_items_traced
+  - answers_exists
+  - file_exists
+  - pass_ratio

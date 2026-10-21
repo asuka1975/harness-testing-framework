@@ -1,0 +1,16 @@
+# schema: minItems at phases.0.stages
+# check: schema
+# 説明: フェーズにステージが無い
+workflow:
+  name: minimal
+  description: 一つのフェーズに二つのステージを持つ最小の正例。後のステージが前のステージへ carry を持って戻る
+  inputs:
+  - request.md
+  phases:
+  - id: build
+    name: Build
+    description: 要求から成果物を作り、確かめる
+    goal:
+      qualitative: 要求を満たす成果物が確かめられている
+      quantitative: {}
+    stages: []

@@ -1,0 +1,119 @@
+workflow:
+  name: full
+  description: >-
+    拡張した属性をすべて使う正例。二つのフェーズ、ユーザー回答待ちのステージ、ディレクトリの成果物、
+    指標の引数、フェーズの集約述語、フェーズ境界を越えるロールバック、x- で始まる拡張属性を含む
+  inputs: [brief.md]
+  x-owner: example
+  phases:
+    - id: specify
+      name: Specify
+      description: 依頼から仕様を固める
+      goal:
+        qualitative: spec.md が依頼の全項目を、検証できる形で述べている
+        quantitative:
+          spec_items_traced:
+            description: brief.md の項目のうち spec.md に対応がある割合
+            min: 1.0
+      stages:
+        - id: elicit
+          name: Elicit
+          description: brief.md を読み、不明点を依頼者に尋ねて answers.md にまとめる
+          awaits_user: true
+          artifacts:
+            reads: [brief.md]
+            writes: [answers.md]
+            memory_in: [open_questions]
+          goal:
+            qualitative: brief.md の不明点がすべて answers.md で解消している
+            quantitative:
+              answers_exists:
+                description: answers.md が存在する
+                equals: true
+          end_state:
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback: []
+        - id: specify_stage
+          name: Write spec
+          description: brief.md と answers.md から spec.md を書く
+          artifacts:
+            reads: [brief.md, answers.md]
+            writes: [spec.md]
+            memory_in: [spec_violations]
+            memory_out: [open_questions]
+          goal:
+            qualitative: spec.md が依頼の全項目を、検証できる形で述べている
+            quantitative:
+              file_exists:
+                description: spec.md が存在する
+                equals: true
+                args: {path: spec.md}
+          end_state:
+            - id: questions_remain
+              description: spec.md を書くのに必要な答えが answers.md に無い。答えるべき問いが列挙できる。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: questions_remain
+              stage: elicit
+              carry: [open_questions]
+              max: 2
+    - id: construct
+      name: Construct
+      description: 仕様から成果物を作り、確かめる
+      goal:
+        qualitative: out/ の成果物が spec.md を満たす
+        quantitative: {}
+      stages:
+        - id: construct_stage
+          name: Construct
+          description: spec.md から out/ の下に成果物を書く
+          artifacts:
+            reads: [spec.md]
+            writes: [out/]
+            memory_in: [failed_checks]
+          goal:
+            qualitative: out/ の成果物が spec.md の全項目を実装している
+            quantitative:
+              file_exists:
+                description: out/ に一つ以上のファイルがある
+                equals: true
+                args: {path: out/}
+          end_state:
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback: []
+        - id: check
+          name: Check
+          description: out/ の成果物を spec.md に照らして確かめ、結果を report.json に書く
+          artifacts:
+            reads: [spec.md, out/]
+            writes: [report.json]
+            memory_out: [failed_checks, spec_violations]
+          goal:
+            qualitative: report.json で spec.md の全項目が満たされたと記録されている
+            quantitative:
+              pass_ratio:
+                description: spec.md の項目のうち確かめて通った割合
+                min: 0.9
+                max: 1.0
+          end_state:
+            - id: checks_failed
+              description: >-
+                一つ以上の項目が確かめた結果として満たされていない。失敗した項目が report.json にある。
+                この状態は spec_wrong に優先する。
+            - id: spec_wrong
+              description: >-
+                成果物ではなく spec.md の側が依頼と食い違っている。食い違う箇所を report.json で指せる。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: checks_failed
+              stage: construct_stage
+              carry: [failed_checks]
+              max: 3
+            - state: spec_wrong
+              stage: specify_stage
+              carry: [spec_violations]
+              max: 1
