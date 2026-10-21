@@ -40,3 +40,24 @@ def test_syntax_error_is_reported(tmp_path: Path) -> None:
 def test_duplicate_key_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(WorkflowDocumentError, match="rollback"):
         _load(tmp_path, "stage:\n  rollback: []\n  rollback: [x]\n")
+
+
+def test_unhashable_key_is_a_document_error(tmp_path: Path) -> None:
+    with pytest.raises(WorkflowDocumentError):
+        _load(tmp_path, "? [a, b]\n: x\n")
+
+
+def test_yaml12_core_numbers_and_no_timestamps(tmp_path: Path) -> None:
+    doc = _load(
+        tmp_path, "a: 1:30\nb: 017\nc: 0o17\nd: 0x1f\ne: 2026-10-22\nf: 1.5\ng: .inf\nh: 1_000\n"
+    )
+    assert doc == {
+        "a": "1:30",
+        "b": 17,
+        "c": 15,
+        "d": 31,
+        "e": "2026-10-22",
+        "f": 1.5,
+        "g": float("inf"),
+        "h": "1_000",
+    }

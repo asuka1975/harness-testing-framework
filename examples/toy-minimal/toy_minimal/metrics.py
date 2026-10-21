@@ -16,8 +16,11 @@ def _text(view: SnapshotView, path: JSONValue) -> str:
 
 
 def _outline_sections(text: str) -> list[str]:
-    """outline.md の節: '- 名前: 要約' の行の名前。"""
-    return [m.group(1).strip() for m in re.finditer(r"^- ([^:：\n]+)[:：]", text, re.M)]
+    """outline.md の節: 「## 節」の見出しから次の見出しまでの、'- 名前: 要約' の行の名前。"""
+    m = re.search(r"^## 節[ \t]*$(.*?)(?=^#|\Z)", text, re.M | re.S)
+    if not m:
+        return []
+    return [s.group(1).strip() for s in re.finditer(r"^- ([^:：\n]+)[:：]", m.group(1), re.M)]
 
 
 def _note_headings(text: str) -> list[str]:

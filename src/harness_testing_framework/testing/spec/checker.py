@@ -4,6 +4,7 @@
 （成果物から観測できるか、互いに排他か）と優先順は検査しない。人間のレビューで見る。
 """
 
+import math
 from collections.abc import Collection, Iterator
 from dataclasses import dataclass
 from enum import Enum
@@ -52,7 +53,7 @@ CODES: dict[str, tuple[Severity, str]] = {
         "memory_out の項目を carry も後のステージも消費しない",
     ),
     "metric_unregistered": (Severity.ERROR, "指標が指標レジストリに無い"),
-    "metric_range": (Severity.ERROR, "指標の min が max より大きい"),
+    "metric_range": (Severity.ERROR, "指標の基準が有限の数でないか、min が max より大きい"),
     "unknown_missing": (Severity.ERROR, "end_state に unknown が無い"),
 }
 
@@ -81,8 +82,9 @@ def _schema_violation(error: ValidationError) -> Violation:
     parts = list(error.absolute_path)
     location = _path(parts)
     in_rollback_item = len(parts) >= 2 and parts[-2] == "rollback"
+    # required の誤りは欠けた項目ごとに一つずつ出る。欠けているのが max の時だけ rollback_max
     missing_max = error.validator == "required" and in_rollback_item
-    missing_max = missing_max and isinstance(error.instance, dict) and "max" not in error.instance
+    missing_max = missing_max and error.message.startswith("'max' ")
     bad_max = len(parts) >= 3 and parts[-1] == "max" and parts[-3] == "rollback"
     if missing_max or bad_max:
         return _v(location, "rollback_max", error.message)
@@ -121,9 +123,13 @@ def _check_metrics(
         where = f"{location}.goal.quantitative.{name}"
         if name not in metrics:
             yield _v(where, "metric_unregistered", name)
-        low, high = criterion.get("min"), criterion.get("max")
-        if low is not None and high is not None and low > high:
-            yield _v(where, "metric_range", f"min={low} max={high}")
+        bounds = {k: criterion[k] for k in ("equals", "min", "max") if k in criterion}
+        numbers = {k: v for k, v in bounds.items() if not isinstance(v, bool)}
+        not_finite = {k: v for k, v in numbers.items() if not math.isfinite(v)}
+        if not_finite:
+            yield _v(where, "metric_range", f"有限の数でない基準 {not_finite}")
+        elif "min" in numbers and "max" in numbers and numbers["min"] > numbers["max"]:
+            yield _v(where, "metric_range", f"min={numbers['min']} max={numbers['max']}")
 
 
 def _duplicates(items: list[tuple[str, str]], what: str) -> Iterator[Violation]:
@@ -198,6 +204,9 @@ def _check_semantics(doc: dict[str, Any], metrics: Collection[str]) -> Iterator[
                 )
             target = by_id.get(rb["stage"])
             carried_from[s.id].update(rb.get("carry", []))
+            for item in rb.get("carry", []):
+                if item not in s.artifacts("memory_out"):
+                    yield _v(where, "carry_undeclared", f"{item} が {s.id} の memory_out に無い")
             if target is None:
                 yield _v(where, "unresolved_reference", f"ステージ {rb['stage']!r} が無い")
                 carried_to_unresolved.update(rb.get("carry", []))
@@ -205,14 +214,15 @@ def _check_semantics(doc: dict[str, Any], metrics: Collection[str]) -> Iterator[
             if target.position >= s.position:
                 yield _v(where, "rollback_forward", f"{s.id} → {target.id}")
             for item in rb.get("carry", []):
-                if item not in s.artifacts("memory_out"):
-                    yield _v(where, "carry_undeclared", f"{item} が {s.id} の memory_out に無い")
                 if item not in target.artifacts("memory_in"):
                     yield _v(
                         where, "carry_undeclared", f"{item} が {target.id} の memory_in に無い"
                     )
                 carried_to[target.id].add(item)
         if not unresolved_state:
+            # 解決できない state の rollback は、どの end_state に対応するはずだったか分からない。
+            # 一つの綴り違いを全単射の違反として二重に報告しないよう、
+            # そのステージの全単射は検査しない
             yield from _check_bijection(s, end_states, rollbacks)
 
     # 記憶の生成と消費

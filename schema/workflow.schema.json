@@ -32,19 +32,26 @@
     "additionalProperties": false,
     "$defs": {
         "id": {
-            "description": "識別子。小文字で始まり、小文字・数字・下線・ハイフンから成る",
+            "description": "識別子。小文字で始まり、小文字・数字・下線・ハイフンから成る。改行を含まない",
             "type": "string",
-            "pattern": "^[a-z][a-z0-9_-]*$"
+            "pattern": "^[a-z][a-z0-9_-]*$",
+            "not": { "pattern": "\n" }
+        },
+        "class_id": {
+            "description": "end_state の id。goal は評価の結果の正常系を表す予約語なので使えない",
+            "allOf": [{ "$ref": "#/$defs/id" }, { "not": { "const": "goal" } }]
         },
         "name": {
-            "description": "指標名や記憶の項目名。小文字で始まり、小文字・数字・下線から成る",
+            "description": "指標名や記憶の項目名。小文字で始まり、小文字・数字・下線から成る。改行を含まない",
             "type": "string",
-            "pattern": "^[a-z][a-z0-9_]*$"
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "not": { "pattern": "\n" }
         },
         "path": {
-            "description": "作業領域からの相対パス。/ で終わるものはディレクトリ全体を表す。絶対パスと .. は書けない",
+            "description": "作業領域からの相対パス。/ で終わるものはディレクトリ全体を表す。字義どおりのパスで、glob の文字（* ? [ ]）、絶対パス、. と .. の区切り、空の区切り、逆斜線、改行は書けない",
             "type": "string",
-            "pattern": "^(?![/\\\\])(?!(?:.*/)?\\.\\.(?:/|$))[^\\\\]+$"
+            "pattern": "^(?!/)(?!.*//)(?!(?:.*/)?\\.{1,2}(?:/|$))[^\\\\*?\\[\\]\n]+$",
+            "not": { "pattern": "\n" }
         },
         "paths": {
             "type": "array",
@@ -112,7 +119,7 @@
             "description": "終了時の状態の分類の個別定義",
             "type": "object",
             "properties": {
-                "id": { "description": "終了時の状態の分類ID", "$ref": "#/$defs/id" },
+                "id": { "description": "終了時の状態の分類ID", "$ref": "#/$defs/class_id" },
                 "description": { "description": "終了時の状態の定性的説明", "type": "string", "minLength": 1 }
             },
             "required": ["id", "description"],
@@ -123,7 +130,7 @@
             "description": "ロールバックすべき状態と戻り先の組み合わせ",
             "type": "object",
             "properties": {
-                "state": { "description": "end_stateで定義された状態ID", "$ref": "#/$defs/id" },
+                "state": { "description": "end_stateで定義された状態ID", "$ref": "#/$defs/class_id" },
                 "stage": { "description": "workflow以下で定義されたこのステージより以前の全てのステージの中から一つのID", "$ref": "#/$defs/id" },
                 "carry": { "description": "戻り先へ持ち帰る記憶の項目。各項目は元ステージの memory_out と戻り先の memory_in の両方にある", "$ref": "#/$defs/names" },
                 "max": { "description": "この辺を通る回数の上限。超えたら escalate する", "type": "integer", "minimum": 1 }

@@ -13,7 +13,13 @@ from pathlib import Path
 import pytest
 import yaml
 
-from harness_testing_framework.testing.spec import CODES, Severity, check_workflow_file
+from harness_testing_framework.schema import load_workflow_document
+from harness_testing_framework.testing.spec import (
+    CODES,
+    Severity,
+    check_workflow,
+    check_workflow_file,
+)
 from harness_testing_framework.testing.spec.__main__ import main
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -115,3 +121,26 @@ def test_cli_loads_registry_object(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     )
     monkeypatch.setattr(sys, "path", [str(tmp_path), *sys.path])
     assert main([str(VALID[0]), "--registry", "example_registry:REGISTRY"]) == 0
+
+
+def test_missing_state_and_max_are_reported_separately() -> None:
+    doc = load_workflow_document(EXAMPLES / "valid/minimal.yaml")
+    rollback = doc["workflow"]["phases"][0]["stages"][1]["rollback"][0]
+    del rollback["state"], rollback["max"]
+    assert {v.code for v in check_workflow(doc, REGISTRY)} == {"schema", "rollback_max"}
+
+
+def test_metrics_file_is_read_as_yaml12(tmp_path: Path) -> None:
+    workflow = tmp_path / "w.yaml"
+    text = (EXAMPLES / "valid/minimal.yaml").read_text(encoding="utf-8")
+    workflow.write_text(text.replace("defect_count", "on"), encoding="utf-8")
+    metrics = tmp_path / "m.yaml"
+    metrics.write_text("metrics: [output_exists, on]\n", encoding="utf-8")
+    assert main([str(workflow), "--metrics-file", str(metrics)]) == 0
+
+
+def test_metrics_file_with_wrong_shape_is_reported(tmp_path: Path) -> None:
+    metrics = tmp_path / "m.yaml"
+    metrics.write_text("names: [a]\n", encoding="utf-8")
+    with pytest.raises(SystemExit, match="metrics"):
+        main([str(VALID[0]), "--metrics-file", str(metrics)])

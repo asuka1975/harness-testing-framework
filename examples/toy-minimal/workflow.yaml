@@ -40,7 +40,10 @@ workflow:
           rollback: []
         - id: plan_outline
           name: Plan outline
-          description: topic.txt から、ノートの節とその要約を outline.md に書く
+          description: >-
+            topic.txt から、ノートの節とその要約を outline.md に書く。outline.md は「## 節」の見出しの下に
+            「- 節の名前: 一行の要約」を並べる。主題か読者が曖昧で節を決められない時は、ユーザーに尋ねるべき問いを
+            記憶 topic_questions に書く
           artifacts:
             reads: [topic.txt]
             writes: [outline.md]
@@ -48,7 +51,7 @@ workflow:
             memory_out: [topic_questions]
           goal:
             qualitative: >-
-              outline.md が topic.txt の主題を三つ以上の節に分け、各節に一行の要約がある。
+              outline.md の「## 節」に、topic.txt の主題を分けた三つ以上の節があり、各節に一行の要約がある。
             quantitative:
               section_count:
                 description: outline.md の節の数
@@ -58,7 +61,8 @@ workflow:
             - id: topic_unclear
               description: >-
                 topic.txt の主題か想定読者が曖昧で、節を決められない。決められない理由が、ユーザーに尋ねるべき問いとして
-                outline.md の末尾に列挙されている。
+                記憶 topic_questions に列挙されている。outline.md に節が三つ以上あっても、topic_questions に問いが
+                列挙されていればこの状態とし、goal に優先する。
             - id: unknown
               description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
           rollback:
@@ -71,7 +75,7 @@ workflow:
       description: 構成に沿ってノートを書き、査読する
       goal:
         qualitative: >-
-          note.md が brief.txt の依頼に、topic.txt の読者に向けて答えており、outline.md の全節を述べている。
+          note.md が topic.txt の主題を topic.txt の読者に向けて述べており、outline.md の全節を述べている。
         quantitative:
           sections_covered:
             description: outline.md の節のうち note.md が見出しとして持つものの割合
@@ -80,7 +84,9 @@ workflow:
       stages:
         - id: write_note
           name: Write note
-          description: outline.md の節の順に note.md を書く
+          description: >-
+            outline.md の節の順に note.md を書く。note.md は節ごとに「## 節の名前」の見出しと本文を持つ。
+            outline.md の節のうち書けないものがあれば、その節と理由を記憶 outline_gaps に書く
           artifacts:
             reads: [topic.txt, outline.md]
             writes: [note.md]
@@ -98,7 +104,8 @@ workflow:
             - id: outline_unfit
               description: >-
                 outline.md に、topic.txt の主題と読者に照らして書けない節（主題の範囲外、他の節との重複、順序の矛盾）がある。
-                書けない節とその理由が note.md の末尾に書き出されている。
+                書けない節とその理由が記憶 outline_gaps に列挙されている。note.md に全節の見出しがあっても、
+                outline_gaps に節が列挙されていればこの状態とし、goal に優先する。
             - id: unknown
               description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
           rollback:
@@ -108,7 +115,10 @@ workflow:
               max: 1
         - id: review_note
           name: Review note
-          description: note.md を outline.md と topic.txt に照らして査読し、指摘を review.json に書く
+          description: >-
+            note.md を outline.md と topic.txt に照らして査読し、指摘を review.json に書く。review.json は
+            {"findings": [{"section": 節の名前, "blocking": 修正を要するか, "comment": 指摘}]} の形。
+            修正を要する指摘は記憶 review_findings にも書く
           artifacts:
             reads: [topic.txt, outline.md, note.md]
             writes: [review.json]
@@ -124,8 +134,9 @@ workflow:
           end_state:
             - id: findings_blocking
               description: >-
-                review.json に、note.md の修正を要する指摘（主題や読者からの逸脱、節の抜け、事実の誤り）が一つ以上ある。
-                どの指摘も note.md を直せば解消する。
+                記憶 review_findings に、note.md の修正を要する指摘（主題や読者からの逸脱、節の本文が outline.md の要約を
+                述べていない、事実の誤り）が一つ以上列挙されている（review.json にも同じ指摘がある）。どの指摘も
+                note.md を直せば解消する。
             - id: unknown
               description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
           rollback:

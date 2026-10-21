@@ -1,8 +1,10 @@
 # F1 初期化タスク 検証報告（検証役）
 
+（2026-10-22 追記: 公開に備え、手元の絶対パスを <リポジトリ> と <一時ディレクトリ> に置き換えた。他の文言は変えていない）
+
 - 検証日: 2026-10-21
 - 役割: 検証（第三者）。plan.md 第5.9節。実装の作業過程は見ておらず、成果物と仕様（docs/plan.md）だけから判定した
-- 対象: リポジトリ /home/asuka1975/work/ai-agent/harness-testing-framework の作業ツリー全体（コミットは無い）と、実装者の検査スクリプト check_init.py
+- 対象: リポジトリ <リポジトリ> の作業ツリー全体（コミットは無い）と、実装者の検査スクリプト check_init.py
 - 判定の基準: plan.md 第6節 F1「最初のタスク（初期化）」（第203行）と、第7節の開始プロンプトの指示「ディレクトリ骨格と付録 A の基底スキーマを置き、第3節の十件について選択肢・推奨・帰結を docs/decisions.md の下書きとして提示し、progress.md を作って、決定を待つ」（第247行）
 - 書いたもの: このファイルだけ。検査用の一時スクリプトは scratchpad/verifier/ に置いた（末尾のコマンド一覧）
 
@@ -246,7 +248,7 @@ plan.md の本文で裏づけを確かめた主な主張:
 
 ## 判定に使ったコマンド
 
-リポジトリ: /home/asuka1975/work/ai-agent/harness-testing-framework（以下 R）。検査用の一時ファイル: /tmp/claude-1000/-home-asuka1975-work-ai-agent-harness-testing-framework/1293722b-efd1-4744-98e8-26921ed57296/scratchpad/verifier/（以下 V）
+リポジトリ: <リポジトリ>（以下 R）。検査用の一時ファイル: <一時ディレクトリ> V）
 
 1. `git status`、`git log --oneline`、`git remote -v`、`git -C R rev-parse --show-toplevel`、`git -C R/schema rev-parse --is-inside-work-tree`（読み取りだけ）
 2. `find . -path ./.git -prune -o -print | sort`、各 README.md の `cat`、`ls -la --time-style=full-iso docs/ schema/ .git/HEAD`
@@ -390,7 +392,7 @@ progress.md のほかの記述は事実と合っている。
 
 ### 5. 判定に使ったコマンド（二回目）
 
-リポジトリ: /home/asuka1975/work/ai-agent/harness-testing-framework（以下 R）。一時ファイル: /tmp/claude-1000/-home-asuka1975-work-ai-agent-harness-testing-framework/1293722b-efd1-4744-98e8-26921ed57296/scratchpad/verifier/（以下 V）
+リポジトリ: <リポジトリ>（以下 R）。一時ファイル: <一時ディレクトリ> V）
 
 1. `git log --oneline --all`、`git log --format=fuller`、`git reflog`、`git show --stat f63fd18`、`git status --short`、`git status --porcelain=v2`、`git diff HEAD -- docs/progress.md`、`git diff --quiet f63fd18 -- docs/plan.md`（読み取りだけ）
 2. `diff -rq --exclude=.git V/mut/M10_false_commit_claim R`、`diff -u` で decisions.md・progress.md・runtime/README.md を一回目の時点と比較

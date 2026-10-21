@@ -511,3 +511,32 @@ escalate 後の四つの選択肢（#3）は、これとは別に F2 の完了�
 ### 推奨
 
 上記のとおり。
+
+## D-3 F1 の検証で見つかった点の扱い（2026-10-22）
+
+- 状態: 承認（2026-10-22、包括指示による推奨の採用。スキーマと契約は F1 の人間ゲートで承認を受ける）
+- 強制点: F1 の人間ゲートの前
+- 関係: D-1、D-2、reports/f1-completion.md、reports/f1-toy-minimal-review.md
+- 決定: 下記のとおり
+
+### 文脈
+
+検証役の F1 完了判定（正常。中 2、低 15）と toy-minimal の事前レビュー（直してから出す。高 2、中 6）の指摘を受けて、スキーマ、検査器、契約、玩具を直した。
+
+### 選択肢と帰結
+
+各点の推奨と理由だけを書く。
+
+- `goal` を end\_state の id と rollback.state に使えないようにする（スキーマ）。`goal` と `unknown` を契約の予約語にする。理由: 評価の結果の goal と準正常系のクラスが衝突し、三層の区別が崩れるため
+- パスは字義どおりとし、glob の文字（* ? [ ]）、. の区切り、空の区切り、改行を拒む。id と名前も改行を拒む（Python と ECMA 262 の正規表現で `$` の意味が違っても結果が揃うように）。正規化はしない（同じものを書く綴りを一つにする）
+- 指標の基準は有限の数に限る（NaN と ±inf は metric\_range）
+- YAML の読み込みを YAML 1.2 core に揃える（整数・浮動小数点数の暗黙の解決、日付は文字列のまま、ハッシュできないキーは誤り）。`--metrics-file` も同じローダーで読む
+- rollback の state と max が両方欠けた時は、それぞれを別に報告する。戻り先が解決できない rollback でも、元ステージの memory\_out との照合は行う。解決できない state の rollback があるステージの全単射は検査しない（一つの綴り違いを二重に報告しない。意図的）
+- 契約: フェーズゲートの状態文書（フェーズ内の reads と writes の和、最終ステージの memory\_out）、フェーズの指標の view（最終ステージの終了時スナップショット全体）、状態文書に memory\_in を入れない理由、分類器と運用者はハーネスが束縛すること、ゲートの意味論の帰結（最終ステージの end\_state がステージ自身の不足だけを述べるとゲートの不合格は unknown になる、最終ステージの自動のやり直しは無い、ゲートからの carry は goal 時の memory\_out）を書き足した
+- toy-minimal: compose のゲートの qualitative が分類器に見えない brief.txt を参照していたのを直した。goal と重なる end\_state（topic\_unclear、outline\_unfit）に「goal に優先する」を書いた。end\_state の証拠を carry で運ぶ記憶（topic\_questions、outline\_gaps、review\_findings）にした（ロールバックでファイルは捨てられるため）。findings\_blocking の例「節の抜け」を「節の本文が要約を述べていない」に替えた。成果物の形式をステージの description と README に書き、section\_count は「## 節」の下だけを数えるようにした。ゲートの不合格が unknown になることは、最小構成のためにそのままにし README に書いた。いずれも end\_state の追加・分割・統合は無く、人間のレビュー前の v0 の記述の改訂
+- 付録 A・B を超える追加の一覧（承認の時に見せるもの）: スキーマの属性 workflow.inputs、stage.awaits\_user、指標の args、x- 拡張、minItems、id・名前・パスの規則、予約語 goal。検査器の性質 unresolved\_read、memory\_unsupplied（誤り）、memory\_unused（警告）、metric\_range、document と schema の符号
+- reports/f1-init-verification.md の手元の絶対パスを置き換えた（公開の準備）。git の履歴には残る
+
+### 推奨
+
+上記のとおり。

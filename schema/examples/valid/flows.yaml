@@ -1,0 +1,88 @@
+# 説明: parts/ を書いて parts/first.txt を読む、summary/result.txt を書いて summary/ を読む、notes を carry なしで後へ渡す
+workflow:
+  name: flows
+  description: ディレクトリの成果物の二方向の被覆と、carry を使わない記憶の受け渡しの正例
+  inputs:
+  - request.md
+  phases:
+  - id: build
+    name: Build
+    description: 要求から成果物を作り、確かめる
+    goal:
+      qualitative: 要求を満たす成果物が確かめられている
+      quantitative: {}
+    stages:
+    - id: produce
+      name: Produce
+      description: request.md を読み、output.txt を書く
+      artifacts:
+        reads:
+        - request.md
+        writes:
+        - output.txt
+        - parts/
+        memory_in:
+        - defects
+        memory_out:
+        - notes
+      goal:
+        qualitative: output.txt が request.md の全項目を含む
+        quantitative:
+          output_exists:
+            description: output.txt が存在する
+            equals: true
+      end_state:
+      - id: unknown
+        description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+      rollback: []
+    - id: summarize
+      name: Summarize
+      description: parts/ の下の一つのファイルと notes を読み、summary/ の下に要約を一つ書く
+      artifacts:
+        reads:
+        - parts/first.txt
+        writes:
+        - summary/result.txt
+        memory_in:
+        - notes
+        memory_out: []
+      goal:
+        qualitative: summary/result.txt が parts/first.txt を要約している
+        quantitative:
+          output_exists:
+            description: 要約が存在する
+            equals: true
+      end_state:
+      - id: unknown
+        description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+      rollback: []
+    - id: inspect
+      name: Inspect
+      description: output.txt を request.md と突き合わせ、結果を inspection.json に書く
+      artifacts:
+        reads:
+        - request.md
+        - output.txt
+        - summary/
+        writes:
+        - inspection.json
+        memory_in: []
+        memory_out:
+        - defects
+      goal:
+        qualitative: output.txt に要求との食い違いが無いことが inspection.json に記録されている
+        quantitative:
+          defect_count:
+            description: inspection.json に記録された食い違いの数
+            max: 0
+      end_state:
+      - id: defects_found
+        description: 要求との食い違いが一つ以上 inspection.json に記録されている。
+      - id: unknown
+        description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+      rollback:
+      - state: defects_found
+        stage: produce
+        carry:
+        - defects
+        max: 2

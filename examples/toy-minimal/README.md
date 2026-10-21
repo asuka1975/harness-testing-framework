@@ -28,3 +28,13 @@
 | unknown | どのステージでも、goal にも end\_state にも当たらなければ escalate |
 | 中断と再開 | ask\_topic がユーザーに尋ね、回答がまだ無ければ中断する |
 | フェーズ境界越え | write\_note → plan\_outline（compose → intake）。intake のゲートは再び plan\_outline が goal に達した時に評価し直す |
+
+## フェーズゲートの不合格
+
+この玩具の最終ステージ（plan\_outline、review\_note）の end\_state は、そのステージ自身の不足だけを述べる。ゲートは最終ステージが goal に達した直後に評価するので、ゲートの不合格はどの end\_state にも当たらず unknown（escalate）になる（契約 3.2 の帰結）。主題の範囲外の節は、write\_note が見つければ outline\_unfit で自動に戻り、intake のゲートで見つかれば escalate する。最小構成を保つためにこのままにする。ゲートから end\_state で戻る経路は、契約適合テストのシナリオで確かめる（F2）。
+
+## 成果物の形式
+
+- outline.md: 「## 節」の見出しの下に「- 節の名前: 一行の要約」を並べる。他の見出しの下の行は節として数えない
+- note.md: 節ごとに「## 節の名前」の見出しと本文
+- review.json: `{"findings": [{"section": 節の名前, "blocking": 真偽値, "comment": 指摘}]}`

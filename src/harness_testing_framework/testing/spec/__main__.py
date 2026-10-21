@@ -14,8 +14,7 @@ import sys
 from collections.abc import Collection, Sequence
 from pathlib import Path
 
-import yaml
-
+from harness_testing_framework.schema import load_workflow_document
 from harness_testing_framework.testing.spec.checker import Severity, check_workflow_file
 
 
@@ -26,8 +25,11 @@ def _registry_names(spec: str) -> Collection[str]:
 
 
 def _metrics_file_names(path: str) -> Collection[str]:
-    doc = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
-    return set(doc["metrics"])
+    doc = load_workflow_document(Path(path))
+    metrics = doc.get("metrics") if isinstance(doc, dict) else None
+    if not isinstance(metrics, list) or not all(isinstance(m, str) for m in metrics):
+        raise SystemExit(f"{path}: metrics: [指標名, ...] の形でない")
+    return set(metrics)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
