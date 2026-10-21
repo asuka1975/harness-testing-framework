@@ -150,7 +150,7 @@
 | `transition_counts` | 状態ごとの次の状態の件数 |
 | `transition_matrix` | 状態ごとの次の状態の経験分布（遷移行列） |
 | `independence` | 同じクラスの代表どうしで、次の状態の分布が違うかの検定（カイ二乗統計量の並べ替え検定。状態と訪問の区分ごと） |
-| `IndependenceResult` | 検定の結果（状態、訪問の区分、代表ごとの件数、統計量、p 値、not\_detected / violated / undetermined） |
+| `IndependenceResult` | 検定の結果（状態、訪問の区分、次のステージの訪問の区分、代表ごとの件数、統計量、p 値、not\_detected / violated / undetermined） |
 | `chi_square` | 分割表のカイ二乗統計量 |
 
 ## `harness_testing_framework.testing.e2e`

@@ -165,3 +165,39 @@ def test_labels_must_refer_to_items_and_options(tmp_path: Path) -> None:
     (tmp_path / "bad.jsonl").write_text('{"item": "i1"}\n', encoding="utf-8")
     with pytest.raises(CorpusInvalid):
         load_labels(tmp_path / "bad.jsonl")
+
+
+def test_breakdown_differs_by_target() -> None:
+    items, labels = _corpus()
+    # 前半 50 件を対象 b に付け替える（b は goal の項目が多い）
+    moved = [
+        CorpusItem(
+            i.item,
+            i.scope,
+            "b",
+            i.options,
+            i.state.replace("stage a", "stage b").replace("class a=", "class b="),
+        )
+        if n < 50
+        else i
+        for n, i in enumerate(items)
+    ]
+    report = oracle_report(ConfusionClassifier(ROWS), moved, labels, reruns=1)
+    assert set(report.by_target) == {"stage:a", "stage:b"}
+    a, b = report.by_target["stage:a"], report.by_target["stage:b"]
+    assert a.n + b.n == 100
+    assert (a.kappa, a.ece) != (b.kappa, b.ece)
+    for summary in (a, b):
+        assert summary.kappa != pytest.approx(report.kappa) or summary.ece != pytest.approx(
+            report.ece
+        )
+
+
+def test_no_answered_items_gives_no_ece() -> None:
+    items, labels = _corpus()
+    report = oracle_report(
+        ConfusionClassifier({k: [(None, 0.0)] for k in ROWS}), items, labels, reruns=1
+    )
+    assert report.coverage == 0.0
+    assert report.ece is None
+    assert any("ECE なし" in line for line in report.lines())

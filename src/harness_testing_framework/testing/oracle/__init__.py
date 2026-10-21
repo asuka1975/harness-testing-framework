@@ -181,7 +181,7 @@ class TargetSummary:
     n: int
     kappa: float
     accuracy: float
-    ece: float
+    ece: float | None
 
 
 @dataclass(frozen=True)
@@ -196,7 +196,7 @@ class OracleReport:
     kappa: float
     accuracy: float
     confusion: dict[tuple[str, str | None], int]
-    ece: float
+    ece: float | None
     bins: list[CalibrationBin]
     rerun_agreement: float
     unanswered: int
@@ -204,8 +204,13 @@ class OracleReport:
     by_target: dict[str, TargetSummary]
 
     def lines(self) -> list[str]:
+        ece = (
+            f"ECE {self.ece:.3f}（等幅 {len(self.bins)} 区間）"
+            if self.ece is not None
+            else "ECE なし（答えた項目が無い）"
+        )
         out = [
-            f"件数 {self.n}、一致率 {self.accuracy:.3f}、Cohen の κ {self.kappa:.3f}、ECE {self.ece:.3f}（等幅 {len(self.bins)} 区間）",
+            f"件数 {self.n}、一致率 {self.accuracy:.3f}、Cohen の κ {self.kappa:.3f}、{ece}",
             f"再実行の一致率 {self.rerun_agreement:.3f}、答え無し {self.unanswered} 件（答えた割合 {self.coverage:.3f}。ECE は答えた項目だけ）",
         ]
         out += [
@@ -257,13 +262,16 @@ def oracle_report(
         agree += all(r.choice == first.choice for r in results)
     n = len(pairs)
     answered = [r for r, (_, choice) in zip(records, pairs, strict=True) if choice is not None]
-    ece, table = expected_calibration_error(answered, bins) if answered else (0.0, [])
+    ece: float | None = None
+    table: list[CalibrationBin] = []
+    if answered:
+        ece, table = expected_calibration_error(answered, bins)
     by_target: dict[str, TargetSummary] = {}
     for target in sorted(set(targets)):
         idx = [i for i, t in enumerate(targets) if t == target]
         sub_pairs = [pairs[i] for i in idx]
         sub_answered = [records[i] for i in idx if pairs[i][1] is not None]
-        sub_ece = expected_calibration_error(sub_answered, bins)[0] if sub_answered else 0.0
+        sub_ece = expected_calibration_error(sub_answered, bins)[0] if sub_answered else None
         accuracy = sum(1 for a, b in sub_pairs if a == b) / len(idx)
         by_target[target] = TargetSummary(len(idx), cohen_kappa(sub_pairs), accuracy, sub_ece)
     return OracleReport(

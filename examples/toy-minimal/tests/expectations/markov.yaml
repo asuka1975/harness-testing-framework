@@ -8,7 +8,7 @@ runs: 200
 seed: 10000
 bindings: {profile: markov}
 criteria:
-  - kind: outcome_rate     # 設計値 0.05、E[n] 200、SE 0.0154。上側 3.1 SE（下側は 0 で切る）
+  - kind: outcome_rate     # 設計値 0.05、E[n] 200、SE 0.0154。上側 3.2 SE（下側は 0 で切る）
     target: ask_topic
     visit: 1
     outcome: unknown

@@ -26,18 +26,20 @@ def _runs(profile: str, workdir: Path) -> RunSet:
 
 
 @pytest.fixture(scope="module")
-def verdicts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, dict[tuple[str, int], str]]:
-    out: dict[str, dict[tuple[str, int], str]] = {}
+def verdicts(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> dict[str, dict[tuple[str, int, int], str]]:
+    out: dict[str, dict[tuple[str, int, int], str]] = {}
     for profile in ("markov", "divergent"):
         runs = _runs(profile, tmp_path_factory.mktemp(profile))
-        out[profile] = {(r.state, r.visit): r.verdict for r in independence(runs)}
+        out[profile] = {(r.state, r.visit, r.next_visit): r.verdict for r in independence(runs)}
     return out
 
 
-def test_divergent_body_is_detected(verdicts: dict[str, dict[tuple[str, int], str]]) -> None:
-    assert verdicts["divergent"][("stage:write_note=goal", 1)] == "violated"
+def test_divergent_body_is_detected(verdicts: dict[str, dict[tuple[str, int, int], str]]) -> None:
+    assert verdicts["divergent"][("stage:write_note=goal", 1, 1)] == "violated"
 
 
-def test_markov_body_is_not_flagged(verdicts: dict[str, dict[tuple[str, int], str]]) -> None:
-    assert verdicts["markov"][("stage:write_note=goal", 1)] == "not_detected"
+def test_markov_body_is_not_flagged(verdicts: dict[str, dict[tuple[str, int, int], str]]) -> None:
+    assert verdicts["markov"][("stage:write_note=goal", 1, 1)] == "not_detected"
     assert "violated" not in verdicts["markov"].values()

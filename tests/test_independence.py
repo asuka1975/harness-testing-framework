@@ -151,3 +151,18 @@ def test_permutation_p_value_matches_exact_hypergeometric() -> None:
     exact = 2 * sum(comb(10, k) * comb(10, 10 - k) for k in (8, 9, 10)) / comb(20, 10)
     assert result.p_value is not None
     assert abs(result.p_value - exact) < 4 * (exact * (1 - exact) / 20000) ** 0.5
+
+
+def test_strata_include_the_next_stage_visit() -> None:
+    """代表が「どこから戻ってきたか」で変わり、次のステージの訪問の区分と結びつく場合、訪問の区分の違いを
+    クラスの粗さと取り違えない。代表 A の後は次が訪問 1、代表 B の後は次が訪問 2 で、それぞれ下流の分布が違う。"""
+    runs: list[RunRecord] = []
+    for rep, next_visit, counts in (
+        ("A", 1, {"goal": 40, "x": 10}),
+        ("B", 2, {"goal": 10, "x": 40}),
+    ):
+        for nxt, n in counts.items():
+            runs += [_run([("a", "goal", rep, 1), ("b", nxt, None, next_visit)])] * n
+    results = [r for r in independence(RunSet(runs)) if r.state == "stage:a=goal"]
+    assert sorted((r.visit, r.next_visit) for r in results) == [(1, 1), (1, 2)]
+    assert all(r.verdict == "undetermined" for r in results)

@@ -220,3 +220,23 @@ def test_missing_bucket_falls_back_to_the_lower_one() -> None:
         cap=3,
     )
     assert synthesize(model, WORKFLOW).status["completed"] == pytest.approx(1 - 0.5**3)
+
+
+def test_estimate_model_respects_cap() -> None:
+    runs = RunSet(
+        [
+            _run(
+                [
+                    ("stage", "s2", "p1", 1, "goal"),
+                    ("stage", "s2", "p1", 2, "e2_back"),
+                    ("stage", "s2", "p1", 3, "goal"),
+                ],
+                "completed",
+            ),
+        ]
+    )
+    assert set(estimate_model(runs, cap=1).stage) == {("s2", 1)}
+    assert estimate_model(runs, cap=1).stage[("s2", 1)] == pytest.approx(
+        {"goal": 2 / 3, "e2_back": 1 / 3}
+    )
+    assert set(estimate_model(runs, cap=3).stage) == {("s2", 1), ("s2", 2), ("s2", 3)}
