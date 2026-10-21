@@ -106,8 +106,7 @@ class ScriptedBody:
         script = self._visits.get(key)
         if script is None:
             raise LookupError(f"台本に無い訪問 {key}")
-        for text in script.get("ask", []):
-            context.user_io.ask(Question(text))
+        answers = [context.user_io.ask(Question(text)) for text in script.get("ask", [])]
         if "fixture" in script:
             if self._fixtures is None:
                 raise LookupError("フィクスチャの置き場が与えられていない")
@@ -121,6 +120,8 @@ class ScriptedBody:
             else:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(content, encoding="utf-8")
+        if "answers_to" in script:
+            (context.workspace / script["answers_to"]).write_text("\n".join(answers), "utf-8")
         for name, value in script.get("memory", {}).items():
             context.write_memory(name, value)
         if script.get("raise") == "stage_error":

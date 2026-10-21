@@ -21,14 +21,9 @@ PATHS = sorted(SCENARIOS.glob("*.yaml"))
 
 @pytest.mark.parametrize("path", PATHS, ids=[p.stem for p in PATHS])
 def test_scenario(path: Path, tmp_path: Path) -> None:
-    scenario = load_scenario(path)
     result = run(path, tmp_path)
-    assert result.summary == scenario.expect.trace
-    assert result.status == scenario.expect.status
-    for name, value in (scenario.expect.memory or {}).items():
-        assert result.final_snapshot.memory.get(name) == value, name
-    if scenario.expect.annotations is not None:
-        assert len(result.final_snapshot.annotations) == scenario.expect.annotations
+    assert result.problems == []
+    assert result.summary == load_scenario(path).expect.trace
 
 
 def test_all_six_transition_kinds(tmp_path: Path) -> None:

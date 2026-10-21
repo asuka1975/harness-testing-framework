@@ -23,3 +23,6 @@ expect:
   - escalation s1 unknown -> abort
   - abort
   - end aborted
+  options:
+    stage:s1#1:
+    - unknown

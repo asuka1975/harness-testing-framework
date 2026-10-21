@@ -5,62 +5,191 @@
     "description": "契約適合テストと決定論テストのシナリオ（README.md）",
     "type": "object",
     "properties": {
-        "scenario": { "description": "シナリオの名前", "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
-        "description": { "type": "string", "minLength": 1 },
-        "workflow": { "description": "ワークフロー定義のパス。シナリオのファイルからの相対パス", "type": "string" },
-        "metrics": { "description": "conformance なら契約適合テストの指標レジストリを使う。省略時はハーネスが束縛する", "enum": ["conformance"] },
-        "seed": { "type": "integer", "default": 0 },
-        "threshold": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.5 },
+        "scenario": {
+            "description": "シナリオの名前",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "description": {
+            "type": "string",
+            "minLength": 1
+        },
+        "workflow": {
+            "description": "ワークフロー定義のパス。シナリオのファイルからの相対パス",
+            "type": "string"
+        },
+        "metrics": {
+            "description": "conformance なら契約適合テストの指標レジストリを使う。省略時はハーネスが束縛する",
+            "enum": [
+                "conformance"
+            ]
+        },
+        "seed": {
+            "type": "integer",
+            "default": 0
+        },
+        "threshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 0.5
+        },
         "inputs": {
             "description": "ワークフローの inputs に置くファイルの内容",
             "type": "object",
-            "additionalProperties": { "type": "string" }
+            "additionalProperties": {
+                "type": "string"
+            }
         },
         "visits": {
             "type": "object",
-            "propertyNames": { "pattern": "^[a-z][a-z0-9_-]*#[1-9][0-9]*$" },
-            "additionalProperties": { "$ref": "#/$defs/visit" }
+            "propertyNames": {
+                "pattern": "^[a-z][a-z0-9_-]*#[1-9][0-9]*$"
+            },
+            "additionalProperties": {
+                "$ref": "#/$defs/visit"
+            }
         },
         "gates": {
             "type": "object",
-            "propertyNames": { "pattern": "^[a-z][a-z0-9_-]*#[1-9][0-9]*$" },
-            "additionalProperties": { "$ref": "#/$defs/classify" }
+            "propertyNames": {
+                "pattern": "^[a-z][a-z0-9_-]*#[1-9][0-9]*$"
+            },
+            "additionalProperties": {
+                "$ref": "#/$defs/classify"
+            }
         },
-        "operator": { "type": "array", "items": { "$ref": "#/$defs/decision" } },
-        "user": { "type": "array", "items": { "$ref": "#/$defs/answer" } },
+        "operator": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/decision"
+            }
+        },
+        "user": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/answer"
+            }
+        },
         "expect": {
             "type": "object",
             "properties": {
-                "status": { "enum": ["completed", "aborted", "suspended", "awaiting_operator"] },
-                "trace": { "type": "array", "items": { "type": "string" } },
-                "memory": { "type": "object" },
-                "annotations": { "type": "integer", "minimum": 0 }
+                "status": {
+                    "enum": [
+                        "completed",
+                        "aborted",
+                        "suspended",
+                        "awaiting_operator"
+                    ]
+                },
+                "trace": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "memory": {
+                    "type": "object"
+                },
+                "annotations": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "starts": {
+                    "description": "訪問ごとの開始時スナップショットの期待。鍵は <ステージ>#<訪問の回数>",
+                    "type": "object",
+                    "propertyNames": {
+                        "pattern": "^[a-z][a-z0-9_-]*#[1-9][0-9]*$"
+                    },
+                    "additionalProperties": {
+                        "$ref": "#/$defs/start"
+                    }
+                },
+                "options": {
+                    "description": "評価の選択肢の期待（順序も含めて一致）。鍵は stage:<ステージ>#<訪問> か phase:<フェーズ>#<最終ステージの訪問>",
+                    "type": "object",
+                    "propertyNames": {
+                        "pattern": "^(stage|phase):[a-z][a-z0-9_-]*#[1-9][0-9]*$"
+                    },
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
             },
-            "required": ["status", "trace"],
+            "required": [
+                "status",
+                "trace"
+            ],
             "additionalProperties": false
         }
     },
-    "required": ["scenario", "description", "workflow", "visits", "expect"],
+    "required": [
+        "scenario",
+        "description",
+        "workflow",
+        "visits",
+        "expect"
+    ],
     "additionalProperties": false,
     "$defs": {
         "classify": {
             "type": "object",
             "properties": {
-                "choice": { "type": ["string", "null"] },
-                "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+                "choice": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                }
             },
-            "required": ["choice", "confidence"],
+            "required": [
+                "choice",
+                "confidence"
+            ],
             "additionalProperties": false
         },
         "visit": {
             "type": "object",
             "properties": {
-                "ask": { "type": "array", "items": { "type": "string" } },
-                "fixture": { "type": "string" },
-                "files": { "type": "object", "additionalProperties": { "type": ["string", "null"] } },
-                "memory": { "type": "object" },
-                "raise": { "const": "stage_error" },
-                "classify": { "$ref": "#/$defs/classify" }
+                "ask": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "fixture": {
+                    "type": "string"
+                },
+                "files": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "memory": {
+                    "type": "object"
+                },
+                "raise": {
+                    "const": "stage_error"
+                },
+                "classify": {
+                    "$ref": "#/$defs/classify"
+                },
+                "answers_to": {
+                    "description": "ask で得た回答を改行でつないで書くパス（files の後に書く）",
+                    "type": "string"
+                }
             },
             "additionalProperties": false
         },
@@ -68,27 +197,59 @@
             "oneOf": [
                 {
                     "type": "object",
-                    "properties": { "kind": { "enum": ["rerun", "abort", "defer"] } },
-                    "required": ["kind"],
+                    "properties": {
+                        "kind": {
+                            "enum": [
+                                "rerun",
+                                "abort",
+                                "defer"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "kind"
+                    ],
                     "additionalProperties": false
                 },
                 {
                     "type": "object",
                     "properties": {
-                        "kind": { "const": "rollback" },
-                        "stage": { "type": "string" },
-                        "carry": { "type": "array", "items": { "type": "string" } }
+                        "kind": {
+                            "const": "rollback"
+                        },
+                        "stage": {
+                            "type": "string"
+                        },
+                        "carry": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
                     },
-                    "required": ["kind", "stage"],
+                    "required": [
+                        "kind",
+                        "stage"
+                    ],
                     "additionalProperties": false
                 },
                 {
                     "type": "object",
                     "properties": {
-                        "kind": { "const": "continue_as_goal" },
-                        "note": { "type": "string" }
+                        "kind": {
+                            "const": "continue_as_goal"
+                        },
+                        "note": {
+                            "type": "string"
+                        },
+                        "by": {
+                            "type": "string"
+                        }
                     },
-                    "required": ["kind", "note"],
+                    "required": [
+                        "kind",
+                        "note"
+                    ],
                     "additionalProperties": false
                 }
             ]
@@ -97,17 +258,56 @@
             "oneOf": [
                 {
                     "type": "object",
-                    "properties": { "answer": { "type": "string" } },
-                    "required": ["answer"],
+                    "properties": {
+                        "answer": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "answer"
+                    ],
                     "additionalProperties": false
                 },
                 {
                     "type": "object",
-                    "properties": { "defer": { "const": true } },
-                    "required": ["defer"],
+                    "properties": {
+                        "defer": {
+                            "const": true
+                        }
+                    },
+                    "required": [
+                        "defer"
+                    ],
                     "additionalProperties": false
                 }
             ]
+        },
+        "start": {
+            "description": "訪問の開始時スナップショットの期待。files（パスと内容）、memory、gates はすべて完全一致",
+            "type": "object",
+            "properties": {
+                "files": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "memory": {
+                    "type": "object"
+                },
+                "gates": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": [
+                "files",
+                "memory",
+                "gates"
+            ],
+            "additionalProperties": false
         }
     }
 }

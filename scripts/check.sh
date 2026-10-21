@@ -7,6 +7,12 @@ uv sync --locked
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy
+# examples/ の下の各ワークフローを、それぞれ別に型検査する（同じ名前のテストのモジュールがぶつからないように）
+for example in examples/*/; do
+    if [ -n "$(find "$example" -name '*.py' -print -quit)" ]; then
+        MYPYPATH="src:${example%/}" uv run mypy --explicit-package-bases "${example%/}"
+    fi
+done
 uv run pytest
 # 参照ランタイムの行カバレッジ 90% 以上（plan.md 第6節 F2）
 uv run coverage report --include="src/harness_testing_framework/runtime/*" --fail-under=90 >/dev/null

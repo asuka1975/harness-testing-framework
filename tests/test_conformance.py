@@ -52,12 +52,7 @@ def test_scenario_file_is_valid(path: Path) -> None:
 def test_reference_runtime_passes_scenario(path: Path, tmp_path: Path) -> None:
     scenario = load_scenario(path)
     result = run_scenario(scenario, tmp_path)
-    assert result.summary == scenario.expect.trace
-    assert result.status == scenario.expect.status
-    for name, value in (scenario.expect.memory or {}).items():
-        assert result.final_snapshot.memory.get(name) == value, name
-    if scenario.expect.annotations is not None:
-        assert len(result.final_snapshot.annotations) == scenario.expect.annotations
+    assert result.problems == []
 
     trace_validator = Draft202012Validator(TRACE_SCHEMA)
     for event in result.trace:
@@ -79,14 +74,22 @@ def test_scenarios_cover_every_transition_kind(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "name", ["resume_replays_answers", "phase_crossing_rollback", "max_exceeded_continue_as_goal"]
+    "name",
+    [
+        "resume_replays_answers",
+        "phase_crossing_rollback",
+        "max_exceeded_continue_as_goal",
+        "operator_defers",
+        "suspend_after_rollback",
+    ],
 )
 def test_replay_reproduces_snapshots_without_external_calls(name: str, tmp_path: Path) -> None:
     scenario = load_scenario(CONFORMANCE / f"scenarios/{name}.yaml")
     recorded = run_scenario(scenario, tmp_path / "record", record=tmp_path / "rec.jsonl")
     replayed = run_scenario(scenario, tmp_path / "replay", replay=tmp_path / "rec.jsonl")
     assert [s.id for s in replayed.snapshots] == [s.id for s in recorded.snapshots]
-    assert replayed.summary == recorded.summary
+    assert replayed.trace == recorded.trace
+    assert replayed.problems == recorded.problems == []
 
 
 def test_replay_with_missing_record_fails_loudly(tmp_path: Path) -> None:

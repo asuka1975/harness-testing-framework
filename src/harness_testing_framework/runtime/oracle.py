@@ -1,6 +1,7 @@
 """評価（契約 2.2）と状態文書の投影（契約 2.4）。"""
 
 import json
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -62,6 +63,9 @@ def measure(
                 return {"value": registry.measure(c.name, view, c.args)}
             except MetricError as e:
                 return {"error": str(e)}
+            except Exception as e:
+                # 指標の実装の不具合も、測定の失敗として未達にする
+                return {"error": f"{type(e).__name__}: {e}"}
 
         request: JSONValue = {"name": criterion.name, "args": dict(criterion.args)}
         response = recorder.call("metric", [*key, criterion.name], request, live)
@@ -147,8 +151,15 @@ def classify(
     """分類器に選ばせ、結果を評価の結果に写す。閾値未満と選択肢外は unknown。"""
 
     def live() -> JSONValue:
-        c = classifier.classify(document, choices)
-        return {"choice": c.choice, "confidence": c.confidence}
+        # 分類器の例外と、0〜1 の有限の数でない確信度は「答え無し」（契約 2.2）
+        try:
+            c = classifier.classify(document, choices)
+        except Exception:
+            return {"choice": None, "confidence": 0.0}
+        confidence = float(c.confidence)
+        if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
+            return {"choice": None, "confidence": 0.0}
+        return {"choice": c.choice, "confidence": confidence}
 
     request: JSONValue = {
         "state": document,

@@ -17,6 +17,7 @@ from harness_testing_framework.testing.harness.scenario import (
     ScenarioResult,
     load_scenario,
     run_scenario,
+    verify,
 )
 from harness_testing_framework.testing.harness.trace import (
     TRANSITION_KINDS,
@@ -42,4 +43,5 @@ __all__ = [
     "run_scenario",
     "summarize",
     "transition_coverage",
+    "verify",
 ]

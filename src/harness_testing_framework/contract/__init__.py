@@ -118,6 +118,11 @@ class SnapshotView(Protocol):
 
     def memory(self, name: str) -> JSONValue: ...
 
+    def baseline(self) -> "SnapshotView | None":
+        """比べる基準のスナップショット。ステージの指標ならそのステージの開始時、
+        フェーズの指標ならフェーズの最初のステージの直近の開始時。"""
+        ...
+
 
 class MetricError(Exception):
     """指標を測定できない。評価ではその指標を未達とする。"""

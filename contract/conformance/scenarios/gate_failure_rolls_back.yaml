@@ -68,3 +68,30 @@ expect:
   - end completed
   memory:
     m21: gate
+  starts:
+    s1#2:
+      files:
+        in.txt: 依頼
+      memory:
+        m21: gate
+      gates: []
+    s3#1:
+      files:
+        in.txt: 依頼
+        s1.txt: s1
+        s1.flag: 'true'
+        s2.txt: s2
+        s2.flag: 'true'
+        gate1.flag: 'true'
+      memory:
+        m21: gate
+      gates:
+      - p1
+  options:
+    stage:s2#1:
+    - goal
+    - e2_back
+    - unknown
+    phase:p1#1:
+    - e2_back
+    - unknown

@@ -2,10 +2,12 @@
 
 import hashlib
 import json
+import math
 import os
 import shutil
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from decimal import Decimal
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -16,10 +18,55 @@ from harness_testing_framework.runtime.model import Stage, Workflow, covered_by
 FORMAT_VERSION = "0.1"
 
 
+def _number(value: float) -> str:
+    """ECMAScript の Number::toString（RFC 8785 第3.2.2.3節）と同じ書き方。"""
+    if not math.isfinite(value):
+        raise ValueError(f"有限でない数は書けない: {value}")
+    if value == 0:
+        return "0"
+    sign = "-" if value < 0 else ""
+    # repr は往復できる最短の桁を与える。桁 digits と、値 = 0.digits × 10^n となる n を求める
+    exponent = Decimal(repr(abs(value))).normalize().as_tuple()
+    digits = "".join(map(str, exponent.digits))
+    assert isinstance(exponent.exponent, int)
+    k, n = len(digits), exponent.exponent + len(digits)
+    if k <= n <= 21:
+        return sign + digits + "0" * (n - k)
+    if 0 < n <= 21:
+        return sign + digits[:n] + "." + digits[n:]
+    if -6 < n <= 0:
+        return sign + "0." + "0" * (-n) + digits
+    mantissa = digits[0] + ("." + digits[1:] if k > 1 else "")
+    e = n - 1
+    return f"{sign}{mantissa}e{'+' if e > 0 else '-'}{abs(e)}"
+
+
+def _encode(value: Any) -> str:
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return _number(value)
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, list | tuple):
+        return "[" + ",".join(_encode(v) for v in value) + "]"
+    if isinstance(value, Mapping):
+        items = sorted(value.items())
+        return "{" + ",".join(f"{_encode(k)}:{_encode(v)}" for k, v in items) + "}"
+    raise TypeError(f"JSON で表せない値: {value!r}")
+
+
 def canonical_json(value: Any) -> bytes:
-    """マニフェストの正規形（契約 第5節）。"""
-    text = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    return text.encode("utf-8")
+    """マニフェストの正規形（契約 第5節）。
+
+    キーは符号位置の順、区切りに空白なし、文字は UTF-8 のまま（制御文字などは JSON の規則で
+    エスケープ）、数は ECMAScript の Number::toString の書き方、末尾の改行なし。
+    """
+    return _encode(value).encode("utf-8")
 
 
 def sha256(data: bytes) -> str:
@@ -123,9 +170,11 @@ def materialize(snapshot: Snapshot, store: BlobStore, workspace: Path) -> None:
 
 
 def _walk(workspace: Path) -> Iterable[str]:
-    for dirpath, _, filenames in os.walk(workspace):
-        for name in filenames:
-            yield (Path(dirpath) / name).relative_to(workspace).as_posix()
+    for dirpath, dirnames, filenames in os.walk(workspace):
+        for name in [*dirnames, *filenames]:
+            path = Path(dirpath) / name
+            if path.is_symlink() or path.is_file():
+                yield path.relative_to(workspace).as_posix()
 
 
 @dataclass(frozen=True)
@@ -151,12 +200,16 @@ def capture(
     scope = workflow.scope
     files: dict[str, str] = {}
     discarded: list[str] = []
+    links: list[str] = []
     for path in sorted(_walk(workspace)):
-        if covered_by(path, scope):
+        if (workspace / path).is_symlink():
+            # 作業領域の外を指しうるので、範囲の内外を問わず拒む
+            links.append(f"{stage.id} が記号リンク {path} を置いた")
+        elif covered_by(path, scope):
             files[path] = store.put((workspace / path).read_bytes())
         else:
             discarded.append(path)
-    violations = [
+    violations = links + [
         f"{stage.id} が writes に無い {path} を変えた"
         for path in sorted(set(files) | set(before.files))
         if files.get(path) != before.files.get(path) and not covered_by(path, stage.writes)
@@ -189,9 +242,12 @@ def restore_overlay(
 class SnapshotReader:
     """読み取り専用のスナップショット（契約 7.2 の view）。"""
 
-    def __init__(self, snapshot: Snapshot, store: BlobStore) -> None:
+    def __init__(
+        self, snapshot: Snapshot, store: BlobStore, baseline: Snapshot | None = None
+    ) -> None:
         self._snapshot = snapshot
         self._store = store
+        self._baseline = baseline
 
     def exists(self, path: str) -> bool:
         return path in self._snapshot.files
@@ -209,3 +265,8 @@ class SnapshotReader:
 
     def memory(self, name: str) -> JSONValue:
         return self._snapshot.memory.get(name)
+
+    def baseline(self) -> "SnapshotReader | None":
+        if self._baseline is None:
+            return None
+        return SnapshotReader(self._baseline, self._store)

@@ -16,6 +16,7 @@ visits:
     ask:
     - 主題は何か
     - 読者は誰か
+    answers_to: s1.txt
   s2#1:
     files:
       s2.txt: s2
@@ -58,3 +59,13 @@ expect:
   - gate_pass s3
   - complete
   - end completed
+  starts:
+    s2#1:
+      files:
+        in.txt: 依頼
+        s1.txt: '主題は A
+
+          読者は B'
+        s1.flag: 'true'
+      memory: {}
+      gates: []

@@ -25,3 +25,14 @@ def test_check_script_runs_all_tools() -> None:
         "pytest",
     ]:
         assert command in script
+
+
+def test_tool_configuration_does_not_name_examples() -> None:
+    """examples/ の下に新しいワークフローを足しても、設定を直さずにテストと型検査に乗る。"""
+    names = [p.name for p in (ROOT / "examples").iterdir() if p.is_dir()]
+    names += [q.name for p in (ROOT / "examples").iterdir() if p.is_dir() for q in p.iterdir()]
+    for config in ["pyproject.toml", "scripts/check.sh", "conftest.py", ".github/workflows/ci.yml"]:
+        text = (ROOT / config).read_text(encoding="utf-8")
+        for name in names:
+            if name not in {"tests", "README.md", ".gitkeep", "workflow.yaml", "__pycache__"}:
+                assert name not in text, (config, name)

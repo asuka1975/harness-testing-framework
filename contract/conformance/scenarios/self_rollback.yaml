@@ -60,3 +60,16 @@ expect:
   - end completed
   memory:
     m33: retry
+  starts:
+    s3#2:
+      files:
+        in.txt: 依頼
+        s1.txt: s1
+        s1.flag: 'true'
+        s2.txt: s2
+        s2.flag: 'true'
+        gate1.flag: 'true'
+      memory:
+        m33: retry
+      gates:
+      - p1

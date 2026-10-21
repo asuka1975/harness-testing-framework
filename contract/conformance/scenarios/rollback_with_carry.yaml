@@ -64,3 +64,30 @@ expect:
   - end completed
   memory:
     m21: fix A
+  starts:
+    s1#2:
+      files:
+        in.txt: 依頼
+      memory:
+        m21: fix A
+      gates: []
+    s2#2:
+      files:
+        in.txt: 依頼
+        s1.txt: s1
+        s1.flag: 'true'
+      memory:
+        m21: fix A
+      gates: []
+    s3#1:
+      files:
+        in.txt: 依頼
+        s1.txt: s1
+        s1.flag: 'true'
+        s2.txt: s2
+        s2.flag: 'true'
+        gate1.flag: 'true'
+      memory:
+        m21: fix A
+      gates:
+      - p1

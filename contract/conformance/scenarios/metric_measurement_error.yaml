@@ -49,3 +49,8 @@ expect:
   - escalation s3 unknown -> abort
   - abort
   - end aborted
+  options:
+    phase:p2#1:
+    - e3_back
+    - e3_retry
+    - unknown

@@ -143,6 +143,11 @@ python -m harness_testing_framework.testing.spec workflow.yaml --registry パッ
 
 違反が一つでもあれば終了コード 1 になる。記憶が生成されても使われない場合は警告で、終了コードは 0。参照ランタイムの `load_workflow` も、違反のある定義を拒む。
 
+指標レジストリの渡し方は二つある。
+
+- `--registry MODULE:ATTR`: `names()` を持つオブジェクト。MODULE は import できる名前で書く（必要なら `PYTHONPATH` にパッケージの親ディレクトリを加える）
+- `--metrics-file FILE`: `metrics: [指標名, ...]` だけを持つ YAML。レジストリの実装より先に、ワークフロー定義だけを検査したい時に使う
+
 ## 4. 指標レジストリを実装する
 
 `MetricRegistry` を満たすオブジェクトを一つ用意する（実例は examples/toy-minimal/toy\_minimal/metrics.py）。
@@ -153,6 +158,10 @@ python -m harness_testing_framework.testing.spec workflow.yaml --registry パッ
   - 測れなければ `MetricError` を送出する
 
 ビルドやテストの実行のような実在のツールに裏づけられた指標も、ここに実装する。
+
+- ツールを走らせるには、一時ディレクトリに `view.list_files()` と `view.read_bytes(path)` でファイルを書き出し、そこでツールを実行して結果を値にする
+- 前後を比べる指標（変更されたパスの範囲など）には、`view.baseline()` を使う。ステージの指標ならそのステージの開始時、フェーズの指標ならフェーズの最初のステージの開始時のスナップショットが返る
+- 指標は同じスナップショットに対して同じ値を返すように書く（記録再生と分布テストの前提）
 
 ## 5. ステージ本体を実装する
 
@@ -240,14 +249,33 @@ result = runtime.start(seed=0, inputs={"brief.txt": "議事録の書き方をま
 assert result.status == "completed", result.status
 ```
 
+`Runtime` の引数:
+
+| 引数 | 内容 | 既定値 |
+| --- | --- | --- |
+| `workflow` | `load_workflow` で読んだワークフロー | （必須） |
+| `bodies` | ステージの id からステージ本体への対応 | （必須） |
+| `registry` | 指標レジストリ | （必須） |
+| `classifier` | 分類器 | （必須） |
+| `operator` | 運用者 | （必須） |
+| `store` | スナップショットの置き場（`BlobStore(ディレクトリ)`）。再開では同じものを使う | （必須） |
+| `workdir` | 作業領域を作るディレクトリ。各ステージの作業領域は実行の後に消える | （必須） |
+| `user_io` | ユーザー入出力。awaits\_user のステージが無ければ不要 | なし |
+| `llm` | LLM クライアント | なし |
+| `threshold` | 分類の確信度の閾値。これ未満は unknown | 0.5 |
+| `recorder` | 記録再生（`Passthrough`、`Recording`、`ReplayOnly`） | `Passthrough()` |
+| `state_limit` | 状態文書の長さの上限（文字数） | 20000 |
+
+最後のスナップショットは `runtime.snapshot(result.state.current)` で取り出せる。ファイルの内容は `store.get(snapshot.files[パス])` で読める。
+
 実行が中断（`suspended`）か escalate 待ち（`awaiting_operator`）で止まったら、次のように再開する。
 
-1. `result.state.to_json()` で状態を保存する
+1. `result.state.to_json()` で状態を保存する。中断なら `state.pending["question"]` に保留中の質問（文と選択肢）がある
 2. 必要なら別のプロセスで、`RunState.from_json` で状態を読み戻す
 3. 同じ置き場（`BlobStore`）を使うランタイムを組み立てる
 4. 中断なら `resume(state, answer=...)`、escalate 待ちなら `resume(state, decision=...)` を呼ぶ
 
-実行記録（出来事の列）は `result.events` にあり、形は contract/trace.schema.json で決まっている。
+実行記録（出来事の列）は `result.events` にあり、形は contract/trace.schema.json で決まっている。条件を満たさない運用者の選択は拒まれ、実行は escalate 待ちに戻る。
 
 ### 7.1 記録再生
 
@@ -272,10 +300,12 @@ assert result.status == "completed", result.status
 - `gates["<フェーズ>#<最終ステージの訪問の回数>"]` に、ゲートの分類の結果を書く
 - `operator` と `user` に、選択と回答の台本を書く。`defer` は保留
 - `expect.trace` に、期待する実行記録の要約を書く。**実装より先に書く**
+- 戻りのあるシナリオでは、`expect.starts["<ステージ>#<訪問>"]` に、その訪問の開始時スナップショット（ファイルの内容、記憶、ゲート）を書く。要約だけでは、戻った時に何が復元されたかを確かめられない
+- 必要なら `expect.options["stage:<ステージ>#<訪問>"]` に評価の選択肢の並びを書く
 
 シナリオの実行のしかた:
 
-- `run_scenario(load_scenario(path), workdir, registry=..., fixtures=...)` で実行し、`result.summary` を `expect.trace` と比べる
+- `run_scenario(load_scenario(path), workdir, registry=..., fixtures=...)` で実行する。結果の `problems` が空なら期待どおり（食い違いが一行ずつ入る）
 - 実例は examples/toy-minimal/toy\_minimal/stages/deterministic.py と tests/test\_scenarios.py
 
 ### 8.1 遷移の六種と escalate の四択
@@ -306,3 +336,14 @@ escalate の四つの選択（再実行、指定ステージへのロールバ�
 - 親ステージの end\_state の記述は、まとめた成果物から観測できる条件で書く
 
 子ワークフローを契約に含めることは、将来の版の候補。
+
+## 11. このリポジトリの中にワークフローを作る場合
+
+examples/<名前>/ に次のように置けば、設定を直さずに検査に乗る。
+
+- `examples/<名前>/workflow.yaml`: ワークフロー定義
+- `examples/<名前>/<パッケージ>/`: 指標レジストリ、ステージ本体、ユーザーシミュレータなどの Python のパッケージ。テストから `import <パッケージ>` で読める（リポジトリの最上位の conftest.py が examples/<名前>/ を import パスに加える）
+- `examples/<名前>/tests/test_*.py`: テスト。`scripts/check.sh` の pytest が拾う
+- `examples/<名前>/tests/fixtures/`、`examples/<名前>/tests/scenarios/`: フィクスチャとシナリオ
+
+`scripts/check.sh` は、ruff、pytest、型検査（mypy の strict。examples/<名前>/ ごとに別に走らせる）をすべて実行し、CI も同じものを呼ぶ。型検査に通るように、関数に型注釈を付ける。

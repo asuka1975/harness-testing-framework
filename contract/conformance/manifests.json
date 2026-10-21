@@ -1,0 +1,66 @@
+[
+    {
+        "name": "empty",
+        "manifest": {
+            "format_version": "0.1",
+            "files": {},
+            "memory": {},
+            "gates": [],
+            "annotations": []
+        },
+        "canonical": "{\"annotations\":[],\"files\":{},\"format_version\":\"0.1\",\"gates\":[],\"memory\":{}}",
+        "id": "e50a6a50ee4b68d605ab677b6e60c024cdfa56437c11b6d5eac557764ab5e7c2"
+    },
+    {
+        "name": "sorted_keys_and_unicode",
+        "manifest": {
+            "format_version": "0.1",
+            "files": {
+                "b.txt": "1111111111111111111111111111111111111111111111111111111111111111",
+                "a/z.txt": "2222222222222222222222222222222222222222222222222222222222222222",
+                "a/b.txt": "3333333333333333333333333333333333333333333333333333333333333333"
+            },
+            "memory": {
+                "zeta": "改行\nとタブ\tと引用符\"",
+                "alpha": {
+                    "y": 2,
+                    "x": [
+                        1.5,
+                        1.0,
+                        -0.0,
+                        1e+21,
+                        1e-06
+                    ]
+                }
+            },
+            "gates": [
+                "p1",
+                "p2"
+            ],
+            "annotations": [
+                {
+                    "kind": "forced_goal",
+                    "stage": "s2",
+                    "note": "許容する",
+                    "by": "operator"
+                }
+            ]
+        },
+        "canonical": "{\"annotations\":[{\"by\":\"operator\",\"kind\":\"forced_goal\",\"note\":\"許容する\",\"stage\":\"s2\"}],\"files\":{\"a/b.txt\":\"3333333333333333333333333333333333333333333333333333333333333333\",\"a/z.txt\":\"2222222222222222222222222222222222222222222222222222222222222222\",\"b.txt\":\"1111111111111111111111111111111111111111111111111111111111111111\"},\"format_version\":\"0.1\",\"gates\":[\"p1\",\"p2\"],\"memory\":{\"alpha\":{\"x\":[1.5,1,0,1e+21,0.000001],\"y\":2},\"zeta\":\"改行\\nとタブ\\tと引用符\\\"\"}}",
+        "id": "f675efcdc6d68b2f77ab602610fd300e6cfe8e51be639b3e396c0ba37e04598f"
+    },
+    {
+        "name": "control_characters",
+        "manifest": {
+            "format_version": "0.1",
+            "files": {},
+            "memory": {
+                "m": "\u0001\u001f\b\f\r/"
+            },
+            "gates": [],
+            "annotations": []
+        },
+        "canonical": "{\"annotations\":[],\"files\":{},\"format_version\":\"0.1\",\"gates\":[],\"memory\":{\"m\":\"\\u0001\\u001f\\b\\f\\r/\"}}",
+        "id": "e911157881b39ea6936f2c6f71906c6fefc839bdae38009ae41a2fd002cb6b46"
+    }
+]

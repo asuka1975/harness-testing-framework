@@ -30,6 +30,9 @@ class DictView:
     def memory(self, name: str) -> JSONValue:
         return None
 
+    def baseline(self) -> "DictView | None":
+        return None
+
 
 OUTLINE = "## 節\n- 背景: 経緯\n- 方法: 手順\n- 結果: 数値\n\n## 問い\n- 読者: 誰向けか？\n"
 

@@ -1,6 +1,7 @@
 """参照ランタイムの、シナリオでは通らない契約の強制と境界（契約 第8節、2.2、2.4）。"""
 
 import contextlib
+import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
@@ -8,7 +9,9 @@ import pytest
 
 from harness_testing_framework.contract import (
     Abort,
+    AwaitingAnswer,
     Classification,
+    ContinueAsGoal,
     JSONValue,
     Option,
     Question,
@@ -19,6 +22,7 @@ from harness_testing_framework.contract import (
 from harness_testing_framework.runtime import (
     BlobStore,
     OperatorDecisionInvalid,
+    Passthrough,
     Recording,
     ReplayOnly,
     Runtime,
@@ -29,7 +33,11 @@ from harness_testing_framework.runtime import (
 from harness_testing_framework.runtime.model import Criterion
 from harness_testing_framework.runtime.oracle import satisfies, state_document
 from harness_testing_framework.runtime.runner import RunState
-from harness_testing_framework.testing.harness import ConformanceRegistry, evaluation_target
+from harness_testing_framework.testing.harness import (
+    ConformanceRegistry,
+    ScriptedClassifier,
+    evaluation_target,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 BASIC = ROOT / "contract/conformance/workflows/basic.yaml"
@@ -187,8 +195,12 @@ def test_invalid_operator_rollback_is_rejected(decision: RollbackTo, tmp_path: P
     def unknown(c: StageContext) -> None:
         (c.workspace / "s2.txt").write_text("x")
 
-    with pytest.raises(OperatorDecisionInvalid):
-        _runtime(tmp_path, {"s2": unknown}, operator=Op()).start(0, {"in.txt": b"x"})
+    result = _runtime(tmp_path, {"s2": unknown}, operator=Op()).start(0, {"in.txt": b"x"})
+    assert result.status == "awaiting_operator"
+    kinds = [e["event"] for e in result.events]
+    assert kinds[-3:] == ["warning", "escalation", "run_end"]
+    assert result.events[-2]["decision"] is None
+    assert OperatorDecisionInvalid.__name__ in str(result.events[-3]["message"])
 
 
 def test_resume_requires_the_right_input(tmp_path: Path) -> None:
@@ -264,3 +276,291 @@ def test_out_of_scope_memory_value_must_be_json(tmp_path: Path) -> None:
 
     errors = _errors(_runtime(tmp_path, {"s2": body}).start(0, {"in.txt": b"x"}).events)
     assert isinstance(errors[0], dict) and errors[0]["kind"] == "stage_error"
+
+
+# --- F2 の検証の指摘（中-1〜中-4、中-7、低-1〜低-5、低-8、低-10、低-12） ---
+
+
+class Deferring:
+    def ask(self, question: Question) -> str:
+        raise AwaitingAnswer(question)
+
+
+def test_suspend_saves_the_pending_question(tmp_path: Path) -> None:
+    def body(c: StageContext) -> None:
+        c.user_io.ask(Question("読者は誰か", ("A", "B")))
+
+    result = _runtime(tmp_path, {"s1": body}, user_io=Deferring()).start(0, {"in.txt": b"x"})
+    assert result.status == "suspended"
+    assert result.state.pending == {
+        "kind": "user",
+        "question": {"text": "読者は誰か", "choices": ["A", "B"]},
+    }
+
+
+def test_record_keys_include_the_run_seed(tmp_path: Path) -> None:
+    rec = tmp_path / "rec.jsonl"
+    _runtime(tmp_path / "a", {}, recorder=Recording(rec)).start(1, {"in.txt": b"x"})
+    with pytest.raises(ReplayOnly.Missing):
+        _runtime(tmp_path / "b", {}, recorder=ReplayOnly(rec)).start(999, {"in.txt": b"x"})
+
+
+class Counter:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def complete(self, request: JSONValue) -> JSONValue:
+        self.calls += 1
+        return self.calls
+
+
+class AnswerLater:
+    def __init__(self) -> None:
+        self.asked = 0
+
+    def ask(self, question: Question) -> str:
+        self.asked += 1
+        raise AwaitingAnswer(question)
+
+
+@pytest.mark.parametrize("record", [False, True])
+def test_llm_responses_are_replayed_after_resume(record: bool, tmp_path: Path) -> None:
+    def body(c: StageContext) -> None:
+        first = c.llm.complete({"prompt": "下書き"})
+        answer = c.user_io.ask(Question("よいか"))
+        (c.workspace / "s1.txt").write_text(f"{first} {answer}")
+        (c.workspace / "s1.flag").write_text("true")
+
+    llm = Counter()
+    recorder = Recording(tmp_path / "rec.jsonl") if record else Passthrough()
+    runtime = _runtime(tmp_path, {"s1": body}, llm=llm, user_io=AnswerLater(), recorder=recorder)
+    suspended = runtime.start(0, {"in.txt": b"x"})
+    state = RunState.from_json(suspended.state.to_json())
+    resumed = runtime.resume(state, answer="はい")
+    assert resumed.status == "completed"
+    assert llm.calls == 1
+    final = runtime.store.get_snapshot(resumed.state.current)
+    assert runtime.store.get(final.files["s1.txt"]) == "1 はい".encode()
+    if record:
+        lines = (tmp_path / "rec.jsonl").read_text(encoding="utf-8").splitlines()
+        kinds = [json.loads(json.loads(line)["key"])[0] for line in lines]
+        assert kinds.count("llm") == 1
+
+
+def test_swallowed_suspension_still_suspends(tmp_path: Path) -> None:
+    def body(c: StageContext) -> None:
+        with contextlib.suppress(AwaitingAnswer):
+            c.user_io.ask(Question("?"))
+        _ok(c)
+
+    result = _runtime(tmp_path, {"s1": body}, user_io=Deferring()).start(0, {"in.txt": b"x"})
+    assert result.status == "suspended"
+
+
+def test_swallowed_replay_miss_still_stops(tmp_path: Path) -> None:
+    def body(c: StageContext) -> None:
+        with contextlib.suppress(Exception):
+            c.llm.complete({"prompt": "x"})
+        _ok(c)
+
+    # LLM を呼ばない実行を記録し、LLM を呼ぶ本体で再生する。足りないのは LLM の呼び出しだけ
+    rec = tmp_path / "rec.jsonl"
+    _runtime(tmp_path / "a", {}, recorder=Recording(rec)).start(0, {"in.txt": b"x"})
+    runtime = _runtime(tmp_path / "b", {"s1": body}, recorder=ReplayOnly(rec))
+    with pytest.raises(ReplayOnly.Missing):
+        runtime.start(0, {"in.txt": b"x"})
+
+
+def test_context_has_no_public_bypass(tmp_path: Path) -> None:
+    seen: list[list[str]] = []
+
+    def body(c: StageContext) -> None:
+        seen.append([n for n in dir(c) if not n.startswith("_")])
+        _ok(c)
+
+    _runtime(tmp_path, {"s1": body}).start(0, {"in.txt": b"x"})
+    assert "ask" not in seen[0] and "complete" not in seen[0]
+
+
+def test_suspension_from_stage_without_awaits_user_is_a_violation(tmp_path: Path) -> None:
+    def body(c: StageContext) -> None:
+        raise AwaitingAnswer(Question("?"))
+
+    errors = _errors(_runtime(tmp_path, {"s2": body}).start(0, {"in.txt": b"x"}).events)
+    assert isinstance(errors[0], dict) and errors[0]["kind"] == "contract_violation"
+
+
+class BadConfidence:
+    def __init__(self, confidence: float) -> None:
+        self.confidence = confidence
+
+    def classify(self, state: str, options: Sequence[Option]) -> Classification:
+        return Classification("goal", self.confidence)
+
+
+class Crashing:
+    def classify(self, state: str, options: Sequence[Option]) -> Classification:
+        raise RuntimeError("分類器が落ちた")
+
+
+@pytest.mark.parametrize(
+    "classifier", [BadConfidence(float("nan")), BadConfidence(1.5), Crashing()]
+)
+def test_invalid_classifier_output_is_no_answer(classifier: object, tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path, {})
+    runtime.classifier = classifier  # type: ignore[assignment]
+    result = runtime.start(0, {"in.txt": b"x"})
+    evaluation = next(e for e in result.events if e["event"] == "evaluation")
+    assert evaluation["outcome"] == "unknown"
+    assert evaluation["classification"] == {
+        "options": ["goal", "unknown"],
+        "choice": None,
+        "confidence": 0.0,
+    }
+
+
+def test_metric_crash_is_a_measurement_failure(tmp_path: Path) -> None:
+    class Crash(ConformanceRegistry):
+        def measure(
+            self, name: str, view: SnapshotView, args: Mapping[str, JSONValue]
+        ) -> bool | float:
+            raise ZeroDivisionError("壊れた指標")
+
+    result = _runtime(tmp_path, {}, registry=Crash()).start(0, {"in.txt": b"x"})
+    evaluation = next(e for e in result.events if e["event"] == "evaluation")
+    assert isinstance(evaluation["metrics"], dict)
+    flag = evaluation["metrics"]["flag"]
+    assert (
+        isinstance(flag, dict)
+        and flag["passed"] is False
+        and "ZeroDivisionError" in str(flag["error"])
+    )
+
+
+def test_symlink_in_workspace_is_a_violation(tmp_path: Path) -> None:
+    outside = tmp_path / "outside.txt"
+    outside.write_text("秘密")
+
+    def body(c: StageContext) -> None:
+        _ok(c)
+        (c.workspace / "s1.txt").unlink()
+        (c.workspace / "s1.txt").symlink_to(outside)
+
+    errors = _errors(_runtime(tmp_path / "w", {"s1": body}).start(0, {"in.txt": b"x"}).events)
+    assert isinstance(errors[0], dict) and errors[0]["kind"] == "contract_violation"
+    assert "記号リンク" in str(errors[0]["message"])
+
+
+def test_seeds_differ_by_stage_and_visit_within_a_run(tmp_path: Path) -> None:
+    seeds: dict[str, int] = {}
+
+    def body(c: StageContext) -> None:
+        seeds[f"{c.stage_id}#{c.visit}"] = c.seed
+        _ok(c)
+
+    class Op:
+        def decide(self, escalation: object) -> object:
+            from harness_testing_framework.contract import Rerun
+
+            return Rerun() if len(seeds) < 3 else Abort()
+
+    class OnceUnknown:
+        def classify(self, state: str, options: Sequence[Option]) -> Classification:
+            if state.startswith("# 評価: stage s1 visit 1"):
+                return Classification(None, 0)
+            return Goal().classify(state, options)
+
+    runtime = _runtime(tmp_path, {"s1": body, "s2": body}, operator=Op())
+    runtime.classifier = OnceUnknown()
+    runtime.start(5, {"in.txt": b"x"})
+    assert {"s1#1", "s1#2", "s2#1"} <= set(seeds)
+    assert len({seeds["s1#1"], seeds["s1#2"], seeds["s2#1"]}) == 3
+
+
+def test_body_reads_carried_memory(tmp_path: Path) -> None:
+    def s1(c: StageContext) -> None:
+        (c.workspace / "s1.txt").write_text(str(c.read_memory("m21")))
+        (c.workspace / "s1.flag").write_text("true")
+
+    def s2(c: StageContext) -> None:
+        c.write_memory("m21", "直す点")
+        _ok(c)
+
+    classifier = ScriptedClassifier(
+        {
+            "s1#1": {"choice": "goal", "confidence": 1},
+            "s2#1": {"choice": "e2_back", "confidence": 1},
+            "s1#2": {"choice": "goal", "confidence": 1},
+        },
+        {},
+    )
+    runtime = _runtime(tmp_path, {"s1": s1, "s2": s2})
+    runtime.classifier = classifier
+    result = runtime.start(0, {"in.txt": b"x"})
+    starts = [e for e in result.events if e["event"] == "stage_start" and e["stage"] == "s2"]
+    second = runtime.store.get_snapshot(str(starts[1]["snapshot"]))
+    assert runtime.store.get(second.files["s1.txt"]) == "直す点".encode()
+
+
+def test_continue_as_goal_records_who(tmp_path: Path) -> None:
+    class Op:
+        def __init__(self, by: str) -> None:
+            self.by = by
+
+        def decide(self, escalation: object) -> ContinueAsGoal:
+            return ContinueAsGoal("許容", self.by)
+
+    def unknown(c: StageContext) -> None:
+        (c.workspace / "s1.txt").write_text("x")
+
+    for by, expected in [("", "operator"), ("田中", "田中")]:
+        runtime = _runtime(tmp_path / (by or "anon"), {"s1": unknown}, operator=Op(by))
+        result = runtime.start(0, {"in.txt": b"x"})
+        final = runtime.store.get_snapshot(result.state.current)
+        assert final.annotations[0].by == expected
+
+
+def test_evaluation_inputs(tmp_path: Path) -> None:
+    calls: list[tuple[str, list[str]]] = []
+
+    class Spy:
+        def classify(self, state: str, options: Sequence[Option]) -> Classification:
+            calls.append((state, [o.id for o in options]))
+            return Goal().classify(state, options)
+
+    def s3(c: StageContext) -> None:
+        c.write_memory("m33", "出力の記憶")
+        _ok(c)
+
+    runtime = _runtime(tmp_path, {"s3": s3})
+    runtime.classifier = Spy()
+    runtime.start(0, {"in.txt": b"x"})
+    by_header = {state.splitlines()[0]: (state, options) for state, options in calls}
+    stage3, options3 = by_header["# 評価: stage s3 visit 1"]
+    assert options3 == ["goal", "e3_back", "e3_retry", "unknown"]
+    assert "## ファイル s2.txt" in stage3 and "## ファイル s1.txt" not in stage3
+    assert '## 記憶 m33\n"出力の記憶"' in stage3
+    assert "## 記憶 m32" in stage3
+    gate1, options_gate1 = by_header["# 評価: phase p1 visit 1"]
+    assert options_gate1 == ["goal", "e2_back", "unknown"]
+    assert "## ファイル in.txt" in gate1 and "## ファイル s1.txt" in gate1
+    assert "## ファイル gate1.flag" in gate1 and "## ファイル s3.txt" not in gate1
+
+
+def test_metric_view_has_the_stage_start_as_baseline(tmp_path: Path) -> None:
+    seen: dict[str, object] = {}
+
+    class Changed(ConformanceRegistry):
+        def measure(
+            self, name: str, view: SnapshotView, args: Mapping[str, JSONValue]
+        ) -> bool | float:
+            base = view.baseline()
+            key = "phase" if args.get("path") in ("gate1.flag", "gate2.num") else "stage"
+            if base is not None:
+                changed = [p for p in view.list_files() if not base.exists(p)]
+                seen.setdefault(f"{key}:{args.get('path')}", changed)
+            return super().measure(name, view, args)
+
+    _runtime(tmp_path, {}, registry=Changed()).start(0, {"in.txt": b"x"})
+    assert seen["stage:s2.flag"] == ["gate1.flag", "s2.flag", "s2.txt"]
+    assert seen["phase:gate1.flag"] == ["gate1.flag", "s1.flag", "s1.txt", "s2.flag", "s2.txt"]

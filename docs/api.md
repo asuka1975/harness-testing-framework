@@ -45,7 +45,7 @@
 | `StageBody` | ステージ本体。`StageContext` を受け取る呼び出し |
 | `StageContext` | 本体に渡す文脈（作業領域、記憶、種、ユーザー入出力、LLM） |
 | `MetricRegistry` | 指標レジストリ（`names`、`measure`） |
-| `SnapshotView` | 指標が読む、読み取り専用のスナップショット |
+| `SnapshotView` | 指標が読む、読み取り専用のスナップショット。`baseline()` で比べる基準（開始時）のスナップショット |
 | `MetricError` | 指標を測定できない |
 | `UserIO` | ユーザー入出力（`ask`） |
 | `Question` | 質問（文と選択肢） |
@@ -79,7 +79,7 @@
 | `build_workflow` | 検査済みの文書からモデルを作る |
 | `Workflow` | ワークフローのモデル |
 | `Stage` | ステージのモデル |
-| `Runtime` | ランタイム。`start(seed, inputs)` で始め、`resume(state, answer=... / decision=...)` で再開する |
+| `Runtime` | ランタイム。`start(seed, inputs)` で始め、`resume(state, answer=... / decision=...)` で再開する。引数と既定値は adopting.md の第7節 |
 | `RunResult` | 一区切りの結果（状態、出来事、スナップショットの id） |
 | `RunState` | 保存して再開できる実行の状態（`to_json` / `from_json`） |
 | `BlobStore` | 内容アドレスのファイル置き場とスナップショットの置き場 |
@@ -101,7 +101,8 @@
 | 名前 | 内容 |
 | --- | --- |
 | `load_scenario` | シナリオを読み、形式を検査する |
-| `run_scenario` | シナリオを参照ランタイムで実行する（記録と再生も） |
+| `run_scenario` | シナリオを参照ランタイムで実行する（記録と再生も）。結果の `problems` は期待との食い違い |
+| `verify` | 実行の結果をシナリオの期待（実行記録の要約、状態、開始時スナップショット、選択肢、記憶、注記）と比べる |
 | `Scenario` | 読み込んだシナリオ |
 | `ScenarioInvalid` | 形式に適合しないシナリオ |
 | `Expectation` | シナリオの期待（状態、実行記録の要約、記憶、注記の数） |

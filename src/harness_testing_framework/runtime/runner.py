@@ -47,7 +47,7 @@ from harness_testing_framework.runtime.oracle import (
     options,
     state_document,
 )
-from harness_testing_framework.runtime.recorder import Passthrough, Recorder
+from harness_testing_framework.runtime.recorder import Passthrough, Recorder, ReplayOnly
 
 type Event = dict[str, JSONValue]
 
@@ -82,6 +82,7 @@ class RunState:
     current: str = ""
     counts: dict[str, int] = field(default_factory=dict)
     answers: list[str] = field(default_factory=list)
+    responses: list[JSONValue] = field(default_factory=list)
     pending: dict[str, Any] | None = None
     escalations: int = 0
     seq: int = 0
@@ -146,6 +147,9 @@ class _Context:
         self._memory = dict(runtime.store.get_snapshot(state.starts[stage.id]).memory)
         self.written: dict[str, JSONValue] = {}
         self.violations: list[str] = []
+        # 本体が握りつぶしても、ランタイムが中断と再生の失敗を見落とさないように覚えておく
+        self.awaiting: Question | None = None
+        self.missing: ReplayOnly.Missing | None = None
         self._questions = 0
         self._llm_calls = 0
 
@@ -190,7 +194,14 @@ class _Context:
     def llm(self) -> LLMClient:
         return _RecordedLLM(self)
 
-    def ask(self, question: Question) -> str:
+    def _call(self, kind: str, key: list[str | int], request: JSONValue, live: Any) -> JSONValue:
+        try:
+            return self._runtime.recorder.call(kind, key, request, live)
+        except ReplayOnly.Missing as missing:
+            self.missing = missing
+            raise
+
+    def _ask(self, question: Question) -> str:
         state, runtime = self._state, self._runtime
         index = self._questions
         self._questions += 1
@@ -211,27 +222,33 @@ class _Context:
                 return {"defer": True}
 
         request: JSONValue = {"text": question.text, "choices": list(question.choices)}
-        key = _key(self._stage.id, state.visit, index)
-        response = runtime.recorder.call("user", key, request, live)
+        key = _key(state.seed, self._stage.id, state.visit, index)
+        response = self._call("user", key, request, live)
         assert isinstance(response, dict)
         if response.get("defer"):
+            self.awaiting = question
             raise AwaitingAnswer(question)
         answer = str(response["answer"])
         state.answers.append(answer)
         return answer
 
-    def complete(self, request: JSONValue) -> JSONValue:
-        runtime = self._runtime
+    def _complete(self, request: JSONValue) -> JSONValue:
+        runtime, state = self._runtime, self._state
         index = self._llm_calls
         self._llm_calls += 1
+        # 中断から再開した訪問では、それまでの応答を再生する（外へ二度出さない）
+        if index < len(state.responses):
+            return state.responses[index]
 
         def live() -> JSONValue:
             if runtime.llm is None:
                 raise RuntimeError("LLM クライアントが束縛されていない")
             return runtime.llm.complete(request)
 
-        key = _key(self._stage.id, self._state.visit, index)
-        return runtime.recorder.call("llm", key, request, live)
+        key = _key(state.seed, self._stage.id, state.visit, index)
+        response = self._call("llm", key, request, live)
+        state.responses.append(response)
+        return response
 
 
 class _RecordedUserIO:
@@ -239,7 +256,7 @@ class _RecordedUserIO:
         self._context = context
 
     def ask(self, question: Question) -> str:
-        return self._context.ask(question)
+        return self._context._ask(question)
 
 
 class _RecordedLLM:
@@ -247,7 +264,7 @@ class _RecordedLLM:
         self._context = context
 
     def complete(self, request: JSONValue) -> JSONValue:
-        return self._context.complete(request)
+        return self._context._complete(request)
 
 
 class Runtime:
@@ -305,7 +322,7 @@ class Runtime:
             given = answer
             response = self.recorder.call(
                 "resume_answer",
-                _key(state.stage, state.visit, len(state.answers)),
+                _key(state.seed, state.stage, state.visit, len(state.answers)),
                 {},
                 lambda: {"answer": given},
             )
@@ -320,7 +337,7 @@ class Runtime:
             chosen = decision
             response = self.recorder.call(
                 "resume_decision",
-                _key(escalation["stage"], state.escalations),
+                _key(state.seed, str(escalation["stage"]), state.escalations),
                 escalation,
                 lambda: decision_to_json(chosen),
             )
@@ -384,7 +401,7 @@ class Runtime:
         state.stage, state.visit = stage.id, state.visits[stage.id]
         state.starts[stage.id] = start.id
         state.current = start.id
-        state.answers = []
+        state.answers, state.responses = [], []
 
     def _step(self, state: RunState) -> None:
         stage = self.workflow.stage(state.stage)
@@ -394,8 +411,9 @@ class Runtime:
         self._snapshots.append(start.id)
         try:
             end, discarded = self._run_body(state, stage, start)
-        except AwaitingAnswer:
-            state.pending = {"kind": "user"}
+        except AwaitingAnswer as waiting:
+            question = {"text": waiting.question.text, "choices": list(waiting.question.choices)}
+            state.pending = {"kind": "user", "question": question}
             self._transition(state, "suspend", stage.id, None)
             self._end(state, "suspended")
             return
@@ -407,7 +425,7 @@ class Runtime:
             self._escalate(state, stage, failure.kind, None, None, "stage", failure.message)
             return
         self.store.put_snapshot(end)
-        state.current, state.answers = end.id, []
+        state.current, state.answers, state.responses = end.id, [], []
         self._emit(state, {"event": "stage_end", **base, "snapshot": end.id, "error": None})
         self._snapshots.append(end.id)
         for path in discarded:
@@ -491,8 +509,10 @@ class Runtime:
         else:
             goal, scope, target = stage.goal, "stage", stage.id
             paths = list(dict.fromkeys((*stage.reads, *stage.writes)))
-        key = _key(scope, target, state.visit)
-        view = SnapshotReader(snapshot, self.store)
+        key = _key(state.seed, scope, target, state.visit)
+        first = self.workflow.phase(stage.phase).stages[0] if gate else stage.id
+        baseline = self.store.get_snapshot(state.starts[first])
+        view = SnapshotReader(snapshot, self.store, baseline)
         metrics = measure(goal, self.registry, view, self.recorder, key)
         include_goal = all(m.passed for m in metrics.values())
         choices = options(goal, stage.end_states, include_goal)
@@ -546,7 +566,7 @@ class Runtime:
         state.escalations += 1
         response = self.recorder.call(
             "operator",
-            [stage.id, state.escalations],
+            _key(state.seed, stage.id, state.escalations),
             escalation,
             lambda: self._live_decision(escalation),
         )
@@ -584,8 +604,33 @@ class Runtime:
             out["by"] = decision.by
         return out
 
+    def _invalid(self, stage: Stage, decision: Decision) -> str | None:
+        if isinstance(decision, RollbackTo):
+            target = self.workflow.stage(decision.stage)
+            if target.position > stage.position:
+                return f"{decision.stage} は {stage.id} より後ろ"
+            if not set(decision.carry) <= set(target.memory_in):
+                return f"carry {list(decision.carry)} が {decision.stage} の memory_in に無い"
+        return None
+
     def _apply(self, state: RunState, escalation: Mapping[str, Any], decision: Decision) -> None:
         stage = self.workflow.stage(escalation["stage"])
+        problem = self._invalid(stage, decision)
+        if problem is not None:
+            # 契約 3.4: 条件を満たさない選択は拒み、escalate 待ちに戻す
+            message = f"{OperatorDecisionInvalid.__name__}: {problem}"
+            self._emit(state, {"event": "warning", "message": message})
+            event: Event = {
+                "event": "escalation",
+                "stage": stage.id,
+                "reason": escalation["reason"],
+                "edge": escalation["edge"],
+                "decision": None,
+            }
+            self._emit(state, event)
+            state.pending = {"kind": "operator", "escalation": dict(escalation)}
+            self._end(state, "awaiting_operator")
+            return
         self._emit(
             state,
             {
@@ -600,17 +645,11 @@ class Runtime:
             case Rerun():
                 self._enter(state, stage, self.store.get_snapshot(state.starts[stage.id]))
             case RollbackTo(stage=target_id, carry=carry):
-                target = self.workflow.stage(target_id)
-                if target.position > stage.position:
-                    raise OperatorDecisionInvalid(f"{target_id} は {stage.id} より後ろ")
-                if not set(carry) <= set(target.memory_in):
-                    raise OperatorDecisionInvalid(
-                        f"carry {carry} が {target_id} の memory_in に無い"
-                    )
-                self._rollback(state, stage, target, carry, None, None)
+                self._rollback(state, stage, self.workflow.stage(target_id), carry, None, None)
             case ContinueAsGoal(note=note, by=by):
                 current = self.store.get_snapshot(state.current)
-                annotated = current.with_annotation(Annotation("forced_goal", stage.id, note, by))
+                annotation = Annotation("forced_goal", stage.id, note, by or "operator")
+                annotated = current.with_annotation(annotation)
                 state.current = self.store.put_snapshot(annotated)
                 self._after(state, stage, GOAL, escalation["origin"])
             case Abort():
@@ -631,12 +670,21 @@ class Runtime:
             context = _Context(self, state, stage, workspace)
             try:
                 body(context)
-            except AwaitingAnswer:
+            except AwaitingAnswer as waiting:
+                if not stage.awaits_user:
+                    message = f"{stage.id} は awaits_user を宣言していないのに中断の合図を送った"
+                    raise StageFailure("contract_violation", message) from waiting
+                raise
+            except ReplayOnly.Missing:
                 raise
             except ContractViolation as e:
                 raise StageFailure("contract_violation", str(e)) from e
             except Exception as e:
                 raise StageFailure("stage_error", f"{type(e).__name__}: {e}") from e
+            if context.missing is not None:
+                raise context.missing
+            if context.awaiting is not None:
+                raise AwaitingAnswer(context.awaiting)
             if context.violations:
                 raise StageFailure("contract_violation", "; ".join(context.violations))
             memory = {**start.memory, **context.written}

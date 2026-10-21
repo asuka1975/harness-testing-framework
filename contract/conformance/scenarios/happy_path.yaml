@@ -45,3 +45,25 @@ expect:
   - gate_pass s3
   - complete
   - end completed
+  starts:
+    s3#1:
+      files:
+        in.txt: 依頼
+        s1.txt: s1
+        s1.flag: 'true'
+        s2.txt: s2
+        s2.flag: 'true'
+        gate1.flag: 'true'
+      memory: {}
+      gates:
+      - p1
+  options:
+    stage:s3#1: &id002
+    - goal
+    - e3_back
+    - e3_retry
+    - unknown
+    phase:p2#1: *id002
+    stage:s1#1:
+    - goal
+    - unknown

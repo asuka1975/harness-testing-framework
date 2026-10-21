@@ -39,6 +39,8 @@ class Expectation:
     trace: list[str]
     memory: Mapping[str, JSONValue] | None = None
     annotations: int | None = None
+    starts: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+    options: Mapping[str, list[str]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -80,7 +82,12 @@ def load_scenario(path: Path) -> Scenario:
         operator=doc.get("operator", []),
         user=doc.get("user", []),
         expect=Expectation(
-            expect["status"], expect["trace"], expect.get("memory"), expect.get("annotations")
+            status=expect["status"],
+            trace=expect["trace"],
+            memory=expect.get("memory"),
+            annotations=expect.get("annotations"),
+            starts=expect.get("starts", {}),
+            options=expect.get("options", {}),
         ),
     )
 
@@ -94,7 +101,8 @@ class ScenarioResult:
     final_snapshot: Snapshot
     state: RunState
     resumes: int = 0
-    extra: dict[str, Any] = field(default_factory=dict)
+    problems: list[str] = field(default_factory=list)
+    """シナリオの期待との食い違い（verify の結果）。空なら期待どおり。"""
 
 
 def run_scenario(
@@ -172,7 +180,7 @@ def run_scenario(
         events += result.events
         snapshot_ids += result.snapshots
         resumes += 1
-    return ScenarioResult(
+    outcome = ScenarioResult(
         status=result.status,
         summary=summarize(events),
         trace=events,
@@ -181,6 +189,52 @@ def run_scenario(
         state=result.state,
         resumes=resumes,
     )
+    outcome.problems.extend(verify(scenario, outcome, store))
+    return outcome
+
+
+def verify(scenario: Scenario, result: ScenarioResult, store: BlobStore) -> list[str]:
+    """結果をシナリオの期待と比べ、食い違いを一行ずつ返す（README.md の手順 5）。"""
+    expect = scenario.expect
+    problems: list[str] = []
+    if result.summary != expect.trace:
+        problems.append(f"trace: {result.summary} != {expect.trace}")
+    if result.status != expect.status:
+        problems.append(f"status: {result.status} != {expect.status}")
+    starts = {
+        f"{e['stage']}#{e['visit']}": str(e["snapshot"])
+        for e in result.trace
+        if e["event"] == "stage_start"
+    }
+    for key, want in expect.starts.items():
+        if key not in starts:
+            problems.append(f"starts {key}: 訪問が無い")
+            continue
+        snapshot = store.get_snapshot(starts[key])
+        files = {p: store.get(d).decode("utf-8") for p, d in snapshot.files.items()}
+        got = {"files": files, "memory": dict(snapshot.memory), "gates": list(snapshot.gates)}
+        for part in ("files", "memory", "gates"):
+            if got[part] != want[part]:
+                problems.append(f"starts {key} {part}: {got[part]} != {want[part]}")
+    evaluations: dict[str, JSONValue] = {}
+    for e in result.trace:
+        if e["event"] == "evaluation" and isinstance(e["classification"], dict):
+            target = e["stage"] if e["scope"] == "stage" else e["phase"]
+            evaluations[f"{e['scope']}:{target}#{e['visit']}"] = e["classification"]["options"]
+    for key, want_options in expect.options.items():
+        if evaluations.get(key) != want_options:
+            problems.append(f"options {key}: {evaluations.get(key)} != {want_options}")
+    for name, value in (expect.memory or {}).items():
+        if result.final_snapshot.memory.get(name) != value:
+            problems.append(f"memory {name}: {result.final_snapshot.memory.get(name)} != {value}")
+    if (
+        expect.annotations is not None
+        and len(result.final_snapshot.annotations) != expect.annotations
+    ):
+        problems.append(
+            f"annotations: {len(result.final_snapshot.annotations)} != {expect.annotations}"
+        )
+    return problems
 
 
 def _resumer(

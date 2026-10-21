@@ -76,3 +76,12 @@ expect:
   - gate_pass s3
   - complete
   - end completed
+  starts:
+    s2#4:
+      files:
+        in.txt: 依頼
+        s1.txt: s1
+        s1.flag: 'true'
+      memory:
+        m21: fix
+      gates: []
