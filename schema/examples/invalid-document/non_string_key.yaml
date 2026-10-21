@@ -1,0 +1,7 @@
+# check: document
+# 説明: マッピングのキーが文字列でない
+workflow:
+  name: n
+  description: d
+  1: x
+  phases: []

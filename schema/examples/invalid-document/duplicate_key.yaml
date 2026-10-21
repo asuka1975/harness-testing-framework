@@ -1,0 +1,7 @@
+# check: document
+# 説明: マッピングのキーが重複している（後の値で黙って上書きしない）
+workflow:
+  name: dup
+  name: dup2
+  description: d
+  phases: []
