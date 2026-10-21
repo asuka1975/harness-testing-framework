@@ -149,3 +149,23 @@
 | `independence` | 同じクラスの代表どうしで、次の状態の分布が揃うかの検定（カイ二乗統計量の並べ替え検定） |
 | `IndependenceResult` | 検定の結果（代表ごとの件数、統計量、p 値、independent / violated / undetermined） |
 | `chi_square` | 分割表のカイ二乗統計量 |
+
+## `harness_testing_framework.testing.e2e`
+
+E2E のカバレッジ計画（誘発と注入）とマルコフ合成。
+
+| 名前 | 内容 |
+| --- | --- |
+| `coverage_targets` | 踏むべき (ステージ, クラス) の一覧（goal、end\_state、unknown） |
+| `Target` | (ステージ, クラス) |
+| `plan_coverage` | カバレッジ計画を作る。ステージごとの goal の台本と、(ステージ, クラス) ごとの誘発の台本を与える。誘発の台本が無いクラスは注入（分類の結果だけを変える）で踏む |
+| `CoverageItem` | 計画の一項目（対象、誘発か注入か、シナリオ） |
+| `run_coverage` | 計画を実行し、踏んだ (ステージ, クラス) と踏めなかったものを返す |
+| `CoverageReport` | カバレッジの結果 |
+| `MarkovModel` | (ステージ, 訪問の区分) ごとのクラスの分布と、(フェーズ, 最終ステージの訪問の区分) ごとのゲートの分布 |
+| `estimate_model` | 実行の集まりからモデルを推定する |
+| `synthesize` | モデルとワークフローから、最後の状態の分布、訪問の回数の期待値、評価の結果ごとの回数の期待値を厳密に計算する（escalate の後は中止） |
+| `Prediction` | 合成の結果 |
+| `ModelIncomplete` | 到達しうる (ステージ, 訪問) の分布がモデルに無い |
+| `compare_prediction` | 予測と実測を比べる（差が標準誤差の k 倍以内なら一致） |
+| `Comparison` | 一つの量の比較 |

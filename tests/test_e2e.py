@@ -1,0 +1,159 @@
+"""E2E のカバレッジ計画とマルコフ合成（plan.md 第6節 F3）。手で計算できる合成のモデルで確かめる。"""
+
+from pathlib import Path
+
+import pytest
+
+from harness_testing_framework.runtime import load_workflow
+from harness_testing_framework.testing.e2e import (
+    MarkovModel,
+    ModelIncomplete,
+    Target,
+    compare_prediction,
+    coverage_targets,
+    estimate_model,
+    synthesize,
+)
+from harness_testing_framework.testing.harness import ConformanceRegistry
+from harness_testing_framework.testing.stages import RunRecord, RunSet
+
+ROOT = Path(__file__).resolve().parents[1]
+WORKFLOW = load_workflow(
+    ROOT / "contract/conformance/workflows/basic.yaml", ConformanceRegistry().names()
+)
+
+
+def test_coverage_targets_are_every_stage_class() -> None:
+    assert coverage_targets(WORKFLOW) == [
+        Target("s1", "goal"),
+        Target("s1", "unknown"),
+        Target("s2", "goal"),
+        Target("s2", "e2_back"),
+        Target("s2", "unknown"),
+        Target("s3", "goal"),
+        Target("s3", "e3_back"),
+        Target("s3", "e3_retry"),
+        Target("s3", "unknown"),
+    ]
+
+
+def test_synthesis_with_stage_rollbacks_matches_hand_calculation() -> None:
+    # s2 は毎回 1/2 で e2_back（max 2）。三回目の e2_back で escalate し、中止になる
+    model = MarkovModel(
+        stage={
+            ("s1", 1): {"goal": 1.0},
+            ("s2", 1): {"goal": 0.5, "e2_back": 0.5},
+            ("s3", 1): {"goal": 1.0},
+        },
+        gate={("p1", 1): {"goal": 1.0}, ("p2", 1): {"goal": 1.0}},
+        cap=1,
+    )
+    p = synthesize(model, WORKFLOW)
+    assert p.status["completed"] == pytest.approx(1 - 0.5**3)
+    assert p.status["aborted"] == pytest.approx(0.5**3)
+    assert p.mean_visits["s1"] == pytest.approx(1.75)
+    assert p.mean_visits["s2"] == pytest.approx(1.75)
+    assert p.mean_visits["s3"] == pytest.approx(0.875)
+    assert p.outcomes[("s2", "e2_back")] == pytest.approx(0.5 + 0.25 + 0.125)
+
+
+def test_synthesis_with_gate_rollbacks_and_unknown_matches_hand_calculation() -> None:
+    # 一回の試みは s1 が 0.9 で goal（0.1 で unknown → 中止）、p1 のゲートが 0.5 で通る。
+    # ゲートの不合格は s2 の e2_back の辺で s1 へ戻る（max 2）
+    model = MarkovModel(
+        stage={
+            ("s1", 1): {"goal": 0.9, "unknown": 0.1},
+            ("s2", 1): {"goal": 1.0},
+            ("s3", 1): {"goal": 1.0},
+        },
+        gate={("p1", 1): {"goal": 0.5, "e2_back": 0.5}, ("p2", 1): {"goal": 1.0}},
+        cap=1,
+    )
+    p = synthesize(model, WORKFLOW)
+    fail = 0.9 * 0.5
+    assert p.status["completed"] == pytest.approx(fail * (1 + fail + fail**2))
+    assert p.mean_visits["s1"] == pytest.approx(1 + fail + fail**2)
+    assert p.mean_visits["s2"] == pytest.approx(0.9 * (1 + fail + fail**2))
+    assert p.status["completed"] + p.status["aborted"] == pytest.approx(1.0)
+
+
+def test_visit_buckets_use_the_last_bucket_for_later_visits() -> None:
+    # 訪問 2 以降は e2_back が起きない。s2 の訪問は高々 2
+    model = MarkovModel(
+        stage={
+            ("s1", 1): {"goal": 1.0},
+            ("s2", 1): {"e2_back": 1.0},
+            ("s2", 2): {"goal": 1.0},
+            ("s3", 1): {"goal": 1.0},
+        },
+        gate={("p1", 1): {"goal": 1.0}, ("p2", 1): {"goal": 1.0}},
+        cap=2,
+    )
+    p = synthesize(model, WORKFLOW)
+    assert p.status["completed"] == pytest.approx(1.0)
+    assert p.mean_visits["s2"] == pytest.approx(2.0)
+
+
+def test_only_abort_policy_is_supported() -> None:
+    model = MarkovModel(stage={("s1", 1): {"goal": 1.0}}, gate={}, cap=1)
+    with pytest.raises(ValueError, match="方針"):
+        synthesize(model, WORKFLOW, policy="rerun")
+
+
+def _run(evals: list[tuple[str, str, str, int, str]], status: str) -> RunRecord:
+    events = [
+        {
+            "seq": i,
+            "event": "evaluation",
+            "scope": scope,
+            "stage": stage,
+            "phase": phase,
+            "visit": visit,
+            "outcome": outcome,
+        }
+        for i, (scope, stage, phase, visit, outcome) in enumerate(evals)
+    ]
+    events += [
+        {"seq": len(evals), "event": "stage_start", "stage": stage, "visit": visit}
+        for _, stage, _, visit, _ in evals
+    ]
+    return RunRecord(seed=0, status=status, events=events)
+
+
+def test_estimate_model_and_compare() -> None:
+    runs = RunSet(
+        [
+            _run(
+                [
+                    ("stage", "s1", "p1", 1, "goal"),
+                    ("stage", "s2", "p1", 1, "e2_back"),
+                    ("stage", "s1", "p1", 2, "goal"),
+                ],
+                "aborted",
+            ),
+            _run(
+                [
+                    ("stage", "s1", "p1", 1, "goal"),
+                    ("stage", "s2", "p1", 1, "goal"),
+                    ("phase", "s2", "p1", 1, "goal"),
+                    ("stage", "s3", "p2", 1, "goal"),
+                    ("phase", "s3", "p2", 1, "goal"),
+                ],
+                "completed",
+            ),
+        ]
+    )
+    model = estimate_model(runs, cap=2)
+    assert model.stage[("s1", 1)] == {"goal": 1.0}
+    assert model.stage[("s2", 1)] == {"e2_back": 0.5, "goal": 0.5}
+    assert model.stage[("s1", 2)] == {"goal": 1.0}
+    assert model.gate[("p1", 1)] == {"goal": 1.0}
+    comparisons = compare_prediction(synthesize(model, WORKFLOW), runs)
+    names = {c.quantity for c in comparisons}
+    assert {"status:completed", "visits:s1"} <= names
+
+
+def test_missing_distribution_is_reported() -> None:
+    model = MarkovModel(stage={("s1", 1): {"goal": 1.0}}, gate={}, cap=1)
+    with pytest.raises(ModelIncomplete, match="s2"):
+        synthesize(model, WORKFLOW)
