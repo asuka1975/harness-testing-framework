@@ -1,0 +1,46 @@
+[project]
+name = "harness-testing-framework"
+version = "0.0.0"
+description = "ワークフロー型エージェントハーネスのための汎用テスティングフレームワーク"
+readme = "README.md"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+dependencies = [
+    "jsonschema>=4.23",
+    "pyyaml>=6.0.2",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.8",
+    "types-jsonschema",
+    "types-pyyaml",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.5,<0.12"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# reports/ は検証の記録で、中のコード片は記録時のまま残す
+extend-exclude = ["reports"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+# 日本語の文と注釈の全角記号を曖昧な文字として扱わない
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=harness_testing_framework --cov-report=term-missing:skip-covered"
