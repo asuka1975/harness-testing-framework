@@ -59,6 +59,11 @@ def test_every_public_name_is_documented(module: str) -> None:
         "遷移の六種",
         "契約適合テスト",
         "サブワークフロー",
+        "分布テスト",
+        "独立性",
+        "マルコフ合成",
+        "分類器の検証",
+        "トリアージ",
     ],
 )
 def test_adopting_covers(topic: str) -> None:
