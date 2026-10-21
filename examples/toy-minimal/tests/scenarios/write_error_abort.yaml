@@ -1,0 +1,37 @@
+scenario: write_error_abort
+description: write_note の本体が例外で終わり、運用者が中止を選ぶ（中止）
+workflow: ../../workflow.yaml
+seed: 7
+inputs:
+  brief.txt: 新入社員向けに、勉強会の議事録の書き方を短いノートにまとめてほしい。
+visits:
+  ask_topic#1:
+    fixture: ask_topic/ok
+    classify: &id001
+      choice: goal
+      confidence: 0.9
+  plan_outline#1:
+    fixture: plan_outline/ok
+    classify: *id001
+  write_note#1:
+    raise: stage_error
+gates:
+  intake#1: *id001
+operator:
+- kind: abort
+expect:
+  status: aborted
+  trace:
+  - start ask_topic#1
+  - eval stage ask_topic = goal
+  - next ask_topic -> plan_outline
+  - start plan_outline#1
+  - eval stage plan_outline = goal
+  - eval phase intake = goal
+  - gate_pass plan_outline
+  - next plan_outline -> write_note
+  - start write_note#1
+  - error write_note#1 stage_error
+  - escalation write_note stage_error -> abort
+  - abort
+  - end aborted

@@ -1,0 +1,68 @@
+scenario: topic_unclear_rollback
+description: 主題が曖昧で plan_outline が ask_topic へ問いを持ち帰り、ユーザーに尋ね直す（rollback と carry）
+workflow: ../../workflow.yaml
+seed: 7
+inputs:
+  brief.txt: 新入社員向けに、勉強会の議事録の書き方を短いノートにまとめてほしい。
+visits:
+  ask_topic#1:
+    fixture: ask_topic/ok
+    classify: &id001
+      choice: goal
+      confidence: 0.9
+  plan_outline#1:
+    fixture: plan_outline/unclear
+    memory:
+      topic_questions:
+      - 想定読者は誰か
+    classify:
+      choice: topic_unclear
+      confidence: 0.9
+  ask_topic#2:
+    fixture: ask_topic/ok
+    classify: *id001
+    ask:
+    - 想定読者は誰ですか
+  plan_outline#2:
+    fixture: plan_outline/ok
+    classify: *id001
+  write_note#1:
+    fixture: write_note/ok
+    classify: *id001
+  review_note#1:
+    fixture: review_note/ok
+    classify: *id001
+gates:
+  intake#2: *id001
+  compose#1: *id001
+user:
+- answer: 配属されたばかりの新入社員
+expect:
+  status: completed
+  trace:
+  - start ask_topic#1
+  - eval stage ask_topic = goal
+  - next ask_topic -> plan_outline
+  - start plan_outline#1
+  - eval stage plan_outline = topic_unclear
+  - rollback plan_outline -> ask_topic [topic_unclear 1]
+  - start ask_topic#2
+  - eval stage ask_topic = goal
+  - next ask_topic -> plan_outline
+  - start plan_outline#2
+  - eval stage plan_outline = goal
+  - eval phase intake = goal
+  - gate_pass plan_outline
+  - next plan_outline -> write_note
+  - start write_note#1
+  - eval stage write_note = goal
+  - next write_note -> review_note
+  - start review_note#1
+  - eval stage review_note = goal
+  - eval phase compose = goal
+  - gate_pass review_note
+  - complete
+  - end completed
+  memory:
+    topic_questions:
+    - 想定読者は誰か

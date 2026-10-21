@@ -1,0 +1,70 @@
+scenario: review_max_exceeded
+description: 査読の指摘が三回続いて辺の max（2）を超え、運用者が goal 到達扱いで続行を選ぶ。review_note は compose の最終ステージなのでゲートを評価する（max 超過、goal 到達扱い）
+workflow: ../../workflow.yaml
+seed: 7
+inputs:
+  brief.txt: 新入社員向けに、勉強会の議事録の書き方を短いノートにまとめてほしい。
+visits:
+  ask_topic#1:
+    fixture: ask_topic/ok
+    classify: &id001
+      choice: goal
+      confidence: 0.9
+  plan_outline#1:
+    fixture: plan_outline/ok
+    classify: *id001
+  write_note#1: &id002
+    fixture: write_note/ok
+    classify: *id001
+  review_note#1: &id003
+    fixture: review_note/blocking
+    memory:
+      review_findings:
+      - 例が新入社員には抽象的すぎる
+    classify:
+      choice: findings_blocking
+      confidence: 0.9
+  write_note#2: *id002
+  review_note#2: *id003
+  write_note#3: *id002
+  review_note#3: *id003
+gates:
+  intake#1: *id001
+  compose#3: *id001
+operator:
+- kind: continue_as_goal
+  note: 残る指摘は次の版で直す
+expect:
+  status: completed
+  trace:
+  - start ask_topic#1
+  - eval stage ask_topic = goal
+  - next ask_topic -> plan_outline
+  - start plan_outline#1
+  - eval stage plan_outline = goal
+  - eval phase intake = goal
+  - gate_pass plan_outline
+  - next plan_outline -> write_note
+  - start write_note#1
+  - eval stage write_note = goal
+  - next write_note -> review_note
+  - start review_note#1
+  - eval stage review_note = findings_blocking
+  - rollback review_note -> write_note [findings_blocking 1]
+  - start write_note#2
+  - eval stage write_note = goal
+  - next write_note -> review_note
+  - start review_note#2
+  - eval stage review_note = findings_blocking
+  - rollback review_note -> write_note [findings_blocking 2]
+  - start write_note#3
+  - eval stage write_note = goal
+  - next write_note -> review_note
+  - start review_note#3
+  - eval stage review_note = findings_blocking
+  - escalation review_note max_exceeded -> continue_as_goal
+  - eval phase compose = goal
+  - gate_pass review_note
+  - complete
+  - end completed
+  annotations: 1

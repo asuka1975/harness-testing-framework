@@ -1,0 +1,68 @@
+scenario: review_operator_rollback
+description: 査読の分類の確信度が閾値未満で unknown になり、運用者が review_findings を持たせて write_note へ戻す（運用者のロールバック）
+workflow: ../../workflow.yaml
+seed: 7
+inputs:
+  brief.txt: 新入社員向けに、勉強会の議事録の書き方を短いノートにまとめてほしい。
+visits:
+  ask_topic#1:
+    fixture: ask_topic/ok
+    classify: &id001
+      choice: goal
+      confidence: 0.9
+  plan_outline#1:
+    fixture: plan_outline/ok
+    classify: *id001
+  write_note#1: &id002
+    fixture: write_note/ok
+    classify: *id001
+  review_note#1:
+    fixture: review_note/blocking
+    memory:
+      review_findings:
+      - 例が新入社員には抽象的すぎる
+    classify:
+      choice: findings_blocking
+      confidence: 0.3
+  write_note#2: *id002
+  review_note#2:
+    fixture: review_note/ok
+    classify: *id001
+gates:
+  intake#1: *id001
+  compose#2: *id001
+operator:
+- kind: rollback
+  stage: write_note
+  carry:
+  - review_findings
+expect:
+  status: completed
+  trace:
+  - start ask_topic#1
+  - eval stage ask_topic = goal
+  - next ask_topic -> plan_outline
+  - start plan_outline#1
+  - eval stage plan_outline = goal
+  - eval phase intake = goal
+  - gate_pass plan_outline
+  - next plan_outline -> write_note
+  - start write_note#1
+  - eval stage write_note = goal
+  - next write_note -> review_note
+  - start review_note#1
+  - eval stage review_note = unknown
+  - escalation review_note unknown -> rollback
+  - rollback review_note -> write_note [operator]
+  - start write_note#2
+  - eval stage write_note = goal
+  - next write_note -> review_note
+  - start review_note#2
+  - eval stage review_note = goal
+  - eval phase compose = goal
+  - gate_pass review_note
+  - complete
+  - end completed
+  memory:
+    review_findings:
+    - 例が新入社員には抽象的すぎる

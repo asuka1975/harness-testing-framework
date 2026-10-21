@@ -1,0 +1,54 @@
+scenario: outline_unknown_rerun
+description: plan_outline の分類が答え無しで unknown になり、運用者が再実行を選ぶ（unknown、再実行）
+workflow: ../../workflow.yaml
+seed: 7
+inputs:
+  brief.txt: 新入社員向けに、勉強会の議事録の書き方を短いノートにまとめてほしい。
+visits:
+  ask_topic#1:
+    fixture: ask_topic/ok
+    classify: &id001
+      choice: goal
+      confidence: 0.9
+  plan_outline#1:
+    fixture: plan_outline/ok
+    classify:
+      choice: null
+      confidence: 0.0
+  plan_outline#2:
+    fixture: plan_outline/ok
+    classify: *id001
+  write_note#1:
+    fixture: write_note/ok
+    classify: *id001
+  review_note#1:
+    fixture: review_note/ok
+    classify: *id001
+gates:
+  intake#2: *id001
+  compose#1: *id001
+operator:
+- kind: rerun
+expect:
+  status: completed
+  trace:
+  - start ask_topic#1
+  - eval stage ask_topic = goal
+  - next ask_topic -> plan_outline
+  - start plan_outline#1
+  - eval stage plan_outline = unknown
+  - escalation plan_outline unknown -> rerun
+  - start plan_outline#2
+  - eval stage plan_outline = goal
+  - eval phase intake = goal
+  - gate_pass plan_outline
+  - next plan_outline -> write_note
+  - start write_note#1
+  - eval stage write_note = goal
+  - next write_note -> review_note
+  - start review_note#1
+  - eval stage review_note = goal
+  - eval phase compose = goal
+  - gate_pass review_note
+  - complete
+  - end completed

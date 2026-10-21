@@ -8,6 +8,9 @@ uv run ruff check .
 uv run ruff format --check .
 uv run mypy
 uv run pytest
+# 参照ランタイムの行カバレッジ 90% 以上（plan.md 第6節 F2）
+uv run coverage report --include="src/harness_testing_framework/runtime/*" --fail-under=90 >/dev/null
+echo "runtime coverage >= 90%"
 
 # 配布物にスキーマが同梱されていること
 out="$(mktemp -d)"
