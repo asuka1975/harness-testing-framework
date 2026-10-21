@@ -1,0 +1,135 @@
+workflow:
+  name: toy-minimal
+  description: >-
+    玩具 1。依頼（brief.txt）から短いノートを書く。主題の確認（ユーザー待ち）、構成、執筆、査読の
+    4 ステージを 2 フェーズに分け、ロールバック、carry、フェーズ境界越え、ユーザー待ちを最小構成で覆う。
+  inputs: [brief.txt]
+  phases:
+    - id: intake
+      name: Intake
+      description: 依頼の主題と読者を確かめ、ノートの構成を決める
+      goal:
+        qualitative: >-
+          topic.txt と outline.md が同じ主題と読者を前提にしており、outline.md の各節がその主題の一部を扱っている。
+        quantitative:
+          files_nonempty:
+            description: topic.txt と outline.md がどちらも空でない
+            equals: true
+            args: {paths: [topic.txt, outline.md]}
+      stages:
+        - id: ask_topic
+          name: Ask topic
+          description: >-
+            brief.txt を読み、主題と想定読者が曖昧ならユーザーに尋ね、確定した主題と読者を topic.txt に書く
+          awaits_user: true
+          artifacts:
+            reads: [brief.txt]
+            writes: [topic.txt]
+            memory_in: [topic_questions]
+          goal:
+            qualitative: >-
+              topic.txt に、ノートの主題と想定読者がそれぞれ一文以上で書かれていて、brief.txt の依頼と矛盾しない。
+            quantitative:
+              file_nonempty:
+                description: topic.txt が空でない
+                equals: true
+                args: {path: topic.txt}
+          end_state:
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback: []
+        - id: plan_outline
+          name: Plan outline
+          description: topic.txt から、ノートの節とその要約を outline.md に書く
+          artifacts:
+            reads: [topic.txt]
+            writes: [outline.md]
+            memory_in: [outline_gaps]
+            memory_out: [topic_questions]
+          goal:
+            qualitative: >-
+              outline.md が topic.txt の主題を三つ以上の節に分け、各節に一行の要約がある。
+            quantitative:
+              section_count:
+                description: outline.md の節の数
+                min: 3
+                args: {path: outline.md}
+          end_state:
+            - id: topic_unclear
+              description: >-
+                topic.txt の主題か想定読者が曖昧で、節を決められない。決められない理由が、ユーザーに尋ねるべき問いとして
+                outline.md の末尾に列挙されている。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: topic_unclear
+              stage: ask_topic
+              carry: [topic_questions]
+              max: 2
+    - id: compose
+      name: Compose
+      description: 構成に沿ってノートを書き、査読する
+      goal:
+        qualitative: >-
+          note.md が brief.txt の依頼に、topic.txt の読者に向けて答えており、outline.md の全節を述べている。
+        quantitative:
+          sections_covered:
+            description: outline.md の節のうち note.md が見出しとして持つものの割合
+            min: 1.0
+            args: {outline: outline.md, note: note.md}
+      stages:
+        - id: write_note
+          name: Write note
+          description: outline.md の節の順に note.md を書く
+          artifacts:
+            reads: [topic.txt, outline.md]
+            writes: [note.md]
+            memory_in: [review_findings]
+            memory_out: [outline_gaps]
+          goal:
+            qualitative: >-
+              note.md が outline.md の全節を、その順に見出しとして持ち、各節に一段落以上の本文がある。
+            quantitative:
+              sections_covered:
+                description: outline.md の節のうち note.md が見出しとして持つものの割合
+                min: 1.0
+                args: {outline: outline.md, note: note.md}
+          end_state:
+            - id: outline_unfit
+              description: >-
+                outline.md に、topic.txt の主題と読者に照らして書けない節（主題の範囲外、他の節との重複、順序の矛盾）がある。
+                書けない節とその理由が note.md の末尾に書き出されている。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: outline_unfit
+              stage: plan_outline
+              carry: [outline_gaps]
+              max: 1
+        - id: review_note
+          name: Review note
+          description: note.md を outline.md と topic.txt に照らして査読し、指摘を review.json に書く
+          artifacts:
+            reads: [topic.txt, outline.md, note.md]
+            writes: [review.json]
+            memory_out: [review_findings]
+          goal:
+            qualitative: >-
+              review.json に note.md の全節を査読した結果があり、修正を要する指摘が一つも無い。
+            quantitative:
+              blocking_findings:
+                description: review.json の指摘のうち修正を要するものの数
+                max: 0
+                args: {path: review.json}
+          end_state:
+            - id: findings_blocking
+              description: >-
+                review.json に、note.md の修正を要する指摘（主題や読者からの逸脱、節の抜け、事実の誤り）が一つ以上ある。
+                どの指摘も note.md を直せば解消する。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: findings_blocking
+              stage: write_note
+              carry: [review_findings]
+              max: 2

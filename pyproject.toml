@@ -39,8 +39,11 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src", "tests"]
+files = ["src", "tests", "examples/toy-minimal"]
+mypy_path = ["src", "examples/toy-minimal"]
+explicit_package_bases = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "--cov=harness_testing_framework --cov-report=term-missing:skip-covered"
+testpaths = ["tests", "examples/toy-minimal/tests"]
+pythonpath = ["examples/toy-minimal"]
+addopts = "--import-mode=importlib --cov=harness_testing_framework --cov-report=term-missing:skip-covered"
