@@ -11,9 +11,10 @@ from pathlib import Path
 from typing import Any
 
 from toy_minimal.metrics import REGISTRY
-from toy_minimal.stages.probabilistic import INPUTS, ROOT, runtime
+from toy_minimal.stages.probabilistic import INPUTS, ROOT, TABLE, runtime
 
 from harness_testing_framework.testing.e2e import (
+    MarkovModel,
     compare_prediction,
     coverage_targets,
     estimate_model,
@@ -21,7 +22,7 @@ from harness_testing_framework.testing.e2e import (
     run_coverage,
     synthesize,
 )
-from harness_testing_framework.testing.stages import record_run, run_many
+from harness_testing_framework.testing.stages import record_run, run_many, runs_from_environment
 
 FIXTURES = ROOT / "tests" / "fixtures"
 GOAL = {
@@ -61,13 +62,40 @@ def test_coverage_plan_reaches_every_stage_class(tmp_path: Path) -> None:
     assert all(report.reached[item.target] for item in plan)
 
 
+RUNS = runs_from_environment(400)
+
+
 def test_markov_prediction_matches_measurement(tmp_path: Path) -> None:
+    """推定したモデルの予測が、別の種の実行の実測と一致する（状態、訪問の回数、評価の結果ごとの回数）。"""
     built = runtime("markov", tmp_path / "a")
-    estimation = run_many(400, 30000, lambda seed: record_run(built, seed, INPUTS))
+    estimation = run_many(RUNS, 30000, lambda seed: record_run(built, seed, INPUTS))
     prediction = synthesize(estimate_model(estimation, cap=2), built.workflow)
     other = runtime("markov", tmp_path / "b")
-    measurement = run_many(400, 40000, lambda seed: record_run(other, seed, INPUTS))
+    measurement = run_many(RUNS, 40000, lambda seed: record_run(other, seed, INPUTS))
     comparisons = compare_prediction(prediction, measurement)
-    checked = [c for c in comparisons if c.quantity.startswith(("status:", "visits:"))]
-    assert checked
-    assert all(c.within for c in checked), [c.line() for c in checked if not c.within]
+    assert {c.quantity.split(":")[0] for c in comparisons} == {"status", "visits", "outcome"}
+    assert all(c.within for c in comparisons), [c.line() for c in comparisons if not c.within]
+
+
+def _design_model() -> MarkovModel:
+    """tests/stochastic.yaml の markov の設計値から、厳密なモデルを作る（ゲートは常に goal）。"""
+    variants = TABLE["variants"]
+    stage: dict[tuple[str, int], dict[str, float]] = {}
+    for name, dists in TABLE["profiles"]["markov"].items():
+        for bucket, key in ((1, "first"), (2, "again")):
+            dist: dict[str, float] = {}
+            for variant, p in dists[key].items():
+                cls = variants[name][variant]["class"]
+                dist[cls] = dist.get(cls, 0.0) + p
+            stage[(name, bucket)] = dist
+    gate = {(phase, b): {"goal": 1.0} for phase in ("intake", "compose") for b in (1, 2)}
+    return MarkovModel(stage, gate, cap=2)
+
+
+def test_design_model_prediction_matches_measurement(tmp_path: Path) -> None:
+    """設計値から作ったモデルの厳密な予測と、実行の実測が一致する（推定の誤差を含まない比較）。"""
+    built = runtime("markov", tmp_path)
+    prediction = synthesize(_design_model(), built.workflow)
+    measurement = run_many(RUNS, 60000, lambda seed: record_run(built, seed, INPUTS))
+    comparisons = compare_prediction(prediction, measurement)
+    assert all(c.within for c in comparisons), [c.line() for c in comparisons if not c.within]

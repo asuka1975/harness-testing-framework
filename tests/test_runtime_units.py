@@ -610,3 +610,35 @@ def test_state_documents_are_kept_in_the_store(tmp_path: Path) -> None:
         document = runtime.store.get(str(classification["state"])).decode("utf-8")
         target = e["stage"] if e["scope"] == "stage" else e["phase"]
         assert document.startswith(f"# 評価: {e['scope']} {target} visit {e['visit']}")
+
+
+def test_representative_depends_only_on_the_stage_writes(tmp_path: Path) -> None:
+    from harness_testing_framework.testing.stages import record_run
+
+    def s1(text: str) -> object:
+        def body(c: StageContext) -> None:
+            (c.workspace / "s1.txt").write_text(text)
+            (c.workspace / "s1.flag").write_text("true")
+
+        return body
+
+    reps: list[dict[str, str]] = []
+    for i, text in enumerate(["一つ目", "二つ目"]):
+        runtime = _runtime(tmp_path / str(i), {"s1": s1(text)})
+        run = record_run(runtime, 0, {"in.txt": b"x"})
+        by_stage = {
+            str(e["stage"]): run.representatives[int(str(e["seq"]))]
+            for e in run.evaluations()
+            if e["scope"] == "stage"
+        }
+        reps.append(by_stage)
+    assert reps[0]["s1"] != reps[1]["s1"]
+    assert reps[0]["s2"] == reps[1]["s2"]
+
+    custom = record_run(
+        _runtime(tmp_path / "c", {}),
+        0,
+        {"in.txt": b"x"},
+        representative=lambda stage, snap, store: stage.id,
+    )
+    assert set(custom.representatives.values()) == {"s1", "s2", "s3"}

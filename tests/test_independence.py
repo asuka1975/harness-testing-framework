@@ -14,19 +14,23 @@ from harness_testing_framework.testing.stages import (
 )
 
 
-def _run(steps: list[tuple[str, str, str | None]], status: str = "completed") -> RunRecord:
-    """steps: (ステージ, 結果, 代表)。順に評価が起き、最後に run_end。"""
+def _run(steps: list[tuple[Any, ...]], status: str = "completed") -> RunRecord:
+    """steps: (ステージ, 結果, 代表[, 訪問[, スコープ]])。順に評価が起き、最後に run_end。
+    スコープが phase の評価は、ステージの欄をフェーズの id として扱う。"""
     events: list[dict[str, Any]] = []
     reps: dict[int, str] = {}
-    for i, (stage, outcome, rep) in enumerate(steps):
+    for i, step in enumerate(steps):
+        stage, outcome, rep = step[:3]
+        visit = step[3] if len(step) > 3 else 1
+        scope = step[4] if len(step) > 4 else "stage"
         events.append(
             {
                 "seq": i,
                 "event": "evaluation",
-                "scope": "stage",
+                "scope": scope,
                 "stage": stage,
-                "phase": "p",
-                "visit": 1,
+                "phase": stage if scope == "phase" else "p",
+                "visit": visit,
                 "outcome": outcome,
             }
         )
@@ -73,7 +77,7 @@ def _two_groups(counts_a: dict[str, int], counts_b: dict[str, int]) -> RunSet:
 def test_independent_when_downstream_distributions_agree() -> None:
     runs = _two_groups({"goal": 40, "x": 10}, {"goal": 40, "x": 10})
     [result] = [r for r in independence(runs) if r.state == "stage:a=goal"]
-    assert result.verdict == "independent"
+    assert result.verdict == "not_detected"
     assert result.p_value is not None and result.p_value > 0.5
     assert result.groups == {"A": 50, "B": 50}
 
@@ -98,3 +102,52 @@ def test_permutation_p_value_is_deterministic() -> None:
     runs = _two_groups({"goal": 30, "x": 20}, {"goal": 22, "x": 28})
     first = [r.p_value for r in independence(runs, seed=3)]
     assert first == [r.p_value for r in independence(runs, seed=3)]
+
+
+def test_next_state_passes_through_gate_evaluations() -> None:
+    runs = RunSet([_run([("a", "goal", "r"), ("g", "goal", None, 1, "phase"), ("b", "x", None)])])
+    got = [(t.state, t.next) for t in transitions(runs)]
+    assert got[0] == ("stage:a=goal", "phase:g=goal > stage:b=x")
+    assert got[1] == ("phase:g=goal", "stage:b=x")
+
+
+def test_difference_after_a_gate_is_detected() -> None:
+    """フェーズの最終ステージの goal でも、ゲートの先の次のステージの違いを検出する。"""
+    runs: list[RunRecord] = []
+    for rep, counts in (("A", {"goal": 45, "x": 5}), ("B", {"goal": 15, "x": 35})):
+        for nxt, n in counts.items():
+            runs += [
+                _run([("a", "goal", rep), ("g", "goal", None, 1, "phase"), ("b", nxt, None)])
+            ] * n
+    [result] = [r for r in independence(RunSet(runs)) if r.state == "stage:a=goal"]
+    assert result.verdict == "violated"
+
+
+def test_strata_by_visit_bucket() -> None:
+    """訪問の区分が違うと下流が違っても、区分の中で揃っていれば違反にしない（マルコフの仮定と揃える）。"""
+    runs: list[RunRecord] = []
+    for visit, rep, counts in ((1, "A", {"goal": 40, "x": 10}), (2, "B", {"goal": 10, "x": 40})):
+        for nxt, n in counts.items():
+            runs += [_run([("a", "goal", rep, visit), ("b", nxt, None)])] * n
+    results = [r for r in independence(RunSet(runs)) if r.state == "stage:a=goal"]
+    assert sorted(r.visit for r in results) == [1, 2]
+    assert all(r.verdict != "violated" for r in results)
+
+
+def test_p_value_is_never_below_one_over_permutations_plus_one() -> None:
+    runs = _two_groups({"goal": 10}, {"x": 10})
+    [result] = [r for r in independence(runs, permutations=9) if r.state == "stage:a=goal"]
+    assert result.p_value == pytest.approx(1 / 10)
+
+
+def test_permutation_p_value_matches_exact_hypergeometric() -> None:
+    """周辺度数が対称な 2×2 では、カイ二乗の順序は |a - 5| の順序と同じなので、厳密な p 値は超幾何分布から出る。"""
+    from math import comb
+
+    runs = _two_groups({"goal": 8, "x": 2}, {"goal": 2, "x": 8})
+    [result] = [
+        r for r in independence(runs, permutations=20000, min_group=10) if r.state == "stage:a=goal"
+    ]
+    exact = 2 * sum(comb(10, k) * comb(10, 10 - k) for k in (8, 9, 10)) / comb(20, 10)
+    assert result.p_value is not None
+    assert abs(result.p_value - exact) < 4 * (exact * (1 - exact) / 20000) ** 0.5

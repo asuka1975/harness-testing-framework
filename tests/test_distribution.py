@@ -64,11 +64,11 @@ def test_outcome_rate_counts_matching_evaluations(tmp_path: Path) -> None:
     e = load_expectations(
         _expectations(
             tmp_path,
-            "  - {kind: outcome_rate, target: a, visit: 1, outcome: x, min: 0.6, max: 0.7}\n"
-            "  - {kind: outcome_rate, target: a, from_visit: 2, outcome: x, min: 0.5, max: 0.5}\n"
-            "  - {kind: status_rate, status: completed, min: 0.75, max: 0.75}\n"
-            "  - {kind: mean_visits, target: a, min: 1.25, max: 1.25}\n"
-            "  - {kind: outcome_rate, target: c, visit: 1, outcome: x, min: 0, max: 1}\n",
+            "  - {kind: outcome_rate, target: a, visit: 1, outcome: x, min: 0.6, max: 0.7, min_samples: 1}\n"
+            "  - {kind: outcome_rate, target: a, from_visit: 2, outcome: x, min: 0.5, max: 0.5, min_samples: 1}\n"
+            "  - {kind: status_rate, status: completed, min: 0.75, max: 0.75, min_samples: 1}\n"
+            "  - {kind: mean_visits, target: a, min: 1.25, max: 1.25, min_samples: 1}\n"
+            "  - {kind: outcome_rate, target: c, visit: 1, outcome: x, min: 0, max: 1, min_samples: 1}\n",
         )
     )
     results = evaluate_expectations(e, runs).results
@@ -80,11 +80,13 @@ def test_outcome_rate_counts_matching_evaluations(tmp_path: Path) -> None:
 def test_band_edges_are_inclusive_and_outside_fails(tmp_path: Path) -> None:
     runs = RunSet([_run([("a", 1, "x")]), _run([("a", 1, "goal")])])
     inside = _expectations(
-        tmp_path, "  - {kind: outcome_rate, target: a, visit: 1, outcome: x, min: 0.5, max: 0.5}\n"
+        tmp_path,
+        "  - {kind: outcome_rate, target: a, visit: 1, outcome: x, min: 0.5, max: 0.5, min_samples: 1}\n",
     )
     assert evaluate_expectations(load_expectations(inside), runs).passed
     outside = _expectations(
-        tmp_path, "  - {kind: outcome_rate, target: a, visit: 1, outcome: x, min: 0.51, max: 1}\n"
+        tmp_path,
+        "  - {kind: outcome_rate, target: a, visit: 1, outcome: x, min: 0.51, max: 1, min_samples: 1}\n",
     )
     assert not evaluate_expectations(load_expectations(outside), runs).passed
 
@@ -104,3 +106,55 @@ def test_runs_can_be_scaled_by_environment(tmp_path: Path, monkeypatch: pytest.M
     path = _expectations(tmp_path, "  - {kind: status_rate, status: completed, min: 0, max: 1}\n")
     monkeypatch.setenv("HTF_RUNS", "37")
     assert load_expectations(path).runs == 37
+
+
+def test_wilson_interval_published_value() -> None:
+    # 8/10 の 95% Wilson 区間の公表値
+    low, high = wilson_interval(8, 10)
+    assert low == pytest.approx(0.4902, abs=1e-4) and high == pytest.approx(0.9433, abs=1e-4)
+
+
+def test_too_few_samples_fail_as_undetermined(tmp_path: Path) -> None:
+    runs = RunSet([_run([("a", 1, "x")]), _run([("a", 1, "goal")])])
+    path = _expectations(
+        tmp_path, "  - {kind: outcome_rate, target: a, visit: 1, outcome: x, min: 0, max: 1}\n"
+    )
+    [result] = evaluate_expectations(load_expectations(path), runs).results
+    assert not result.passed and "件数" in result.note
+
+
+def test_mean_visits_outside_band_fails(tmp_path: Path) -> None:
+    runs = RunSet([_run([("a", 1, "x"), ("a", 2, "goal")])] * 40)
+    path = _expectations(tmp_path, "  - {kind: mean_visits, target: a, min: 1.0, max: 1.5}\n")
+    [result] = evaluate_expectations(load_expectations(path), runs).results
+    assert not result.passed and result.observed == pytest.approx(2.0)
+
+
+def test_report_line_shows_observation_and_interval(tmp_path: Path) -> None:
+    runs = RunSet([_run([("a", 1, "x")]), _run([("a", 1, "goal")])])
+    path = _expectations(
+        tmp_path,
+        "  - {kind: outcome_rate, target: a, visit: 1, outcome: x, min: 0.4, max: 0.6, min_samples: 1}\n",
+    )
+    [line] = evaluate_expectations(load_expectations(path), runs).lines()
+    assert line.startswith("PASS outcome_rate a 訪問 1 = x [0.4, 0.6]: 観測 0.500（1/2）")
+    assert "95% 区間" in line
+
+
+@pytest.mark.parametrize("value", ["0", "-3", "多い"])
+def test_invalid_run_count_in_environment_is_rejected(
+    value: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = _expectations(tmp_path, "  - {kind: status_rate, status: completed, min: 0, max: 1}\n")
+    monkeypatch.setenv("HTF_RUNS", value)
+    with pytest.raises(ValueError):
+        load_expectations(path)
+
+
+def test_environment_cannot_lower_the_run_count(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """基準の幅は expectations の回数から決めてあるので、環境変数で回数を下げられない。"""
+    path = _expectations(tmp_path, "  - {kind: status_rate, status: completed, min: 0, max: 1}\n")
+    monkeypatch.setenv("HTF_RUNS", "3")
+    assert load_expectations(path).runs == 10

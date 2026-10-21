@@ -157,3 +157,66 @@ def test_missing_distribution_is_reported() -> None:
     model = MarkovModel(stage={("s1", 1): {"goal": 1.0}}, gate={}, cap=1)
     with pytest.raises(ModelIncomplete, match="s2"):
         synthesize(model, WORKFLOW)
+
+
+def test_compare_prediction_reports_a_mismatch() -> None:
+    """予測と食い違う実測（全実行が s2 を一回で通って完了）に対して、不一致を出す。"""
+    model = MarkovModel(
+        stage={
+            ("s1", 1): {"goal": 1.0},
+            ("s2", 1): {"goal": 0.5, "e2_back": 0.5},
+            ("s3", 1): {"goal": 1.0},
+        },
+        gate={("p1", 1): {"goal": 1.0}, ("p2", 1): {"goal": 1.0}},
+        cap=1,
+    )
+    runs = RunSet(
+        [
+            _run(
+                [
+                    ("stage", "s1", "p1", 1, "goal"),
+                    ("stage", "s2", "p1", 1, "goal"),
+                    ("phase", "s2", "p1", 1, "goal"),
+                    ("stage", "s3", "p2", 1, "goal"),
+                    ("phase", "s3", "p2", 1, "goal"),
+                ],
+                "completed",
+            )
+        ]
+        * 400
+    )
+    comparisons = {c.quantity: c for c in compare_prediction(synthesize(model, WORKFLOW), runs)}
+    assert not comparisons["visits:s2"].within
+    assert not comparisons["status:completed"].within
+    assert "不一致" in comparisons["visits:s2"].line()
+
+
+def test_visit_buckets_beyond_two() -> None:
+    model = MarkovModel(
+        stage={
+            ("s1", 1): {"goal": 1.0},
+            ("s2", 1): {"e2_back": 1.0},
+            ("s2", 2): {"e2_back": 1.0},
+            ("s2", 3): {"goal": 1.0},
+            ("s3", 1): {"goal": 1.0},
+        },
+        gate={("p1", 1): {"goal": 1.0}, ("p2", 1): {"goal": 1.0}},
+        cap=3,
+    )
+    p = synthesize(model, WORKFLOW)
+    assert p.status["completed"] == pytest.approx(1.0)
+    assert p.mean_visits["s2"] == pytest.approx(3.0)
+
+
+def test_missing_bucket_falls_back_to_the_lower_one() -> None:
+    """観測の無い区分は、下の区分の分布を使う（文書に書いた規則）。"""
+    model = MarkovModel(
+        stage={
+            ("s1", 1): {"goal": 1.0},
+            ("s2", 1): {"goal": 0.5, "e2_back": 0.5},
+            ("s3", 1): {"goal": 1.0},
+        },
+        gate={("p1", 1): {"goal": 1.0}, ("p2", 1): {"goal": 1.0}},
+        cap=3,
+    )
+    assert synthesize(model, WORKFLOW).status["completed"] == pytest.approx(1 - 0.5**3)

@@ -1,13 +1,18 @@
-# 保護ファイル。markov.yaml の各基準を設計値から外れるようにずらしたもの。どの基準も落ちなければならない
+# 保護ファイル。設計値から外れた基準。どの基準も落ちなければならない。
+# 上へのずれ、下へのずれ、正しい幅のすぐ外側の幅を含む。各基準の注記は、設計値が幅からどれだけ離れているか（E[n] での SE の倍数）
 expectations: toy-markov-shifted
-description: markov の各基準をずらしたもの（分布テストが誤った基準を落とすことの確認）
+description: markov の設計値から外れた基準（分布テストが誤った基準を落とすことの確認）
 workflow: ../../workflow.yaml
 runs: 200
 seed: 10000
 bindings: {profile: markov}
 criteria:
-  - {kind: outcome_rate, target: ask_topic, visit: 1, outcome: unknown, min: 0.20, max: 0.40}
-  - {kind: outcome_rate, target: plan_outline, visit: 1, outcome: topic_unclear, min: 0.45, max: 0.65}
-  - {kind: outcome_rate, target: write_note, visit: 1, outcome: goal, min: 0.92, max: 1.0}
-  - {kind: outcome_rate, target: review_note, visit: 1, outcome: findings_blocking, min: 0.45, max: 0.65}
-  - {kind: outcome_rate, target: review_note, from_visit: 2, outcome: findings_blocking, min: 0.30, max: 0.50}
+  - {kind: outcome_rate, target: ask_topic, visit: 1, outcome: unknown, min: 0.20, max: 0.40}              # 上へ 9.7 SE
+  - {kind: outcome_rate, target: ask_topic, visit: 1, outcome: unknown, min: 0.10, max: 0.25}              # すぐ外側、3.2 SE
+  - {kind: outcome_rate, target: plan_outline, visit: 1, outcome: topic_unclear, min: 0.45, max: 0.65}     # 上へ 6.4 SE
+  - {kind: outcome_rate, target: plan_outline, visit: 1, outcome: topic_unclear, min: 0.36, max: 0.50}     # すぐ外側、3.5 SE
+  - {kind: outcome_rate, target: write_note, visit: 1, outcome: goal, min: 0.92, max: 1.0}                 # 上へ 4.0 SE
+  - {kind: outcome_rate, target: write_note, visit: 1, outcome: goal, min: 0.55, max: 0.69}                # 下へ 3.6 SE
+  - {kind: outcome_rate, target: review_note, visit: 1, outcome: findings_blocking, min: 0.45, max: 0.65}   # 上へ 4.2 SE
+  - {kind: outcome_rate, target: review_note, visit: 1, outcome: findings_blocking, min: 0.05, max: 0.18}   # 下へ 3.3 SE
+  - {kind: outcome_rate, target: review_note, from_visit: 2, outcome: findings_blocking, min: 0.30, max: 0.50}  # 上へ 4.7 SE

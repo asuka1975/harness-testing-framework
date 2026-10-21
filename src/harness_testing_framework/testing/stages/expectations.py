@@ -1,8 +1,8 @@
 """expectations（分布テストの基準）の読み込みと判定。
 
-判定の規則（D-8）: 観測した割合（または平均）が [min, max] に入れば通る。報告には
+判定の規則（D-8、D-9）: 観測した割合（または平均）が [min, max] に入れば通る。報告には
 Wilson の 95% 区間とその幅を添え、実行の回数が基準の幅に対して足りるかを人が見られるようにする。
-条件に合う評価が一つも無い基準は判定できず、通らない。
+分母（条件に合う評価の数、または実行の数）が min_samples（既定 30）未満の基準は判定できず、通らない。
 """
 
 import math
@@ -89,7 +89,7 @@ class CriterionResult:
             target += f" = {c['outcome']}"
         band = f"[{c['min']}, {c['max']}]"
         mark = "PASS" if self.passed else "FAIL"
-        if self.observed is None:
+        if self.observed is None or self.note:
             return f"{mark} {c['kind']} {target} {band}: {self.note}"
         interval = f"95% 区間 [{self.low:.3f}, {self.high:.3f}]（幅 {self.high - self.low:.3f}）"
         observed = f"観測 {self.observed:.3f}（{self.count}/{self.n}）"
@@ -117,7 +117,21 @@ def _visit_matches(criterion: dict[str, Any], visit: int) -> bool:
     return True
 
 
+MIN_SAMPLES = 30
+
+
 def _judge(criterion: dict[str, Any], runs: RunSet) -> CriterionResult:
+    result = _measure(criterion, runs)
+    needed = int(criterion.get("min_samples", MIN_SAMPLES))
+    if result.observed is not None and result.n < needed:
+        note = f"件数 {result.n} が min_samples {needed} 未満で判定できない"
+        return CriterionResult(
+            criterion, result.observed, result.count, result.n, result.low, result.high, False, note
+        )
+    return result
+
+
+def _measure(criterion: dict[str, Any], runs: RunSet) -> CriterionResult:
     kind = criterion["kind"]
     lo, hi = criterion["min"], criterion["max"]
     if kind == "mean_visits":

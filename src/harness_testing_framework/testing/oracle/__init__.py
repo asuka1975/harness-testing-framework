@@ -22,7 +22,8 @@ from harness_testing_framework.contract import (
 )
 from harness_testing_framework.runtime.checkpoint import BlobStore
 from harness_testing_framework.runtime.model import Workflow
-from harness_testing_framework.testing.harness.fakes import _MARKER, evaluation_target
+from harness_testing_framework.runtime.oracle import safe_classify
+from harness_testing_framework.testing.harness.fakes import marked_class
 from harness_testing_framework.testing.stages.runs import RunSet
 
 
@@ -125,7 +126,7 @@ def build_corpus(runs: RunSet, store: BlobStore, workflow: Workflow) -> list[Cor
             descriptions = {"goal": goal_text, **{s.id: s.description for s in stage.end_states}}
             options = tuple(Option(o, descriptions[o]) for o in classification["options"])
             state = store.get(str(classification["state"])).decode("utf-8")
-            item = f"{run.seed}-{e['seq']}"
+            item = f"{run.run_id}-{e['seq']}"
             source = {"run": run.seed, "seq": e["seq"], "choice": classification["choice"]}
             items.append(CorpusItem(item, str(e["scope"]), target, options, state, source))
     return items
@@ -176,7 +177,21 @@ def expected_calibration_error(
 
 
 @dataclass(frozen=True)
+class TargetSummary:
+    n: int
+    kappa: float
+    accuracy: float
+    ece: float
+
+
+@dataclass(frozen=True)
 class OracleReport:
+    """分類器の検証の結果。
+
+    ECE は答えた項目だけで計算する（答え無しを確信度 0 の不正解として入れると、答え無しが多いほど ECE が下がるため）。
+    答えた割合は coverage に、答え無しの件数は unanswered に出す。κ と混同行列は、答え無しを独立のカテゴリとして数える。
+    """
+
     n: int
     kappa: float
     accuracy: float
@@ -185,11 +200,13 @@ class OracleReport:
     bins: list[CalibrationBin]
     rerun_agreement: float
     unanswered: int
+    coverage: float
+    by_target: dict[str, TargetSummary]
 
     def lines(self) -> list[str]:
         out = [
             f"件数 {self.n}、一致率 {self.accuracy:.3f}、Cohen の κ {self.kappa:.3f}、ECE {self.ece:.3f}（等幅 {len(self.bins)} 区間）",
-            f"再実行の一致率 {self.rerun_agreement:.3f}、答え無し {self.unanswered} 件",
+            f"再実行の一致率 {self.rerun_agreement:.3f}、答え無し {self.unanswered} 件（答えた割合 {self.coverage:.3f}。ECE は答えた項目だけ）",
         ]
         out += [
             f"混同 {label} → {choice}: {n}"
@@ -214,11 +231,15 @@ def oracle_report(
     """ラベルの付いた各項目を分類器にかけ、κ、混同行列、ECE、再実行の一致率を求める。
 
     同じ項目を reruns 回分類し、すべて同じ選択だった項目の割合を再実行の一致率とする。κ と ECE は一回目の結果で計算する。
-    答え無しは独立のカテゴリとして数え、確信度 0 の不正解として較正に入れる。
+    分類器の出力はランタイムと同じく「答え無し」に正規化する（例外、範囲外や有限でない確信度、選択肢に無い id）。
+    答え無しは κ と混同行列では独立のカテゴリとして数え、ECE には入れない。
     """
+    if not labels:
+        raise CorpusInvalid("ラベルが一つも無い")
     by_item = {i.item: i for i in corpus}
     pairs: list[tuple[str, str | None]] = []
     records: list[tuple[float, bool]] = []
+    targets: list[str] = []
     agree = 0
     for label in labels:
         if label.item not in by_item:
@@ -226,15 +247,25 @@ def oracle_report(
         item = by_item[label.item]
         if label.label not in {o.id for o in item.options}:
             raise CorpusInvalid(f"ラベル {label.label} が項目 {label.item} の選択肢に無い")
-        results = [classifier.classify(item.state, item.options) for _ in range(max(1, reruns))]
+        results = [
+            safe_classify(classifier, item.state, item.options) for _ in range(max(1, reruns))
+        ]
         first = results[0]
-        choice = first.choice if first.choice in {o.id for o in item.options} else None
-        confidence = first.confidence if choice is not None else 0.0
-        pairs.append((label.label, choice))
-        records.append((confidence, choice == label.label))
+        pairs.append((label.label, first.choice))
+        records.append((first.confidence, first.choice == label.label))
+        targets.append(f"{item.scope}:{item.target}")
         agree += all(r.choice == first.choice for r in results)
     n = len(pairs)
-    ece, table = expected_calibration_error(records, bins)
+    answered = [r for r, (_, choice) in zip(records, pairs, strict=True) if choice is not None]
+    ece, table = expected_calibration_error(answered, bins) if answered else (0.0, [])
+    by_target: dict[str, TargetSummary] = {}
+    for target in sorted(set(targets)):
+        idx = [i for i, t in enumerate(targets) if t == target]
+        sub_pairs = [pairs[i] for i in idx]
+        sub_answered = [records[i] for i in idx if pairs[i][1] is not None]
+        sub_ece = expected_calibration_error(sub_answered, bins)[0] if sub_answered else 0.0
+        accuracy = sum(1 for a, b in sub_pairs if a == b) / len(idx)
+        by_target[target] = TargetSummary(len(idx), cohen_kappa(sub_pairs), accuracy, sub_ece)
     return OracleReport(
         n=n,
         kappa=cohen_kappa(pairs),
@@ -244,6 +275,8 @@ def oracle_report(
         bins=table,
         rerun_agreement=agree / n,
         unanswered=sum(1 for _, b in pairs if b is None),
+        coverage=len(answered) / n,
+        by_target=by_target,
     )
 
 
@@ -264,8 +297,7 @@ class ConfusionClassifier:
         key = hashlib.sha256(state.encode()).hexdigest()
         if key in self._answers:
             return self._answers[key]
-        target = evaluation_target(state)
-        truth = next((c for t, c in _MARKER.findall(state) if target and t == target[1]), None)
+        truth = marked_class(state)
         if truth is None or truth not in self._rows:
             answer = Classification(None, 0.0)
         else:
@@ -311,6 +343,7 @@ __all__ = [
     "FlakyClassifier",
     "Label",
     "OracleReport",
+    "TargetSummary",
     "build_corpus",
     "cohen_kappa",
     "expected_calibration_error",

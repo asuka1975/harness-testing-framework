@@ -140,6 +140,24 @@ class Evaluation:
     classification: Classification | None
 
 
+def safe_classify(classifier: Classifier, state: str, choices: Sequence[Option]) -> Classification:
+    """分類器を呼び、契約 2.2 の「答え無し」に正規化する。
+
+    分類器の例外、0〜1 の有限の数でない確信度、選択肢に無い id は、すべて答え無し（選択無し・確信度 0）にする。
+    ランタイムの評価と分類器の検証（オラクル）の両方がこれを使う。
+    """
+    try:
+        c = classifier.classify(state, choices)
+        confidence = float(c.confidence)
+    except Exception:
+        return Classification(None, 0.0)
+    if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
+        return Classification(None, 0.0)
+    if c.choice is None or c.choice not in {o.id for o in choices}:
+        return Classification(None, 0.0)
+    return Classification(c.choice, confidence)
+
+
 def classify(
     classifier: Classifier,
     document: str,
@@ -151,15 +169,8 @@ def classify(
     """分類器に選ばせ、結果を評価の結果に写す。閾値未満と選択肢外は unknown。"""
 
     def live() -> JSONValue:
-        # 分類器の例外と、0〜1 の有限の数でない確信度は「答え無し」（契約 2.2）
-        try:
-            c = classifier.classify(document, choices)
-            confidence = float(c.confidence)
-        except Exception:
-            return {"choice": None, "confidence": 0.0}
-        if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
-            return {"choice": None, "confidence": 0.0}
-        return {"choice": c.choice, "confidence": confidence}
+        c = safe_classify(classifier, document, choices)
+        return {"choice": c.choice, "confidence": c.confidence}
 
     request: JSONValue = {
         "state": document,

@@ -103,7 +103,7 @@ def enqueue(queue: Path, run: RunRecord, *, review_below: float) -> list[TriageI
             continue
         target = str(e["stage"] if e["scope"] == "stage" else e["phase"])
         item = TriageItem(
-            item=f"{run.seed}-{e['seq']}",
+            item=f"{run.run_id}-{e['seq']}",
             run=run.seed,
             seq=int(e["seq"]),
             scope=str(e["scope"]),
@@ -137,10 +137,11 @@ def decide(queue: Path, record: Path, decision: Decision) -> None:
     by_item = {i.item: i for i in items(queue)}
     if decision.item not in by_item:
         raise TriageInvalid(f"待ち行列に項目 {decision.item} が無い")
-    if decision.verdict == "label" and decision.label not in by_item[decision.item].options:
-        raise TriageInvalid(
-            f"ラベル {decision.label} が項目の選択肢 {by_item[decision.item].options} に無い"
-        )
+    options = by_item[decision.item].options
+    if decision.verdict == "label" and decision.label not in options:
+        raise TriageInvalid(f"ラベル {decision.label} が項目の選択肢 {options} に無い")
+    if decision.label is not None and decision.label not in options:
+        raise TriageInvalid(f"正しいクラス {decision.label} が項目の選択肢 {options} に無い")
     row = {**asdict(decision), "proposal": decision.proposal}
     _append(record, [row])
 

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from harness_testing_framework.contract import Option
+from harness_testing_framework.contract import Classification, Option
 from harness_testing_framework.testing.oracle import (
     ConfusionClassifier,
     CorpusInvalid,
@@ -94,13 +94,58 @@ def test_kappa_and_ece_edge_cases() -> None:
     assert bins[-1].n == 1 and bins[0].n == 1
 
 
-def test_unanswered_is_its_own_category() -> None:
+def test_unanswered_is_its_own_category_and_excluded_from_ece() -> None:
     items, labels = _corpus()
     report = oracle_report(
         ConfusionClassifier({**ROWS, "x": [(None, 0.0)]}), items, labels, reruns=1
     )
     assert report.confusion[("x", None)] == 30
     assert report.unanswered == 30
+    assert report.coverage == pytest.approx(0.7)
+    # 答えた 70 件だけで: 0.9 の 45 件は正解、0.7 の 16 件は正解、0.6 の 9 件は不正解
+    assert report.ece == pytest.approx((45 * 0.1 + 16 * 0.3 + 9 * 0.6) / 70)
+
+
+class Misbehaving:
+    def __init__(self, result: object) -> None:
+        self.result = result
+
+    def classify(self, state: str, options: object) -> Classification:
+        if isinstance(self.result, Exception):
+            raise self.result
+        assert isinstance(self.result, Classification)
+        return self.result
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        Classification("goal", -0.3),
+        Classification("goal", 1.5),
+        Classification("goal", float("nan")),
+        Classification("nonsense", 0.9),
+        RuntimeError("落ちた"),
+    ],
+)
+def test_invalid_classifier_output_is_no_answer(result: object) -> None:
+    items, labels = _corpus()
+    report = oracle_report(Misbehaving(result), items[:5], labels[:5], reruns=1)
+    assert report.unanswered == 5
+    assert report.coverage == 0.0
+
+
+def test_breakdown_by_target() -> None:
+    items, labels = _corpus()
+    report = oracle_report(ConfusionClassifier(ROWS), items, labels, reruns=1)
+    assert set(report.by_target) == {"stage:a"}
+    assert report.by_target["stage:a"].kappa == pytest.approx(report.kappa)
+    assert report.by_target["stage:a"].n == 100
+
+
+def test_empty_labels_are_rejected() -> None:
+    items, _ = _corpus()
+    with pytest.raises(CorpusInvalid, match="ラベル"):
+        oracle_report(ConfusionClassifier(ROWS), items, [])
 
 
 def test_corpus_and_labels_round_trip(tmp_path: Path) -> None:

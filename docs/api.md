@@ -125,6 +125,7 @@
 | `AutoUser` | いつも同じ回答をその場で返すユーザー |
 | `ReplayOnly` | runtime の `ReplayOnly` と同じもの |
 | `evaluation_target` | 状態文書の見出し行から、評価の対象を読む |
+| `marked_class` | 状態文書の見出し行が示す対象について、印 `[[class <対象>=<クラス>]]` が示すクラス |
 
 ## `harness_testing_framework.testing.stages`
 
@@ -134,9 +135,9 @@
 | --- | --- |
 | `RunRecord` | 一回の実行の記録（種、最後の状態、実行記録、評価ごとの代表のハッシュ） |
 | `RunSet` | 実行の記録の集まり |
-| `record_run` | ランタイムで一回実行し、代表のハッシュ（ステージが書いた成果物の内容のハッシュ）を添えて記録する |
+| `record_run` | ランタイムで一回実行し、評価ごとに代表の鍵を添えて記録する。鍵の既定はステージが書いた成果物の内容のハッシュ（`representative` 引数で変えられる） |
 | `run_many` | 種を一つずつ変えて何回も実行する |
-| `runs_from_environment` | 実行の回数。環境変数 `HTF_RUNS` があればそれを使う |
+| `runs_from_environment` | 実行の回数。環境変数 `HTF_RUNS` が既定より大きければそれを使う（減らせない） |
 | `load_expectations` | expectations を読み、形式を検査する |
 | `Expectations` | 読み込んだ expectations |
 | `ExpectationsInvalid` | 形式に適合しないか、基準が矛盾する expectations |
@@ -148,8 +149,8 @@
 | `Transition` | 一つの遷移（状態、代表、次の状態） |
 | `transition_counts` | 状態ごとの次の状態の件数 |
 | `transition_matrix` | 状態ごとの次の状態の経験分布（遷移行列） |
-| `independence` | 同じクラスの代表どうしで、次の状態の分布が揃うかの検定（カイ二乗統計量の並べ替え検定） |
-| `IndependenceResult` | 検定の結果（代表ごとの件数、統計量、p 値、independent / violated / undetermined） |
+| `independence` | 同じクラスの代表どうしで、次の状態の分布が違うかの検定（カイ二乗統計量の並べ替え検定。状態と訪問の区分ごと） |
+| `IndependenceResult` | 検定の結果（状態、訪問の区分、代表ごとの件数、統計量、p 値、not\_detected / violated / undetermined） |
 | `chi_square` | 分割表のカイ二乗統計量 |
 
 ## `harness_testing_framework.testing.e2e`
@@ -185,7 +186,8 @@ E2E のカバレッジ計画（誘発と注入）とマルコフ合成。
 | `load_labels`、`save_labels` | ラベルを JSON Lines で読み書きする |
 | `CorpusInvalid` | 形式に適合しない、またはコーパスとラベルが食い違う |
 | `oracle_report` | ラベルの付いた項目を分類器にかけ、κ、混同行列、ECE（等幅の区間）、再実行の一致率を求める |
-| `OracleReport` | レポート（`lines()` で人が読む形） |
+| `OracleReport` | レポート（`lines()` で人が読む形）。ECE は答えた項目だけで計算し、答えた割合は `coverage`。対象ごとの内訳は `by_target` |
+| `TargetSummary` | 対象（scope と id）ごとの件数、κ、一致率、ECE |
 | `CalibrationBin` | 較正の一区間 |
 | `cohen_kappa` | Cohen の κ |
 | `expected_calibration_error` | ECE と区間の表 |

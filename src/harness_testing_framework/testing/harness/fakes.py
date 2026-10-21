@@ -176,6 +176,15 @@ class Unreachable:
 _MARKER = re.compile(r"\[\[class ([a-z][a-z0-9_-]*)=([a-z][a-z0-9_-]*)\]\]")
 
 
+def marked_class(state: str) -> str | None:
+    """状態文書の見出し行が示す評価の対象について、印 `[[class <対象>=<クラス>]]` が示すクラス（最後の印）。"""
+    target = evaluation_target(state)
+    if target is None:
+        return None
+    marked = [cls for tid, cls in _MARKER.findall(state) if tid == target[1]]
+    return marked[-1] if marked else None
+
+
 class MarkerClassifier:
     """成果物に埋めた印 `[[class <対象の id>=<クラス>]]` を読む偽の分類器。
 
@@ -190,12 +199,10 @@ class MarkerClassifier:
         self.confidence = confidence
 
     def classify(self, state: str, options: Sequence[Option]) -> Classification:
-        target = evaluation_target(state)
         ids = {o.id for o in options}
-        if target is None:
+        if evaluation_target(state) is None:
             return Classification(None, 0.0)
-        marked = [cls for tid, cls in _MARKER.findall(state) if tid == target[1]]
-        choice = marked[-1] if marked else ("goal" if "goal" in ids else None)
+        choice = marked_class(state) or ("goal" if "goal" in ids else None)
         if choice not in ids:
             return Classification(None, 0.0)
         return Classification(choice, self.confidence)

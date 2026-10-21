@@ -1,12 +1,18 @@
 """遷移行列の推定と独立性検証。
 
-状態は評価の結果（`stage:<id>=<結果>` か `phase:<id>=<結果>`）。次の状態は、同じ実行の中の次の評価の結果か、
-評価が続かなければ実行の最後の状態（`end:<状態>`）。
+状態は評価の結果（`stage:<id>=<結果>` か `phase:<id>=<結果>`）。次の状態は、同じ実行の中で続くゲートの評価
+（あれば `>` でつなぐ）と、その次のステージの評価の結果。ステージの評価が続かなければ実行の最後の状態（`end:<状態>`）。
+ゲートの評価を飛ばさずにつなぐのは、フェーズの最終ステージの goal の後に、次のフェーズの最初のステージの分布の
+違いが見えるようにするため。
 
 独立性検証（plan.md 第2節）: クラスは下流の振る舞いに関する同値類なので、同じクラスに属する代表どうしで、
 次の状態の分布が揃うはず。代表はステージが書いた成果物の内容のハッシュ。代表ごとの次の状態の分割表の
 カイ二乗統計量を、代表の札を入れ替える並べ替え検定（種を固定）で判定する。並べ替え検定は小さい期待度数でも
-近似に頼らない。
+近似に頼らない。マルコフ合成と同じく、評価の訪問の番号を cap でまとめた区分ごとに分けて検定する（訪問によって
+成果物と下流が変わるのは、クラスの粗さではない）。
+
+判定 not_detected は「この件数では違いを検出しなかった」の意味で、揃うことの証明ではない。状態ごとに独立に検定し、
+多重性の補正はしない（違反の疑いは人がトリアージで確かめる）。
 """
 
 import random
@@ -22,6 +28,7 @@ class Transition:
     run: int
     seq: int
     state: str
+    visit: int
     representative: str | None
     next: str
 
@@ -38,12 +45,17 @@ def transitions(runs: RunSet) -> list[Transition]:
     for index, run in enumerate(runs.runs):
         evaluations = [dict(e) for e in run.evaluations()]
         for i, e in enumerate(evaluations):
-            following = (
-                _state(evaluations[i + 1]) if i + 1 < len(evaluations) else f"end:{run.status}"
-            )
+            chain: list[str] = []
+            for later in evaluations[i + 1 :]:
+                chain.append(_state(later))
+                if later["scope"] == "stage":
+                    break
+            else:
+                chain.append(f"end:{run.status}")
             seq = int(str(e["seq"]))
             representative = run.representatives.get(seq) if e["scope"] == "stage" else None
-            out.append(Transition(index, seq, _state(e), representative, following))
+            visit = int(str(e["visit"]))
+            out.append(Transition(index, seq, _state(e), visit, representative, " > ".join(chain)))
     return out
 
 
@@ -87,6 +99,7 @@ def _table(
 @dataclass(frozen=True)
 class IndependenceResult:
     state: str
+    visit: int
     groups: dict[str, int]
     statistic: float | None
     p_value: float | None
@@ -101,24 +114,27 @@ def independence(
     permutations: int = 2000,
     seed: int = 0,
     min_group: int = 10,
+    cap: int = 2,
 ) -> list[IndependenceResult]:
     """ステージの評価の結果ごとに、代表どうしで次の状態の分布が揃うかを検定する。
 
-    判定は independent（揃う）、violated（p 値が alpha 未満）、undetermined（samples が min_group 以上の
-    代表が二つ未満）。
+    判定は not_detected（違いを検出しなかった）、violated（p 値が alpha 未満）、undetermined（件数が min_group
+    以上の代表が二つ未満）。状態と、訪問の区分（cap 以上は一つ）の組ごとに検定する。
     """
-    by_state: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    by_state: dict[tuple[str, int], list[tuple[str, str]]] = defaultdict(list)
     for t in transitions(runs):
         if t.representative is not None:
-            by_state[t.state].append((t.representative, t.next))
+            by_state[(t.state, min(t.visit, cap))].append((t.representative, t.next))
     results: list[IndependenceResult] = []
-    for state in sorted(by_state):
-        samples = by_state[state]
+    for state, bucket in sorted(by_state):
+        samples = by_state[(state, bucket)]
         sizes = Counter(rep for rep, _ in samples)
         groups = sorted(rep for rep, n in sizes.items() if n >= min_group)
         if len(groups) < 2:
             note = f"{min_group} 件以上の代表が二つ未満（代表ごとの件数 {dict(sizes)}）"
-            results.append(IndependenceResult(state, dict(sizes), None, None, "undetermined", note))
+            results.append(
+                IndependenceResult(state, bucket, dict(sizes), None, None, "undetermined", note)
+            )
             continue
         kept = [(rep, nxt) for rep, nxt in samples if rep in groups]
         columns = sorted({nxt for _, nxt in kept})
@@ -135,8 +151,10 @@ def independence(
             ):
                 exceed += 1
         p_value = (1 + exceed) / (1 + permutations)
-        verdict = "violated" if p_value < alpha else "independent"
+        verdict = "violated" if p_value < alpha else "not_detected"
         results.append(
-            IndependenceResult(state, {g: sizes[g] for g in groups}, observed, p_value, verdict)
+            IndependenceResult(
+                state, bucket, {g: sizes[g] for g in groups}, observed, p_value, verdict
+            )
         )
     return results

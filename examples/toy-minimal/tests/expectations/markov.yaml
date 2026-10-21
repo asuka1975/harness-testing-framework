@@ -1,5 +1,6 @@
 # 保護ファイル（plan.md 第5.9節）。基準は tests/stochastic.yaml の markov の設計値から手で導いた。
-# 各基準の幅は、設計値の両側に、既定の実行回数（200）での標準誤差のおよそ 3 倍をとった
+# 各基準の幅は、設計値の両側に、既定の回数（200）での標準誤差のおよそ 3 倍をとった。
+# 標準誤差は、条件に合う評価の数の期待値 E[n]（設計値とワークフローの遷移規則からの列挙）で計算した
 expectations: toy-markov
 description: markov の確率的な偽ステージ本体での、評価の結果の出現率
 workflow: ../../workflow.yaml
@@ -7,33 +8,33 @@ runs: 200
 seed: 10000
 bindings: {profile: markov}
 criteria:
-  - kind: outcome_rate
+  - kind: outcome_rate     # 設計値 0.05、E[n] 200、SE 0.0154。上側 3.1 SE（下側は 0 で切る）
     target: ask_topic
     visit: 1
     outcome: unknown
     min: 0.0
-    max: 0.12            # 設計値 0.05
-  - kind: outcome_rate
+    max: 0.10
+  - kind: outcome_rate     # 設計値 0.25、E[n] 190、SE 0.0314。両側 3.2 SE
     target: plan_outline
     visit: 1
     outcome: topic_unclear
     min: 0.15
-    max: 0.35            # 設計値 0.25
-  - kind: outcome_rate
+    max: 0.35
+  - kind: outcome_rate     # 設計値 0.80（ok と ok_b の和）、E[n] 175.5、SE 0.0302。両側 3.3 SE
     target: write_note
     visit: 1
     outcome: goal
     min: 0.70
-    max: 0.90            # 設計値 0.80（ok と ok_b の和）
-  - kind: outcome_rate
+    max: 0.90
+  - kind: outcome_rate     # 設計値 0.30、E[n] 162.8、SE 0.0359。両側 3.1 SE
     target: review_note
     visit: 1
     outcome: findings_blocking
-    min: 0.20
-    max: 0.40            # 設計値 0.30
-  - kind: outcome_rate
+    min: 0.19
+    max: 0.41
+  - kind: outcome_rate     # 設計値 0.10、E[n] 50、SE 0.0424。上側 3.1 SE（下側は 0 で切る）
     target: review_note
     from_visit: 2
     outcome: findings_blocking
     min: 0.0
-    max: 0.22            # 設計値 0.10
+    max: 0.23

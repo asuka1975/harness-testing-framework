@@ -104,3 +104,35 @@ def test_taxonomy_changes_are_proposals_only(tmp_path: Path) -> None:
     )
     [d] = decisions(record)
     assert d.verdict == "new_class_proposal" and d.proposal
+
+
+def test_confidence_at_the_threshold_is_not_queued(tmp_path: Path) -> None:
+    run, _ = _run(tmp_path)
+    added = enqueue(tmp_path / "queue.jsonl", run, review_below=0.55)
+    assert [i.reason for i in added] == ["unknown"]
+
+
+def test_classifier_error_label_must_be_an_option(tmp_path: Path) -> None:
+    run, _ = _run(tmp_path)
+    queue = tmp_path / "queue.jsonl"
+    added = enqueue(queue, run, review_below=0.6)
+    record = tmp_path / "decisions.jsonl"
+    with pytest.raises(TriageInvalid, match="選択肢"):
+        decide(queue, record, Decision(added[0].item, "classifier_error", "nonsense", "", "人手"))
+    decide(
+        queue,
+        record,
+        Decision(added[0].item, "classifier_error", "unknown", "本当は unknown", "人手"),
+    )
+
+
+def test_items_of_different_runs_with_the_same_seed_do_not_collide(tmp_path: Path) -> None:
+    first, _ = _run(tmp_path / "a")
+    second = RunRecord(
+        first.seed, first.status, [*first.events[:-1], {**first.events[-1], "extra": 1}], {}
+    )
+    queue = tmp_path / "queue.jsonl"
+    assert len(enqueue(queue, first, review_below=0.6)) == 2
+    assert first.run_id != second.run_id
+    assert len(enqueue(queue, second, review_below=0.6)) == 2
+    assert len(enqueue(queue, first, review_below=0.6)) == 0

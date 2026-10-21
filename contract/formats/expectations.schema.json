@@ -5,63 +5,186 @@
     "description": "分布テストの基準（plan.md 第2節「分布基準の置き場」）。N 回の実行で何が何割起きるべきかを書く。ワークフロー定義には書かない",
     "type": "object",
     "properties": {
-        "expectations": { "description": "基準の集まりの名前", "type": "string", "minLength": 1 },
-        "description": { "type": "string", "minLength": 1 },
-        "workflow": { "description": "ワークフロー定義のパス。このファイルからの相対パス", "type": "string" },
-        "runs": { "description": "実行の回数。環境変数 HTF_RUNS で上書きできる", "type": "integer", "minimum": 1 },
-        "seed": { "description": "最初の実行の種。i 回目の実行は seed + i", "type": "integer" },
-        "bindings": { "description": "ハーネスが実行を組み立てるための自由な情報", "type": "object" },
-        "criteria": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/criterion" } }
+        "expectations": {
+            "description": "基準の集まりの名前",
+            "type": "string",
+            "minLength": 1
+        },
+        "description": {
+            "type": "string",
+            "minLength": 1
+        },
+        "workflow": {
+            "description": "ワークフロー定義のパス。このファイルからの相対パス",
+            "type": "string"
+        },
+        "runs": {
+            "description": "実行の回数。基準の幅はこの回数から決める。環境変数 HTF_RUNS で増やせる（減らせない）",
+            "type": "integer",
+            "minimum": 1
+        },
+        "seed": {
+            "description": "最初の実行の種。i 回目の実行は seed + i",
+            "type": "integer"
+        },
+        "bindings": {
+            "description": "ハーネスが実行を組み立てるための自由な情報",
+            "type": "object"
+        },
+        "criteria": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "$ref": "#/$defs/criterion"
+            }
+        }
     },
-    "required": ["expectations", "description", "workflow", "runs", "seed", "criteria"],
+    "required": [
+        "expectations",
+        "description",
+        "workflow",
+        "runs",
+        "seed",
+        "criteria"
+    ],
     "additionalProperties": false,
     "$defs": {
-        "rate": { "type": "number", "minimum": 0, "maximum": 1 },
-        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+        "rate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        },
+        "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*$"
+        },
         "criterion": {
             "oneOf": [
                 {
                     "description": "評価の結果の出現率。分母は条件に合う評価の数、分子はそのうち結果が outcome のもの",
                     "type": "object",
                     "properties": {
-                        "kind": { "const": "outcome_rate" },
-                        "scope": { "enum": ["stage", "phase"], "default": "stage" },
-                        "target": { "$ref": "#/$defs/id" },
-                        "visit": { "description": "この訪問の評価だけを数える", "type": "integer", "minimum": 1 },
-                        "from_visit": { "description": "この訪問以降の評価を数える", "type": "integer", "minimum": 1 },
-                        "outcome": { "$ref": "#/$defs/id" },
-                        "min": { "$ref": "#/$defs/rate" },
-                        "max": { "$ref": "#/$defs/rate" }
+                        "kind": {
+                            "const": "outcome_rate"
+                        },
+                        "scope": {
+                            "enum": [
+                                "stage",
+                                "phase"
+                            ],
+                            "default": "stage"
+                        },
+                        "target": {
+                            "$ref": "#/$defs/id"
+                        },
+                        "visit": {
+                            "description": "この訪問の評価だけを数える",
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        "from_visit": {
+                            "description": "この訪問以降の評価を数える",
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        "outcome": {
+                            "$ref": "#/$defs/id"
+                        },
+                        "min": {
+                            "$ref": "#/$defs/rate"
+                        },
+                        "max": {
+                            "$ref": "#/$defs/rate"
+                        },
+                        "min_samples": {
+                            "$ref": "#/$defs/min_samples"
+                        }
                     },
-                    "required": ["kind", "target", "outcome", "min", "max"],
-                    "not": { "required": ["visit", "from_visit"] },
+                    "required": [
+                        "kind",
+                        "target",
+                        "outcome",
+                        "min",
+                        "max"
+                    ],
+                    "not": {
+                        "required": [
+                            "visit",
+                            "from_visit"
+                        ]
+                    },
                     "additionalProperties": false
                 },
                 {
                     "description": "実行の最後の状態の割合",
                     "type": "object",
                     "properties": {
-                        "kind": { "const": "status_rate" },
-                        "status": { "enum": ["completed", "aborted", "suspended", "awaiting_operator"] },
-                        "min": { "$ref": "#/$defs/rate" },
-                        "max": { "$ref": "#/$defs/rate" }
+                        "kind": {
+                            "const": "status_rate"
+                        },
+                        "status": {
+                            "enum": [
+                                "completed",
+                                "aborted",
+                                "suspended",
+                                "awaiting_operator"
+                            ]
+                        },
+                        "min": {
+                            "$ref": "#/$defs/rate"
+                        },
+                        "max": {
+                            "$ref": "#/$defs/rate"
+                        },
+                        "min_samples": {
+                            "$ref": "#/$defs/min_samples"
+                        }
                     },
-                    "required": ["kind", "status", "min", "max"],
+                    "required": [
+                        "kind",
+                        "status",
+                        "min",
+                        "max"
+                    ],
                     "additionalProperties": false
                 },
                 {
                     "description": "一回の実行でステージを訪れる回数の平均",
                     "type": "object",
                     "properties": {
-                        "kind": { "const": "mean_visits" },
-                        "target": { "$ref": "#/$defs/id" },
-                        "min": { "type": "number", "minimum": 0 },
-                        "max": { "type": "number", "minimum": 0 }
+                        "kind": {
+                            "const": "mean_visits"
+                        },
+                        "target": {
+                            "$ref": "#/$defs/id"
+                        },
+                        "min": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "max": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "min_samples": {
+                            "$ref": "#/$defs/min_samples"
+                        }
                     },
-                    "required": ["kind", "target", "min", "max"],
+                    "required": [
+                        "kind",
+                        "target",
+                        "min",
+                        "max"
+                    ],
                     "additionalProperties": false
                 }
             ]
+        },
+        "min_samples": {
+            "description": "判定に要る件数（分母）の下限。下回れば判定できず通らない。既定 30",
+            "type": "integer",
+            "minimum": 1,
+            "default": 30
         }
     }
 }
