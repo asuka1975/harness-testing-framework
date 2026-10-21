@@ -1,5 +1,6 @@
 """CI がローカルと同じ検査（scripts/check.sh）を呼ぶことの検査。"""
 
+import re
 from pathlib import Path
 
 import yaml
@@ -29,10 +30,11 @@ def test_check_script_runs_all_tools() -> None:
 
 def test_tool_configuration_does_not_name_examples() -> None:
     """examples/ の下に新しいワークフローを足しても、設定を直さずにテストと型検査に乗る。"""
-    names = [p.name for p in (ROOT / "examples").iterdir() if p.is_dir()]
-    names += [q.name for p in (ROOT / "examples").iterdir() if p.is_dir() for q in p.iterdir()]
+    # ワークフローのディレクトリ名と、その下の Python のパッケージ名
+    examples = [p for p in (ROOT / "examples").iterdir() if p.is_dir()]
+    names = [p.name for p in examples]
+    names += [q.name for p in examples for q in p.iterdir() if (q / "__init__.py").exists()]
     for config in ["pyproject.toml", "scripts/check.sh", "conftest.py", ".github/workflows/ci.yml"]:
         text = (ROOT / config).read_text(encoding="utf-8")
         for name in names:
-            if name not in {"tests", "README.md", ".gitkeep", "workflow.yaml", "__pycache__"}:
-                assert name not in text, (config, name)
+            assert re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", text) is None, (config, name)

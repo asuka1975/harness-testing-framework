@@ -606,6 +606,8 @@ class Runtime:
 
     def _invalid(self, stage: Stage, decision: Decision) -> str | None:
         if isinstance(decision, RollbackTo):
+            if decision.stage not in {s.id for s in self.workflow.stages}:
+                return f"ステージ {decision.stage} が無い"
             target = self.workflow.stage(decision.stage)
             if target.position > stage.position:
                 return f"{decision.stage} は {stage.id} より後ろ"
@@ -680,7 +682,9 @@ class Runtime:
             except ContractViolation as e:
                 raise StageFailure("contract_violation", str(e)) from e
             except Exception as e:
-                raise StageFailure("stage_error", f"{type(e).__name__}: {e}") from e
+                # 合図を別の例外に包み直しても、握りつぶした場合と同じに扱う
+                if context.missing is None and context.awaiting is None:
+                    raise StageFailure("stage_error", f"{type(e).__name__}: {e}") from e
             if context.missing is not None:
                 raise context.missing
             if context.awaiting is not None:

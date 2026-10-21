@@ -67,3 +67,16 @@ def test_manifest_vectors(vector: dict[str, object]) -> None:
     assert canonical.decode("utf-8") == vector["canonical"]
     assert hashlib.sha256(canonical).hexdigest() == vector["id"]
     assert Snapshot.from_manifest(manifest).id == vector["id"]
+
+
+@pytest.mark.parametrize(
+    ("value", "text"),
+    [
+        (2**53, "9007199254740992"),
+        (2**53 + 1, "9007199254740992"),
+        (10**21, "1e+21"),
+        (-(10**22), "-1e+22"),
+    ],
+)
+def test_large_integers_print_like_numbers(value: int, text: str) -> None:
+    assert canonical_json(value) == text.encode()

@@ -9,6 +9,7 @@ plan.md 第6節 F2 の完了条件の一部。
 - 記録してから再生すると、外部を一度も呼ばずに同じスナップショットの列になる
 """
 
+import dataclasses
 import json
 from pathlib import Path
 from typing import Any
@@ -99,3 +100,30 @@ def test_replay_with_missing_record_fails_loudly(tmp_path: Path) -> None:
     (tmp_path / "short.jsonl").write_text("\n".join(lines[:-1]) + "\n", encoding="utf-8")
     with pytest.raises(ReplayOnly.Missing):
         run_scenario(scenario, tmp_path / "replay", replay=tmp_path / "short.jsonl")
+
+
+@pytest.mark.parametrize(
+    ("part", "mutate"),
+    [
+        ("trace", lambda e: e.update(trace=e["trace"][:-1])),
+        ("status", lambda e: e.update(status="aborted")),
+        ("starts", lambda e: e["starts"]["s1#2"]["memory"].update(m21="違う")),
+        ("starts", lambda e: e["starts"]["s1#2"]["files"].update({"s1.txt": "余計"})),
+        ("starts", lambda e: e["starts"]["s3#1"].update(gates=[])),
+        ("starts", lambda e: e["starts"].update({"s9#1": e["starts"]["s1#2"]})),
+        ("options", lambda e: e.update(options={"stage:s1#1": ["unknown", "goal"]})),
+        ("memory", lambda e: e.update(memory={"m21": "違う"})),
+        ("annotations", lambda e: e.update(annotations=3)),
+    ],
+)
+def test_verify_reports_each_kind_of_mismatch(part: str, mutate: Any, tmp_path: Path) -> None:
+    """verify が食い違いを報告すること（常に空を返す verify ではテストが通らないように）。"""
+    original = yaml.safe_load((CONFORMANCE / "scenarios/rollback_with_carry.yaml").read_text())
+    mutate(original["expect"])
+    broken = tmp_path / "broken.yaml"
+    broken.write_text(yaml.safe_dump(original, allow_unicode=True), encoding="utf-8")
+    workflow = CONFORMANCE / "workflows/basic.yaml"
+    scenario = dataclasses.replace(load_scenario(broken), workflow=workflow)
+    result = run_scenario(scenario, tmp_path / "run")
+    assert result.problems
+    assert any(problem.startswith(part) for problem in result.problems), result.problems

@@ -564,3 +564,34 @@ def test_metric_view_has_the_stage_start_as_baseline(tmp_path: Path) -> None:
     _runtime(tmp_path, {}, registry=Changed()).start(0, {"in.txt": b"x"})
     assert seen["stage:s2.flag"] == ["gate1.flag", "s2.flag", "s2.txt"]
     assert seen["phase:gate1.flag"] == ["gate1.flag", "s1.flag", "s1.txt", "s2.flag", "s2.txt"]
+
+
+def test_non_numeric_confidence_is_no_answer(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path, {})
+    runtime.classifier = BadConfidence("高い")  # type: ignore[arg-type]
+    result = runtime.start(0, {"in.txt": b"x"})
+    evaluation = next(e for e in result.events if e["event"] == "evaluation")
+    assert evaluation["outcome"] == "unknown"
+
+
+def test_operator_rollback_to_missing_stage_is_rejected(tmp_path: Path) -> None:
+    class Op:
+        def decide(self, escalation: object) -> RollbackTo:
+            return RollbackTo("s9")
+
+    def unknown(c: StageContext) -> None:
+        (c.workspace / "s1.txt").write_text("x")
+
+    result = _runtime(tmp_path, {"s1": unknown}, operator=Op()).start(0, {"in.txt": b"x"})
+    assert result.status == "awaiting_operator"
+
+
+def test_wrapped_suspension_still_suspends(tmp_path: Path) -> None:
+    def body(c: StageContext) -> None:
+        try:
+            c.user_io.ask(Question("?"))
+        except AwaitingAnswer as e:
+            raise RuntimeError("包み直した") from e
+
+    result = _runtime(tmp_path, {"s1": body}, user_io=Deferring()).start(0, {"in.txt": b"x"})
+    assert result.status == "suspended"

@@ -491,3 +491,171 @@ expect:
 #   s2#2: files=['in.txt', 's1.flag', 's1.txt'] memory={} gates=[]
 #   s3#1: files=['gate1.flag', 'in.txt', 's1.flag', 's1.txt', 's2.flag', 's2.txt'] memory={} gates=['p1']
 ```
+
+## 再検証（二回目）
+
+- 日付: 2026-10-22
+- 対象: 前回の指摘への対応（docs/decisions.md の D-6）。リポジトリの写しを新しく作り、前回の写しとファイル単位で比べて、変わった箇所を読んだ。変わったファイルを知るために、写しの上で読み取りだけの `git log` と `git show --stat` を一度実行した。それ以外の git 操作はしていない。原本で書いたのは、この節の追記だけ
+- 読んだもの: D-6、contract/contract.md と conformance/README.md の差分、scenario.schema.json、シナリオ 24 件、contract/conformance/manifests.json、runtime/ と testing/harness/ の差分、tests/（test\_canonical.py、test\_runtime\_units.py、test\_conformance.py、test\_ci.py）、conftest.py、scripts/check.sh、pyproject.toml、adopting.md と api.md の差分
+
+### 総合判定（二回目）: 正常（完了条件を満たす）
+
+前回、判定を準正常にした指摘はすべて解消した。高-1、中-1、中-2、中-3、中-4 がそれに当たる。
+
+- 契約適合テストは、開始時スナップショット（`expect.starts`）と選択肢の並び（`expect.options`）を比べるようになった。restore を外す、ゲートを無効化しない、carry 以外を捨てない、回数を数え直す、の各変異は、どれもテストで落ちる
+- 新しい starts は、契約から自分で導いた値と 14 件すべてで一致した
+- マニフェストのテストベクトルは、Node.js で独立に書いた正規化と、id まで一致した
+- scripts/check.sh は 322 件が通過し、runtime の行カバレッジは 99%
+
+完了条件の五つは、引き続き満たしている。
+
+残る指摘は、中 1 件と低だけ。
+
+- 中-9（新）: 契約適合テストの判定は `verify` に移ったが、`verify` が食い違いを報告することを確かめるテストが無い。`verify` を常に空を返すものに差し替えても、322 件がすべて通る。いまの `verify` は正しく働いている（実行時の変異はこれで捕まる）ので、判定は変えない。ただし退行を防ぐため、早めに直すことを勧める
+- 一部にとどまった指摘（中-7、低-1、低-3、低-4、低-5）と、新しい低がある。どれも完了条件の判定は変えない
+
+低-14（計画書の不整合）は、人間の確認を待つ。
+
+### 1. 前回の指摘ごとの判定
+
+| # | 判定 | 証拠 |
+| --- | --- | --- |
+| 高-1 | 解消 | README の手順 5 と scenario.schema に `expect.starts`（ファイルの内容、記憶、ゲートの完全一致）と `expect.options` が加わった。契約 第10節も同じ定義に揃った。starts は 14 件、options は 4 件のシナリオに書かれている。変異の結果は第2項の表。toy-minimal のシナリオには starts が無いが、復元は契約適合テストで固定されたので、残りは低-23 として扱う |
+| 中-1 | 解消 | 中断すると `pending` に `{"kind": "user", "question": {"text", "choices"}}` を保存する。テスト `test_suspend_saves_the_pending_question` がある。adopting.md 第7節に取り出し方が書かれた。質問を捨てる変異は落ちる |
+| 中-2 | 解消 | 記録の鍵の先頭に実行の種が入った（例: `["metric", [1, "stage", "s1", 1, "flag"], …]`）。種 1 で記録し種 999 で再生すると `Missing` で止まる（前回の実験を再実行）。鍵から種を除く変異は落ちる |
+| 中-3 | 解消 | 訪問の LLM 応答を `RunState.responses` に保存し、再開では保存した応答を再生する。前回の反例（LLM の一回目の応答なら質問し、二回目なら質問しない本体）を再実行した。記録中に外へ出た LLM の呼び出しは 1 回で、記録に重複した鍵は無い。再生で再開まで行うと、実行記録とスナップショットの列が記録時と一致した。再生をやめる変異は 2 件のテストで落ちる |
+| 中-4 | 解消（残りは低-15） | 本体が `AwaitingAnswer` を握りつぶしても中断し、`ReplayOnly.Missing` を握りつぶしても再生は止まる（前回の負の例を再実行した。テストもある）。ただし本体が合図を別の例外に包み直すと、中断ではなく stage\_error になる（低-15） |
+| 中-5 | 解消 | 偽の本体に `answers_to` が加わった。resume\_replays\_answers の starts が `s1.txt = "主題は A\n読者は B"` を確かめる。回答を取り違える変異は 2 件、再開の入力を記録でなく引数から取る変異は 3 件のテストで落ちる |
+| 中-6 | 解消（残りは低-18） | 契約 第5節が、数の書き方（ECMAScript の Number::toString）と文字列のエスケープを定めた。テストベクトル 3 件と RFC 8785 の数の例 15 件がある。照合の結果は第3項。Python の整数で絶対値が 2^53 を超えるものは、規則どおりに書かれない（低-18） |
+| 中-7 | 一部 | 選択肢の並びは契約適合テストに入った（`expect.options`）。選択肢の順序を崩す変異は 6 件のテストで落ちる。状態文書の中身（memory\_in を入れない、ゲートはフェーズのファイルの和）は、参照ランタイムの単体テスト `test_evaluation_inputs` で固定された。変異もそこで落ちる。ただし言語に依存しない契約適合テストでは、状態文書を確かめていない。新しく加わった `view.baseline()`（7.2）も同じ。参照ランタイムには固定されたので、残りは低-21 とする |
+| 中-8 | 解消 | 最上位の conftest.py が examples/<名前>/ を import パスに加え、check.sh が例ごとに mypy（strict）を走らせる。写しに examples/sample-two/ を足して確かめた。toy-minimal と同じ名前のテストのモジュールがあっても集まり、パッケージを import でき、型注釈の無い関数は mypy で落ちた。adopting.md 第7節に Runtime の引数と既定値の表、最後のスナップショットの取り出し方が書かれた。第11節には置き方が書かれた。api.md の `Expectation` の行は古いまま（低-22） |
+| 低-1 | 一部 | `ask` と `complete` は `_ask` と `_complete` になり、公開の名前から消えた。ただし awaits\_user の検査は `user_io` の入口にしか無い。awaits\_user の無いステージでも、`context._ask(...)` を直接呼べば、その場で答えが返る時は検出されずに完了する。Python の慣習の上では非公開なので低のまま。`_ask` の中で検査すれば完全になる |
+| 低-2 | 解消 | awaits\_user の無いステージの中断の合図は contract\_violation になる（再実行で確認。テストもある） |
+| 低-3 | 一部 | 次の場合は「答え無し」か測定の失敗になる: 分類器の例外、確信度 NaN、1 を超える確信度、指標の任意の例外（再実行で確認）。ただし確信度が数でない値（例: 文字列）だと、`float()` の例外で実行が落ちる。契約 2.2 は「0〜1 の有限の数でない」ものを答え無しとするので、この場合も答え無しにすべき（低-17） |
+| 低-4 | 一部 | 後ろのステージへの戻りと、memory\_in に無い carry は拒み、`warning` → `escalation`（null）→ `run_end`（awaiting\_operator）になる。その後の再開も、無効な選択を続けた後の中止も動いた。ただし存在しないステージ id への戻りは、`KeyError` で実行が落ちる（低-16） |
+| 低-5 | 一部 | 作業領域の記号リンクは、範囲の内外を問わず contract\_violation になる（再実行で確認）。作業領域の外への書き込みは、仕組み上検出できない。adopting.md 第5節の「契約違反になること」に、記号リンクと、awaits\_user の無い中断の合図が書かれていない（低-22） |
+| 低-6 | 解消 | 契約 3.4 に、例外・違反の後の goal 到達扱いは開始時スナップショットのまま進むことが書かれた |
+| 低-7 | 解消 | 契約 3.4.1 に警告の位置が書かれ、実装も一致する（範囲外のファイルの警告は stage\_end の直後、carry の欠落の警告は rollback の直後） |
+| 低-8 | 解消 | `test_seeds_differ_by_stage_and_visit_within_a_run` が加わった。種をステージと訪問に依存させない変異は落ちる |
+| 低-9 | 解消 | README に、台本が尽きたらシナリオの誤りとして失敗させると書かれた。運用者の台本が尽きると例外で止まる。ユーザーの台本が尽きると本体の例外になり、期待の並びと食い違う |
+| 低-10 | 解消 | `test_body_reads_carried_memory` が加わった。runner の `read_memory` の成功経路も被覆された |
+| 低-11 | 解消 | 再生の検査は実行記録の全体を比べる。対象に operator\_defers と suspend\_after\_rollback が加わった。自分でも 24 件すべてを記録してから再生し、全体が一致した |
+| 低-12 | 解消 | `by` が空なら `operator` と書く。シナリオの形式にも `by` が入った。テストがあり、変異は落ちる |
+| 低-13 | 解消 | adopting.md に次が書かれた: `--registry` と `--metrics-file`、実在のツールの指標の作り方、`view.baseline()` |
+| 低-14 | 人間の確認待ち | 計画書の不整合（F4 のプロンプトが、F5 の成果物の雛形を読むものに挙げている）。D-6 も人間に確認するとしている |
+
+### 2. 前回の変異を強化後のテストに当てる
+
+写しの上で、pytest のプラグインで一つずつ差し替えてから、全テスト（322 件）を走らせた。
+
+| 変異 | 前回（271 件） | 今回（322 件） | 落とすテスト（主なもの） |
+| --- | --- | --- | --- |
+| restore を外す | 全件通過 | 12 件失敗 | 戻りのある契約適合シナリオ 10 件の starts と、再生の検査 2 件 |
+| ゲートを無効化しない | 全件通過 | 4 件失敗 | phase\_crossing\_rollback、low\_confidence\_operator\_rollback、latest\_start\_restored、再生の検査 |
+| carry 以外の記憶を捨てない | 全件通過 | 1 件失敗 | latest\_start\_restored（m33 が残る） |
+| 戻った区間のファイルを捨てない | 全件通過 | 12 件失敗 | 戻りのあるシナリオの starts |
+| escalate 後に回数を数え直す | 全件通過 | 1 件失敗 | rerun\_then\_edge\_again |
+| 回答を取り違えて再生する | 全件通過 | 2 件失敗 | resume\_replays\_answers（本番と再生） |
+| 再開の入力を記録でなく引数から取る | 全件通過 | 3 件失敗 | 再生の検査（resume\_replays\_answers、operator\_defers、suspend\_after\_rollback） |
+| 正規形を崩す（キー順を保たない、空白・改行、ASCII エスケープ） | 全件通過 | 22 件失敗 | test\_canonical（ベクトルと RFC 8785 の数） |
+| 数を Python の書き方にする（`1.0`、`1e-06`） | （前回は無し） | 13 件失敗 | test\_canonical |
+| 選択肢の順序で goal を最後にする | 全件通過 | 6 件失敗 | 契約適合シナリオの options（gate\_failure\_rolls\_back、happy\_path）と単体テスト 4 件 |
+| 状態文書に memory\_in を含める | 全件通過 | 1 件失敗 | test\_evaluation\_inputs（単体テスト） |
+| ゲートの状態文書からファイルを除く | 全件通過 | 1 件失敗 | test\_evaluation\_inputs（単体テスト） |
+| 本体の種をステージと訪問に依存させない | 全件通過 | 1 件失敗 | test\_seeds\_differ\_by\_stage\_and\_visit\_within\_a\_run |
+| 分類器を recorder を経由せずに呼ぶ | 6 件失敗 | 9 件失敗 | 再生の検査 |
+| 記録の鍵から種を除く | （新） | 1 件失敗 | test\_record\_keys\_include\_the\_run\_seed |
+| 再開時に LLM の応答を再生しない | （新） | 2 件失敗 | test\_llm\_responses\_are\_replayed\_after\_resume |
+| 握りつぶされた中断を見落とす | （新） | 1 件失敗 | test\_swallowed\_suspension\_still\_suspends |
+| 握りつぶされた再生の失敗を見落とす | （新） | 1 件失敗 | test\_swallowed\_replay\_miss\_still\_stops |
+| 保留中の質問を捨てる | （新） | 1 件失敗 | test\_suspend\_saves\_the\_pending\_question |
+| 指標の view から baseline を外す | （新） | 1 件失敗 | test\_metric\_view\_has\_the\_stage\_start\_as\_baseline |
+| 注記の `by` を補わない | （新） | 1 件失敗 | test\_continue\_as\_goal\_records\_who |
+| 記号リンクを許す | （新） | 1 件失敗 | test\_symlink\_in\_workspace\_is\_a\_violation |
+| 運用者の不正な選択を受け入れる | （新） | 止まらない（テストが無限に回る） | test\_invalid\_operator\_rollback\_is\_rejected。偽の運用者が同じ選択を返し続けるので、失敗ではなく停止しない形で現れる（低-24） |
+| `verify` が常に空を返す | （新） | 全件通過 | なし（中-9） |
+
+### 3. 新しい期待とテストベクトルが契約に照らして正しいか: 正しい
+
+**starts と options**: 実装を見ずに、契約 2.3（restore + overlay、直近の訪問の開始時）、3.1、3.2（ゲートの無効化）、3.3、3.4 と、README の偽の本体の手順（ask → fixture → files → answers\_to → memory）から導いた。次のとおり、すべて一致した。
+
+- latest\_start\_restored:
+  - s1#2 は初期（in.txt）に m21 を重ねたもの
+  - s2#2 は s1#2 の終了時（s1.txt は s1-v2）
+  - s3#1 はゲート [p1] を持つ
+  - s2#3 は s2 の直近の訪問（s2#2）の開始時に m32 を重ねたもの。m33 と out/x は捨てられ、ゲートは空
+  - s3#2 は [p1] で、記憶 {m21, m32}
+- rerun\_then\_edge\_again: s1#3 は s1 の直近の開始時（m21 を持つ）に m21 を重ねたもの。s2#4 は再実行なので s2#3 の開始時と同じ。並びの 2 回目の max\_exceeded は、回数を数え直さないこと（3.1）から出る
+- suspend\_after\_rollback:
+  - s1#2 は初期に m21 を重ねたもの
+  - 再開は同じ訪問 2
+  - 再実行の s1#3 は、s1 の直近の開始時（s1#2 の開始時）と同じ
+  - s2#2 の s1.txt は、s1#3 の回答 a3
+- gate\_unknown\_rerun: s2#2 は s2#1 の開始時と同じで、s3#1 は [p1]
+- 既存の 10 件に足された starts は、すべて前回自分で導いた開始時スナップショットと一致した。対象は phase\_crossing\_rollback、self\_rollback、gate\_failure\_rolls\_back、low\_confidence\_operator\_rollback、rollback\_with\_carry、missing\_carry\_item\_warns、max\_exceeded\_rerun、happy\_path、suspend\_resume、resume\_replays\_answers。resume\_replays\_answers の s1.txt は、files の s1 を answers\_to が上書きしたもの
+- options:
+  - failed\_metric\_excludes\_goal の s1#1 は [unknown]
+  - gate\_failure\_rolls\_back の s2#1 は [goal, e2\_back, unknown]、p1#1 は [e2\_back, unknown]
+  - metric\_measurement\_error の p2#1 は [e3\_back, e3\_retry, unknown]
+  - happy\_path の s1#1、s3#1、p2#1 も 2.2 どおり
+- 4 件の新しいシナリオの expect.trace は、前回の付録の並びと同じで、契約 3.4.1 に照らして正しい
+
+**manifests.json**: 契約 第5節の文言だけから、Node.js で正規化を独立に書いた。キーは符号位置の順、文字列と数は JSON.stringify（ECMAScript の Number::toString）で書く。3 件のベクトルすべてで、正規形のバイト列と SHA-256 の id が一致した。乱数で作った 20000 個の倍精度浮動小数点数（ビット列の一様乱数、範囲内の一様乱数、整数値、境界値）でも、参照実装の `canonical_json` と Node の出力が一致した（不一致 0）。制御文字、DEL、U+2028、サロゲート対の文字、U+E000 のキーを含む文書も一致した。
+
+### 4. 修正で新しく入った誤りや退行
+
+退行は見つからなかった。前回の負の例、記録再生、頑健性の実験をすべて再実行し、契約どおりか、意図どおりの変化だった。新しく見つけた点:
+
+- **中-9**: 契約適合テストの判定が `verify` に移ったが、`verify` の失敗の分岐はどのテストも通らない（scenario.py の該当行が未被覆）。`verify` を常に空を返すものに差し替えても、322 件がすべて通る。test\_conformance.py の判定は `result.problems == []` だけなので、`verify` が壊れると契約適合テストはほぼ空になる
+- **低-15**: 本体が `AwaitingAnswer` を別の例外に包み直すと、中断ではなく stage\_error になる。`Missing` を包み直すと stage\_error で escalate し、その後の運用者の呼び出しの `Missing` で止まる。止まりはするが、理由が実際と違う
+- **低-16**: 運用者が存在しないステージ id への戻りを返すと、`KeyError` で実行が落ちる（run\_end も保存できる状態も無い）
+- **低-17**: 分類器の確信度が数でない値だと、`float()` の例外で実行が落ちる（契約 2.2 では「答え無し」）
+- **低-18**: 正規形は、Python の `float` なら Number::toString と一致する。しかし Python の `int` はそのまま書く。そのため記憶の値が 10\*\*21 の整数だと `1000000000000000000000` になる。同じ数の `float` なら `1e+21` になり、JavaScript の実装も `1e+21` を出す。2^53 を超える整数も、倍精度に丸めずに書く
+- **低-19**: 分類器の例外は「選択無し・確信度 0」として実行記録に書かれ、例外の内容が残らない。分類器の障害と、本当の「答え無し」を、トリアージや分布の集計で区別できない。指標の失敗は `error` を残すのと対照的
+- **低-20**: test\_ci.py の `test_tool_configuration_does_not_name_examples` は、例の直下の名前が設定ファイルの文字列に含まれるかを部分一致で調べる。たとえば software factory が `build/` を持つと、check.sh の `uv build` に当たって誤って落ちる
+- **低-21**（中-7 の残り）: 状態文書の中身と `view.baseline()` は、参照ランタイムの単体テストだけで確かめている。言語に依存しない契約適合テストでは確かめていない
+- **低-22**（文書）:
+  - contract.md 7.2 に「指標に使うargs はワークフロー定義の args」と句点の抜けがある
+  - api.md の `Expectation` の説明に starts と options が無い
+  - adopting.md 第5節の「契約違反になること」に、記号リンクと、awaits\_user の無いステージの中断の合図が無い
+- **低-23**（高-1 の残り）: toy-minimal の戻りのシナリオには starts が無い
+- **低-24**: 運用者の不正な選択を受け入れる変異を入れると、`test_invalid_operator_rollback_is_rejected` は失敗せずに止まらなくなる（偽の運用者が同じ選択を返し続けるため）。pytest に時間の上限が無いので、CI では時間切れまで待つ
+- 参考: 契約は、キーの順序を符号位置の順とし、数だけ RFC 8785 に従う。RFC 8785 はキーを UTF-16 の符号単位の順に並べるので、RFC 8785 のライブラリをそのまま使う実装とは、補助面の文字と U+E000〜U+FFFF の文字が同じ階層のキーにある時だけ食い違う。契約どおりなので指摘にはしない。ただし、ベクトルにその例を一つ足すと、他言語の実装者が気づける
+
+- 参考: 正規形の変更で、整数値の浮動小数点数を含むマニフェストの id が変わった（`1.0` が `1` になる）。D-6 は「互換性を壊さない追記と明確化」としているが、スナップショットの id については厳密には互換性を壊す変更で、契約 第11節は版を上げるとしている。リポジトリに保存済みのスナップショットや記録は無いので実害は無い。版を上げるか、v0.1 の明確化として扱うかを、記録に一言残すとよい
+
+### 5. 実行したコマンドと出力の要旨（二回目）
+
+すべて写しの上で実行した。
+
+- `scripts/check.sh`
+  - ruff、ruff format、mypy（src と tests、例ごとの mypy）は通過
+  - pytest は 322 passed
+  - runtime の行カバレッジは 99%（875 文中 12 行が未被覆）
+  - wheel にスキーマ 4 件が同梱されている
+- 変異: 上の第2項の表
+- 前回の実験の再実行:
+  - 負の例 16 種
+  - 記録再生（種を変えた再生、24 件の記録と再生、中断・再開と LLM、`Missing` の握りつぶし）
+  - 分類器・指標・運用者の不正な出力
+- 新しい境界の実験: 合図を包み直す本体、数でない確信度、存在しないステージ id への戻り、無効な選択を続けた後の中止、非公開の `_ask` を直接呼ぶ本体、整数 10\*\*21 の記憶
+- examples/sample-two/ を写しに足し、pytest と例ごとの mypy に乗ることを確かめた
+- Node.js による正規形の独立実装で、ベクトル 3 件と 20000 個の数を照合した
+
+### 6. 指摘の一覧（二回目）
+
+前回の指摘で解消しなかったものは、第1項の表にある（中-7、低-1、低-3、低-4、低-5 が一部、低-14 が人間の確認待ち）。新しい指摘は次のとおり。
+
+| # | 重大度 | 内容 | 直し方 |
+| --- | --- | --- | --- |
+| 中-9 | 中 | `verify` が食い違いを報告することを確かめるテストが無い。常に空を返す `verify` でも全件が通る | 契約適合シナリオを一つ読み、期待の各部分（trace、status、starts の files / memory / gates、options、memory、annotations）を一つずつ壊したものを `verify` に渡し、それぞれ報告が出ることを確かめるテストを足す |
+| 低-15 | 低 | 合図（`AwaitingAnswer`、`Missing`）を別の例外に包み直すと、中断や再生の失敗として扱われない | `_run_body` の `except Exception` の中でも、`context.missing` と `context.awaiting` を先に見る |
+| 低-16 | 低 | 存在しないステージ id への運用者の戻りで、`KeyError` で落ちる | `_invalid` で、ステージ id の存在も確かめる |
+| 低-17 | 低 | 数でない確信度で落ちる | `float()` を try の中に入れ、失敗したら「答え無し」にする |
+| 低-18 | 低 | 2^53 を超える整数と、絶対値が 1e21 以上の整数を、Number::toString と違う形で書く | 整数も倍精度に変換してから `_number` で書く。または記憶の整数の範囲を契約で制限する。ベクトルに例を足す |
+| 低-19 | 低 | 分類器の例外の内容が実行記録に残らない | `warning` を書くか、evaluation の classification に error の欄を足す（trace.schema の追記） |
+| 低-20 | 低 | test\_ci の部分一致の検査が、例の直下の普通の名前（`build` など）で誤って落ちる | 名前を語として照合するか、照合を example のディレクトリ名だけにする |
+| 低-21 | 低 | 状態文書の中身と `view.baseline()` を、契約適合テストが確かめない | 偽の分類器の台本に、状態文書が含むべき見出しを書く欄を足す。適合用の指標に baseline を使うものを一つ足す |
+| 低-22 | 低 | 文書の小さな抜け（contract.md 7.2 の句点、api.md の `Expectation`、adopting.md 第5節の契約違反の一覧） | それぞれ書き足す |
+| 低-23 | 低 | toy-minimal の戻りのシナリオに starts が無い | review\_and\_outline\_rollbacks などに starts を書く |
+| 低-24 | 低 | 運用者の不正な選択を受け入れる退行が、テストの失敗ではなく停止しない形で現れる | テストの偽の運用者を、一度目は不正、二度目は中止にする。pytest に時間の上限を設ける |

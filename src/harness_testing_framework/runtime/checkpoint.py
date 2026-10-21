@@ -47,7 +47,8 @@ def _encode(value: Any) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, int):
-        return str(value)
+        # 2^53 以上の整数は、浮動小数点数として読まれる数と同じ書き方にする
+        return str(value) if abs(value) < 2**53 else _number(float(value))
     if isinstance(value, float):
         return _number(value)
     if isinstance(value, str):

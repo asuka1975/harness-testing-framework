@@ -154,9 +154,9 @@ def classify(
         # 分類器の例外と、0〜1 の有限の数でない確信度は「答え無し」（契約 2.2）
         try:
             c = classifier.classify(document, choices)
+            confidence = float(c.confidence)
         except Exception:
             return {"choice": None, "confidence": 0.0}
-        confidence = float(c.confidence)
         if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
             return {"choice": None, "confidence": 0.0}
         return {"choice": c.choice, "confidence": confidence}
