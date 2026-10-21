@@ -24,6 +24,8 @@ PUBLIC_MODULES = [
     "harness_testing_framework.testing.harness",
     "harness_testing_framework.testing.stages",
     "harness_testing_framework.testing.e2e",
+    "harness_testing_framework.testing.oracle",
+    "harness_testing_framework.testing.triage",
 ]
 
 

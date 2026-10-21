@@ -49,6 +49,11 @@ def test_packaged_schema_matches_canonical() -> None:
         ("snapshot.schema.json", "contract/snapshot.schema.json"),
         ("trace.schema.json", "contract/trace.schema.json"),
         ("scenario.schema.json", "contract/conformance/scenario.schema.json"),
+        ("expectations.schema.json", "contract/formats/expectations.schema.json"),
+        ("corpus_item.schema.json", "contract/formats/corpus_item.schema.json"),
+        ("label.schema.json", "contract/formats/label.schema.json"),
+        ("triage_item.schema.json", "contract/formats/triage_item.schema.json"),
+        ("triage_decision.schema.json", "contract/formats/triage_decision.schema.json"),
     ],
 )
 def test_packaged_contract_schema_matches_canonical(name: str, canonical: str) -> None:

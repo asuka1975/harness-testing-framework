@@ -1,0 +1,48 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/asuka1975/harness-testing-framework/main/contract/formats/triage_decision.schema.json",
+    "title": "Triage decision",
+    "description": "トリアージの判定の一行（JSON Lines）。分類体系の変更は提案として記録するだけで、ワークフロー定義は変えない（人間の承認が要る）",
+    "type": "object",
+    "properties": {
+        "item": {
+            "type": "string",
+            "minLength": 1
+        },
+        "verdict": {
+            "enum": [
+                "label",
+                "not_a_problem",
+                "classifier_error",
+                "new_class_proposal",
+                "description_revision_proposal"
+            ]
+        },
+        "label": {
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "note": {
+            "type": "string"
+        },
+        "by": {
+            "type": "string",
+            "minLength": 1
+        },
+        "proposal": {
+            "description": "分類体系の変更の提案か（verdict から決まる）",
+            "type": "boolean"
+        }
+    },
+    "required": [
+        "item",
+        "verdict",
+        "label",
+        "note",
+        "by",
+        "proposal"
+    ],
+    "additionalProperties": false
+}

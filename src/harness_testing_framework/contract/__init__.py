@@ -21,6 +21,10 @@ SCHEMA_FILES = (
     "trace.schema.json",
     "scenario.schema.json",
     "expectations.schema.json",
+    "corpus_item.schema.json",
+    "label.schema.json",
+    "triage_item.schema.json",
+    "triage_decision.schema.json",
 )
 
 

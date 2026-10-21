@@ -1,0 +1,81 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/asuka1975/harness-testing-framework/main/contract/formats/triage_item.schema.json",
+    "title": "Triage item",
+    "description": "トリアージ待ち行列の一行（JSON Lines）。unknown か確信度の低い評価",
+    "type": "object",
+    "properties": {
+        "item": {
+            "type": "string",
+            "minLength": 1
+        },
+        "run": {
+            "type": "integer"
+        },
+        "seq": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "scope": {
+            "enum": [
+                "stage",
+                "phase"
+            ]
+        },
+        "target": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "visit": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "options": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*$"
+            }
+        },
+        "choice": {
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        },
+        "outcome": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "state": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+        },
+        "reason": {
+            "enum": [
+                "unknown",
+                "low_confidence"
+            ]
+        }
+    },
+    "required": [
+        "item",
+        "run",
+        "seq",
+        "scope",
+        "target",
+        "visit",
+        "options",
+        "choice",
+        "confidence",
+        "outcome",
+        "state",
+        "reason"
+    ],
+    "additionalProperties": false
+}

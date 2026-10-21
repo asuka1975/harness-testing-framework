@@ -14,6 +14,8 @@
 - contract/conformance/scenario.schema.json: シナリオの形式
 - contract/conformance/manifests.json: マニフェストの正規形のテストベクトル
 - contract/formats/expectations.schema.json: 分布テストの基準（expectations）の形式
+- contract/formats/corpus_item.schema.json、label.schema.json: 分類器の検証のコーパスと人手のラベルの一行の形式（JSON Lines）
+- contract/formats/triage_item.schema.json、triage_decision.schema.json: トリアージの待ち行列と判定の一行の形式（JSON Lines）
 
 ## `harness_testing_framework.schema`
 
@@ -169,3 +171,40 @@ E2E のカバレッジ計画（誘発と注入）とマルコフ合成。
 | `ModelIncomplete` | 到達しうる (ステージ, 訪問) の分布がモデルに無い |
 | `compare_prediction` | 予測と実測を比べる（差が標準誤差の k 倍以内なら一致） |
 | `Comparison` | 一つの量の比較 |
+
+## `harness_testing_framework.testing.oracle`
+
+分類器の検証（オラクル）。人手のラベルとの一致率（Cohen の κ）、較正（ECE）、再実行の一致率。
+
+| 名前 | 内容 |
+| --- | --- |
+| `build_corpus` | 実行記録の各評価から、分類器が見た状態文書（置き場から読む）と選択肢の項目を作る |
+| `CorpusItem` | コーパスの一項目 |
+| `Label` | 人手のラベル（項目、正しいクラス、付けた人） |
+| `load_corpus`、`save_corpus` | コーパスを JSON Lines で読み書きする |
+| `load_labels`、`save_labels` | ラベルを JSON Lines で読み書きする |
+| `CorpusInvalid` | 形式に適合しない、またはコーパスとラベルが食い違う |
+| `oracle_report` | ラベルの付いた項目を分類器にかけ、κ、混同行列、ECE（等幅の区間）、再実行の一致率を求める |
+| `OracleReport` | レポート（`lines()` で人が読む形） |
+| `CalibrationBin` | 較正の一区間 |
+| `cohen_kappa` | Cohen の κ |
+| `expected_calibration_error` | ECE と区間の表 |
+| `ConfusionClassifier` | 既知の混同行列を持つ偽の分類器（状態文書の印から真のクラスを読む） |
+| `FlakyClassifier` | 再実行で一定の割合だけ答えが揺れる偽の分類器 |
+
+## `harness_testing_framework.testing.triage`
+
+unknown と確信度の低い評価のトリアージ待ち行列。
+
+| 名前 | 内容 |
+| --- | --- |
+| `enqueue` | 実行記録の評価のうち、unknown と確信度が閾値未満のものを待ち行列に足す |
+| `items` | 待ち行列の全項目 |
+| `open_items` | 判定のまだ無い項目 |
+| `decide` | 項目への判定を記録する |
+| `decisions` | 判定の記録 |
+| `TriageItem` | 待ち行列の一項目（状態文書の SHA-256 を持つ） |
+| `Decision` | 判定（label / not\_a\_problem / classifier\_error / new\_class\_proposal / description\_revision\_proposal） |
+| `VERDICTS` | 判定の種類 |
+| `PROPOSALS` | 分類体系の変更の提案に当たる判定。ワークフロー定義は変えず、人間の承認を待つ |
+| `TriageInvalid` | 形式に適合しない、または項目と食い違う |
