@@ -7,9 +7,9 @@
 from pathlib import Path
 
 import pytest
-from toy_minimal.stages.probabilistic import INPUTS, record_run, runtime
+from toy_minimal.stages.probabilistic import INPUTS, runtime
 
-from harness_testing_framework.testing.stages import RunSet, independence, run_many
+from harness_testing_framework.testing.stages import RunSet, independence, record_run, run_many
 
 RUNS = 300
 
