@@ -259,3 +259,147 @@ plan.md の本文で裏づけを確かめた主な主張:
 9. `grep -rniE "玩具|toy|software.?factory|jev|…|レビュー" schema contract runtime testing`（汎用性）
 10. `python3 --version`、`uv --version`、`python3 -I -c "import yaml; print(yaml.safe_load('id: no\nyes: 1\non: x\nname: off'))"`（#10 の事実の主張）
 11. `V/mutate.sh`（変異 M1〜M10 をリポジトリのコピー V/mut/ に施して check_init.py を実行）と、陽性対照 C_schema / C_toy / C_py。各変異が実際に適用されたことは `diff -r --exclude=.git R V/mut/<name>` で確認した
+
+## 再検証（二回目）
+
+- 検証日時: 2026-10-21 23:07〜23:13
+- 対象の状態: コミット f63fd18（最初のコミット）と、その後の作業ツリー（docs/progress.md が未コミットで変更済み、reports/f1-init-check.md が未追跡）。判定に使ったファイルの sha256 は次のとおりで、再検証の開始時と終了時で変わっていない（sha256sum の一覧を開始時と終了時に取って diff した）
+  - docs/decisions.md 9696a193951df720d465d117a2e17bcba03c4a40ed7d05e90c08b62f72cda5cf
+  - docs/progress.md b78ec36dbbdf58a7ba18896543720ec0122e63be599a35e913471caebef658a8
+  - docs/plan.md d3d756302eb519196aed32a9a1e572193cc82334ca539175984d35b1421422e2
+  - reports/f1-init-check.md 3bd841e647965587d063483e24cdc2f6a6fd3cb99ecd2fd4519682d0cc598060
+  - 検査スクリプト: 強化後 scratchpad/check_init.py（21 条件）、強化前 scratchpad/check_init_v1.py（125 行、6797 バイト。一回目に読んだものと同じ大きさで、C1 の is-inside-work-tree、C6 の正規表現、C4b の承認語の行も一回目と同じ）
+- 変更の範囲: 一回目の検証の時点のコピー（scratchpad/verifier/mut/M10_false_commit_claim。22:55 に複製）と現在の作業ツリーを `diff -rq` で比べた。違うのは docs/decisions.md、docs/progress.md、runtime/README.md の三つと、reports/ に増えた二つのファイルだけ。schema/workflow.schema.json とほかの README.md は変わっていない
+- この節より上の一回目の本文は書き換えていない。コミット f63fd18 に入っている reports/f1-init-verification.md は、一回目に書いた作業ツリーのものと同じ（`git show f63fd18:reports/f1-init-verification.md | diff - reports/f1-init-verification.md` で差分なし）
+
+### 総合判定（二回目）: 正常
+
+前回の「中」6 件と「低」10 件は、すべて解消した。修正で新しく入った誤りが「中」1 件ある。強化後の検査スクリプトに退行が 2 件あり、一回目の版では捕まえていた二種類の変異を素通りさせる。ただしこれは検査の道具の誤りで、成果物の完了条件には影響しない。ほかに「低」が 5 件ある。重大度「高」は無い。
+
+### 1. 指摘ごとの判定
+
+| ID | 判定 | 証拠 |
+| --- | --- | --- |
+| M-1 | 解消 | 下の「M-1 の証拠」 |
+| M-2 | 解消 | decisions.md #6 の「選択肢と帰結」の先頭に「どの選択肢にも共通: … v1.0 は方法の検証なしで公開される …選択肢の違いは、問題が見つかる時期、規模とコスト、実ハーネスの代表性にある」が加わった。(b) の帰結は「方法の問題が見つかるのは最初の実ハーネスを作る時で、(a) より遅い」に変わった。(b) だけが不利に見える書き方は無くなった。根拠の補強は R2-L4 |
+| M-3 | 解消 | #1 (a) の帰結が「分類器に渡す状態文書への投影（第3節 #1 の推奨の理由、第6節 F2 の oracle 基盤の「投影」）を宣言から導出できない」に変わった。第5.6節の引用は無くなった（`grep -c "5\.6" docs/decisions.md` は 0。progress.md 第35行の第5.6節の引用は「未決事項を黙って決める」の禁止で、正しい使い方） |
+| M-4 | 解消 | 一覧の #3 の強制点は「F2 runner」だけになった。第116行は「F2（runner）。計画書の契約の定義（第2節、第6節 F1）には人間の応答の受け口が無いので、F1 で要るのは下記の追加の提案（運用者向けのインターフェース）を採る場合に限る」。運用者向けのインターフェースは「追加の提案:」と明示された。表現の残りの揺れは R2-L3 |
+| M-5 | 解消 | #8（第279行）、#9（第309行）、#10（第336行）に「### 文脈」が加わった。#8 の文脈は第2節「仕様は唯一の情報源」（plan.md 第30行）、検査器の保証（第3節 #8 の推奨、第50行）、第5.8節「このテストでのみ判定する」（第158行）を正しく引いている。#9 と #10 の文脈も計画書と矛盾しない |
+| M-6 | 解消 | 前回の変異 M1〜M10 は、強化後の版ではすべて FAIL になる（下の表）。各 FAIL の理由は、壊した箇所そのもの（例: M1 は「#1:状態が下書きでない」「#1:決定が未記入でない」）で、偶然の FAIL ではない。新しく入った退行は R2-M1、残るすり抜けは R2-L1 |
+| L-1 | 解消 | #5 (a) は「フェーズを跨ぐロールバックの辺は定義できるが、ゲートが無いので無効化と再評価の対象が無い。…F2 の「フェーズ境界越えの再評価」は対象が無くなり、F1 の toy-minimal と F4 の「フェーズ境界越え」の要件は、ゲートを試すという意味が薄れる」に変わった。「計画書との整合」も、F2 は削除、F1・F4 は位置づけの見直しに分けた。「空のオブジェクト」も「説明だけの内容を書くか空にする」に変わった |
+| L-2 | 解消 | #2 の「計画書との整合」に、第4節の metrics/ と F2 の oracle 基盤の「指標レジストリの仕組み」が加わり、F4 は目的だけを引くようになった。第5.8節の言い方も「第5.8節の趣旨に反しやすい」に和らいだ |
+| L-3 | 解消 | #4 (a) の帰結は、付録 A の rollback.stage の説明と付録 B の検査項目を引くようになった。第2節を引いた箇所は無くなった |
+| L-4 | 解消 | 追加 A の文脈が、付録 A 本文の「前方のみ」、付録 B の「そのステージより前」、F1 の「前方性」を挙げた上で「計画書は自分自身を含まない読み（下の (a)）を示している。…この読みの確認を求める」に変わった。推奨は「確認だけを返してほしい」。plan.md 第279・421・205行と合っている |
+| L-5 | 解消 | #1 の推奨は第3節の理由と同じ内容（「第3節の推奨の理由」と出典つき）になった。#9 の推奨は第3節第51行と同じ文になった |
+| L-6 | 解消 | TypeScript に「（追加。計画書の推奨に無い対案）」、ruamel.yaml に「追加の対案:」が付いた |
+| L-7 | 解消 | 第13行に、#6 の状態の意味と、一覧の「未決」が「提案（下書き・未決）」の略であることを書いた。#6 の状態は「提案（下書き・未決。F5 で決める。計画書第3節の指定）」、一覧は「未決（F5 で決める）」になった。progress.md 側の言い残しは R2-L2 |
+| L-8 | 解消 | runtime/README.md が「参照ランタイム（決定 #8 が (b) の場合）。… F2 で作る」に変わった |
+| L-9 | 解消 | progress.md の T2 の前提に T1、T3 の前提に T1 が加わった |
+| L-10 | 解消 | reports/f1-init-check.md に強化後のスクリプトの全文、実行の仕方（`python3 -I check_init.py <リポジトリの根>`）、21/21 PASS の出力がある。埋め込まれたスクリプト（第38〜212行）は scratchpad/check_init.py と一字一句同じ（diff で差分なし）で、取り出したものを実行しても 21/21 PASS になる。progress.md の「実行した検証」に 6/16 → 16/16 → 21/21 の要旨がある。T1 に、恒久的な条件をリポジトリのテストへ移すことが加わった。ただしどちらもまだコミットされていない（R2-L5） |
+
+M-1 の証拠（plan.md の基準として信頼できること）:
+
+1. `git log` にコミット f63fd18 がある（`git reflog` では commit (initial) の一件だけ）。`git show --stat f63fd18` は、初期化の成果物 22 ファイルを含む
+2. progress.md 第37行は「検証役の一回目の判定の時点ではコミットが無かった（指摘 M-1）。指摘を直した後に、初期化の成果物を最初のコミットにした。… sha256 を記録する: d3d75630…」に変わり、事実と合っている
+3. 一回目の検証の時点のコピー（22:55）の plan.md と、現在の plan.md は `cmp` で同じ。`git show f63fd18:docs/plan.md | sha256sum`、作業ツリーの `sha256sum docs/plan.md`、progress.md 第37行に記録された値は、三つとも d3d756302eb519196aed32a9a1e572193cc82334ca539175984d35b1421422e2 で一致する。plan.md の更新時刻 22:39:53 は git init（22:44:14）より前のまま。したがって、一回目の検証の前から plan.md は変わっておらず、最初のコミットの plan.md は計画書の原本と見てよい
+
+### 2. 変異テストと陽性対照の再実行
+
+scratchpad/verifier/mutate2.sh で、現在のリポジトリを scratchpad/verifier/mut2/ に複製し、変異を施してから、強化前（v1）と強化後（v2）の両方の検査を実行した。M4 は #6 の文言が変わったので、現在の文言（「提案（下書き・未決。F5 で決める。…）」）を「提案（下書き・未決）」に、強制点を F1 に変える形に合わせた。M10 は前回「変更なし（コミットしたと書いてあるがコミットが無い）」だったので、二つに分けた。M10 は現在の状態のまま（コミットは実在するので PASS が正しい）、M10b は一回目の検証の時点のコピー（コミット無し）である。各変異で一つ以上のファイルが実際に変わったことを `diff -rq` で確かめた。
+
+| 変異 | 壊し方 | v1 | v2 | v2 の FAIL（理由） |
+| --- | --- | --- | --- | --- |
+| M1 | #1 の状態を「確定」、決定を「(c) を採る」 | 16/16 | 20/21 | C4c（#1:状態が下書きでない、#1:決定が未記入でない） |
+| M2 | #1 の選択肢 (b) を消す | 16/16 | 20/21 | C4c（#1:選択肢 (b) なし） |
+| M3 | #3 の推奨を「再実行と中止の二つだけ」 | 16/16 | 20/21 | C4c（#3:推奨が 四つすべて で始まらない） |
+| M4 | #6 の状態を F5 の無い下書きに、強制点を F1 に | 16/16 | 19/21 | C4c（#6:強制点がF5で始まらない）、C4d |
+| M5 | 全項目の「### 文脈」を消す | 16/16 | 20/21 | C4c（#1〜#10:###文脈なし） |
+| M6 | package.json、tox.ini、requirements.txt、.pre-commit-config.yaml、runtime/runner.ts | 16/16 | 20/21 | C7 |
+| M7 | software-factory/docs/adopting-gaps.md、schema/examples/positive.json、contract/contract.md | 16/16 | 19/21 | C7、C8 |
+| M8 | runtime/README.md に「玩具 1 の verify ステージと GPT-4o、Isabelle を前提にする」 | 16/16 | 20/21 | C6 |
+| M9 | 固定の小見出しを日付節の外に出す | 16/16 | 20/21 | C5c |
+| M10 | 変更なし（現在の状態。コミットは実在する） | 16/16 | 21/21 | なし（正しい） |
+| M10b | 一回目の時点のコピー（コミット無し、旧 decisions.md） | 16/16 | 17/20 | C9a（コミットが無い）、C9c、C4c（#4 の強制点、#6 の状態、#8〜#10 の文脈）。C9b はコミットが無いので実行されず、条件数が 20 になる |
+| 陽性対照 C_schema | スキーマに additionalProperties: false | 14/16 | 19/21 | C3c、C3d |
+| 陽性対照 C_toy | runtime/README.md に「toy-minimal を使う」 | 15/16 | 20/21 | C6 |
+| 陽性対照 C_py | runtime/x.py を置く | 15/16 | 20/21 | C7 |
+
+前回の 10 件はすべて捕まえるようになった。陽性対照の 3 件も引き続き FAIL になる。
+
+強化後の版の新しい穴を探すため、次の変異も加えた。
+
+| 変異 | 壊し方 | v1 | v2 | 意味 |
+| --- | --- | --- | --- | --- |
+| N1 | #1 の選択肢に「- (d) 宣言の形をハーネスごとに決める」を黙って足す | 16/16 | 21/21 | すり抜け。選択肢が足りないことは見るが、増えたことは見ない |
+| N2 | #1 の推奨を「(c) ではなく (a) を推す。…」にする | 16/16 | 21/21 | すり抜け。推奨は先頭の記号しか見ない |
+| N3 | 一覧の表で #1 を「承認」「(c)」に、追加の論点 A の状態を「承認」、決定を「(a) 禁止」にする | 15/16 | 21/21 | すり抜け。一覧の表と追加の論点 A〜C を見ない。v1 の FAIL は、v1 の #10 の節が数字の見出しだけで区切られてファイル末尾まで伸び、追加 A の「承認」を #10 のものとして拾った偶然で、意図した検査ではない |
+| N4 | .github/workflows/README.md と src/harness_testing_framework/.gitkeep を置く | 15/16 | 21/21 | **退行**。v1 は C7 で .github を名前で捕まえていた。v2 の許可リストは README.md と .gitkeep をどこでも許すので、言語・CI 固有のディレクトリを素通りさせる |
+| N5 | runtime/README.md に「https://json-schema.org/draft/2020-12/schema に従い、toy-minimal の verify ステージを前提にする」と書く | 15/16 | 21/21 | **退行**。v1 は C6 で捕まえていた。v2 は json-schema.org を含む行を丸ごと検査から外す |
+| N6 | plan.md の末尾に一行足す（作業ツリーだけ） | 16/16 | 19/21 | 陽性。C9b、C9c が FAIL。保護ファイルの改変を捕まえる |
+| N7 | #1 の「(b) reads / writes のみ」を「(b) memory_in / memory_out のみ」にする | 16/16 | 21/21 | すり抜け。選択肢は記号しか照合しない |
+
+progress.md の主張の再現:
+
+- 「実装前に空のリポジトリで実行し、6/16 PASS」: plan.md だけを置いたディレクトリ（scratchpad/verifier/empty_repo）で v1 を実行すると 6/16 PASS になった。FAIL は git、骨格、スキーマ、decisions、progress で、記述と一致する
+- 「付録 B のステージの例を最小のワークフローに包むと、基底スキーマを通った」: plan.md の付録 B の YAML を PyYAML で読み、一つのフェーズに包んで基底スキーマで検証すると、エラーは 0 件だった（scratchpad/verifier/appB_check.py）。artifacts のような追加の属性は、additionalProperties の既定で受け入れられる
+- 「強化した検査を最初のコミットの後に実行し、21/21 PASS」: 現在のリポジトリで 21/21 PASS、終了コード 0
+
+### 3. 修正で新しく入った誤り、計画書との矛盾
+
+decisions.md の書き換えた箇所（`diff -u` の全部）と progress.md の全文を、plan.md と照らした。計画書と矛盾する記述は無かった。次の点を指摘する。
+
+- 【中 R2-M1】強化後の検査スクリプトに退行が 2 件ある（上の N4・N5）
+  - (1) C7 の許可リスト `^(?:.*/)?README\.md$|^(?:.*/)?\.gitkeep$` は、どのディレクトリの README.md と .gitkeep も許す。そのため、.github/ や src/ のような言語・CI 固有のディレクトリを素通りさせる。GitHub は .github/README.md をリポジトリの README として表示するので、無害とも言えない。v1 は .github を名前で捕まえていた
+  - (2) C6 の `"json-schema.org" not in line` は、`$schema` の行を除くための例外である。しかし、その文字列を含む行を丸ごと検査から外すので、同じ行に書いた玩具名を見逃す
+  - 直し方: README.md と .gitkeep を許すのは第4節の骨格のディレクトリの中に限る。または、骨格の外のディレクトリがあれば FAIL にする。C6 は `$schema` の URL 部分だけを取り除いてから照合する
+- 【低 R2-L1】強化後もすり抜けるもの（退行ではない。v1 も捕まえていない）
+  - N1: 選択肢を黙って足しても通る。第3節の選択肢の数と、decisions.md の記号付きの項目の数を比べれば捕まえられる
+  - N2: 推奨は先頭しか見ない
+  - N3: 一覧の表と追加の論点 A〜C の状態・決定を見ない。追加の論点の「状態」と「決定」の行にも、#1〜#10 と同じ照合を当てられる
+  - N7: 選択肢は記号だけを照合し、中身を見ない
+- 【低 R2-L2】状態の語の言い残しが二か所ある
+  - progress.md 第9行が「#6 は F5 まで先送り（計画書の指定）」のままで、L-7 で decisions.md から外した「先送り」が残っている
+  - decisions.md 第13行は「状態は `提案（下書き・未決。F5 で決める）` とした」と書くが、実際の第212行は「提案（下書き・未決。F5 で決める。計画書第3節の指定）」で、一字一句は一致しない
+- 【低 R2-L3】#3 の追加の提案の置き場所に揺れがある
+  - decisions.md の #3 で、小見出しは「採った場合に F2 で提案する下位の設計点」だが、その中の箇条は「採るなら F1 の契約（progress.md の T4）に入る」と書く
+  - progress.md の T4 は「（#3 次第で）運用者応答のインターフェース」のままで、正確には「#3 の追加の提案を採るなら」である
+- 【低 R2-L4】#6 の「どの選択肢にも共通」の根拠が弱い
+  - 根拠に第1節だけを引いている。第1節は「別の作業」と言うだけで、時期は言っていない。v1.0 が方法の検証なしで出ることの直接の根拠は、第6節冒頭（plan.md 第195行「すべてフレームワークのリポジトリ内で、LLM を使わずに進める」）と、#6 を F5 の終わりに決めること（第39行、第238行）である
+  - (a) の「v1.0 の直後に行えば、方法の問題が最も早く見つかる」は、(c) が (a) を含むので (c) でも同じ早さになる。「最も」は (a) と (c) で同じと書くのが正確
+- 【低 R2-L5】M-6 と L-10 の修正がまだコミットに入っていない
+  - コミット f63fd18 のメッセージは「中の指摘は本コミットで反映済み」と書く
+  - しかし M-6 の強化した検査（reports/f1-init-check.md）は未追跡で、progress.md の「実行した検証」の追記は未コミットである（`git status --short`: ` M docs/progress.md`、`?? reports/f1-init-check.md`）
+  - L-10 の目的（次のセッションが検査を再実行できること）は、コミットして初めて確かになる。この再検証の結果を progress.md に書いた後に、二つをコミットすること
+
+progress.md のほかの記述は事実と合っている。
+
+- 第3項「第5.9節の検証役（…静的な役割分担で、第5.10節の動的ワークフローではない）」: 第5.10節は「計画書に書いていない手順をその場で設計し、複数のエージェントに実行させるもの」と定義している。検証役による完了条件の判定は、第5.9節と第7節のプロンプトに書かれた手順で、エージェントは一人なので、この言い分は成り立つ
+- 第4項の修正の要約: decisions.md の diff と一致する
+
+### 4. 指摘の一覧（二回目）
+
+| ID | 重大度 | 対象 | 内容 | 直し方 |
+| --- | --- | --- | --- | --- |
+| （なし） | 高 | — | 完了条件を満たさない指摘は無い | — |
+| R2-M1 | 中 | scratchpad/check_init.py（reports/f1-init-check.md） | 退行 2 件。README.md と .gitkeep をどこでも許すので、.github/ や src/ を通す。json-schema.org を含む行を丸ごと検査から外す | 許可を骨格のディレクトリに限る。URL 部分だけを除いて照合する |
+| R2-L1 | 低 | 同上 | 選択肢の追加・中身の変更、推奨の先頭以外、一覧の表、追加の論点 A〜C を見ない | 数と状態・決定の照合を広げる |
+| R2-L2 | 低 | progress.md 第9行、decisions.md 第13・212行 | #6 に「先送り」が残る。第13行の状態の書き方が第212行と一字一句は一致しない | 語をそろえる |
+| R2-L3 | 低 | decisions.md #3 の小見出し、progress.md T4 | 運用者インターフェースの提案が「F2 で提案」と「F1 の契約に入る」の間で揺れる | 小見出しと T4 の条件を「#3 の追加の提案を採るなら」にそろえる |
+| R2-L4 | 低 | decisions.md #6 の共通の帰結と (a) | 根拠が第1節だけ。「最も早く」は (c) でも同じ | 第195・39・238行を引く。(a) と (c) は同じ早さと書く |
+| R2-L5 | 低 | コミット f63fd18、作業ツリー | 「中の指摘は本コミットで反映済み」だが、M-6 と L-10 の成果は未コミット | 再検証の結果を記録した後にコミットする |
+
+### 5. 判定に使ったコマンド（二回目）
+
+リポジトリ: /home/asuka1975/work/ai-agent/harness-testing-framework（以下 R）。一時ファイル: /tmp/claude-1000/-home-asuka1975-work-ai-agent-harness-testing-framework/1293722b-efd1-4744-98e8-26921ed57296/scratchpad/verifier/（以下 V）
+
+1. `git log --oneline --all`、`git log --format=fuller`、`git reflog`、`git show --stat f63fd18`、`git status --short`、`git status --porcelain=v2`、`git diff HEAD -- docs/progress.md`、`git diff --quiet f63fd18 -- docs/plan.md`（読み取りだけ）
+2. `diff -rq --exclude=.git V/mut/M10_false_commit_claim R`、`diff -u` で decisions.md・progress.md・runtime/README.md を一回目の時点と比較
+3. `cmp V/mut/M10_false_commit_claim/docs/plan.md R/docs/plan.md`、`sha256sum R/docs/plan.md`、`git show f63fd18:docs/plan.md | sha256sum`、`ls -la --time-style=full-iso`
+4. `git show f63fd18:reports/f1-init-verification.md | diff - R/reports/f1-init-verification.md`
+5. `sed -n '38,212p' R/reports/f1-init-check.md > V/check_from_report.py` と、`diff V/check_from_report.py <scratchpad>/check_init.py`。取り出したものを `python3 -I V/check_from_report.py R` で実行（21/21）
+6. `python3 -I <scratchpad>/check_init.py R`（21/21 PASS、終了コード 0）
+7. `V/mutate2.sh`（M1〜M10、M10b、陽性対照 3 件、N1〜N7 を V/mut2/ のコピーで v1・v2 の両方に対して実行）と、各変異の C4c の FAIL 理由の表示
+8. `python3 -I <scratchpad>/check_init_v1.py V/empty_repo`（plan.md だけのディレクトリで 6/16）
+9. `python3 -I V/appB_check.py R/docs/plan.md R/schema/workflow.schema.json`（付録 B のステージが基底スキーマを通る）
+10. `grep -n "先送り"`、`grep -n "^### 文脈\|^## \|^- 状態:\|^- 強制点:"`（decisions.md と progress.md の行の確認）
+11. 再検証の開始時と終了時に `find … -type f | xargs sha256sum` で一覧を取り（V/snapshot_round2_start.txt、V/snapshot_round2_now.txt）、diff して作業中に成果物が変わっていないことを確認
