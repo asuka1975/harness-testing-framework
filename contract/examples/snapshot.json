@@ -1,0 +1,10 @@
+{
+    "format_version": "0.1",
+    "files": {
+        "request.md": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+        "out/result.txt": "fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9"
+    },
+    "memory": { "defects": ["項目 3 が欠けている"] },
+    "gates": ["build"],
+    "annotations": [{ "kind": "forced_goal", "stage": "inspect", "note": "人間の判断で goal とみなした", "by": "operator" }]
+}

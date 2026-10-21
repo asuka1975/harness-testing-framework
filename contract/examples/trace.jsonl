@@ -1,0 +1,16 @@
+{"seq": 0, "event": "run_start", "workflow": "minimal", "seed": 7}
+{"seq": 1, "event": "stage_start", "stage": "produce", "visit": 1, "snapshot": "0000000000000000000000000000000000000000000000000000000000000001"}
+{"seq": 2, "event": "stage_end", "stage": "produce", "visit": 1, "snapshot": "0000000000000000000000000000000000000000000000000000000000000002", "error": null}
+{"seq": 3, "event": "evaluation", "scope": "stage", "stage": "produce", "phase": "build", "visit": 1, "metrics": {"output_exists": {"value": true, "passed": true}}, "classification": {"options": ["goal", "unknown"], "choice": "goal", "confidence": 0.95}, "outcome": "goal"}
+{"seq": 4, "event": "transition", "kind": "next", "from": "produce", "to": "inspect", "edge": null, "count": null, "crosses_phase": false}
+{"seq": 5, "event": "stage_start", "stage": "inspect", "visit": 1, "snapshot": "0000000000000000000000000000000000000000000000000000000000000002"}
+{"seq": 6, "event": "stage_end", "stage": "inspect", "visit": 1, "snapshot": "0000000000000000000000000000000000000000000000000000000000000003", "error": null}
+{"seq": 7, "event": "evaluation", "scope": "stage", "stage": "inspect", "phase": "build", "visit": 1, "metrics": {"defect_count": {"value": 1, "passed": false}}, "classification": {"options": ["defects_found", "unknown"], "choice": "defects_found", "confidence": 0.9}, "outcome": "defects_found"}
+{"seq": 8, "event": "transition", "kind": "rollback", "from": "inspect", "to": "produce", "edge": {"stage": "inspect", "state": "defects_found", "target": "produce"}, "count": 1, "crosses_phase": false}
+{"seq": 9, "event": "warning", "message": "範囲外のファイル tmp.log を捨てた"}
+{"seq": 10, "event": "escalation", "stage": "inspect", "reason": "max_exceeded", "edge": {"stage": "inspect", "state": "defects_found", "target": "produce"}, "decision": {"kind": "continue_as_goal", "note": "許容する"}}
+{"seq": 11, "event": "transition", "kind": "escalate", "from": "inspect", "to": null, "edge": null, "count": null, "crosses_phase": false}
+{"seq": 12, "event": "evaluation", "scope": "phase", "stage": "inspect", "phase": "build", "visit": 3, "metrics": {}, "classification": null, "outcome": "unknown"}
+{"seq": 13, "event": "transition", "kind": "gate_pass", "from": "inspect", "to": null, "edge": null, "count": null, "crosses_phase": false}
+{"seq": 14, "event": "transition", "kind": "complete", "from": "inspect", "to": null, "edge": null, "count": null, "crosses_phase": false}
+{"seq": 15, "event": "run_end", "status": "completed"}
