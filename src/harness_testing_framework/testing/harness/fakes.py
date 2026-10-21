@@ -171,3 +171,50 @@ class Unreachable:
 
     def ask(self, question: Question) -> str:
         raise Unreachable.Called("ask")
+
+
+_MARKER = re.compile(r"\[\[class ([a-z][a-z0-9_-]*)=([a-z][a-z0-9_-]*)\]\]")
+
+
+class MarkerClassifier:
+    """成果物に埋めた印 `[[class <対象の id>=<クラス>]]` を読む偽の分類器。
+
+    確率的な偽の本体と組む。
+
+    状態文書の見出し行から評価の対象を読み、その対象の印が示すクラスを返す。印が無ければ、
+    goal が選択肢にあれば goal（フェーズゲートの既定）、なければ答え無し。印は成果物の先頭に置く
+    （状態文書の長さの上限で切り詰められないように）。
+    """
+
+    def __init__(self, confidence: float = 0.9) -> None:
+        self.confidence = confidence
+
+    def classify(self, state: str, options: Sequence[Option]) -> Classification:
+        target = evaluation_target(state)
+        ids = {o.id for o in options}
+        if target is None:
+            return Classification(None, 0.0)
+        marked = [cls for tid, cls in _MARKER.findall(state) if tid == target[1]]
+        choice = marked[-1] if marked else ("goal" if "goal" in ids else None)
+        if choice not in ids:
+            return Classification(None, 0.0)
+        return Classification(choice, self.confidence)
+
+
+class AbortOperator:
+    """escalate にはいつも中止で答える運用者（分布テストとマルコフ合成の既定の方針）。"""
+
+    def decide(self, escalation: Escalation) -> Decision:
+        from harness_testing_framework.contract import Abort
+
+        return Abort()
+
+
+class AutoUser:
+    """いつも同じ回答をその場で返すユーザー。"""
+
+    def __init__(self, answer: str = "自動の回答") -> None:
+        self.answer = answer
+
+    def ask(self, question: Question) -> str:
+        return self.answer

@@ -22,6 +22,7 @@ PUBLIC_MODULES = [
     "harness_testing_framework.runtime",
     "harness_testing_framework.testing.spec",
     "harness_testing_framework.testing.harness",
+    "harness_testing_framework.testing.stages",
 ]
 
 

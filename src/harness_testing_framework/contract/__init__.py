@@ -16,7 +16,12 @@ type JSONValue = bool | int | float | str | list[JSONValue] | dict[str, JSONValu
 CONTRACT_VERSION = "0.1"
 
 # 正はリポジトリ最上位の contract/ にあり、ここにはその複製を同梱する（一致はテストで保証する）
-SCHEMA_FILES = ("snapshot.schema.json", "trace.schema.json", "scenario.schema.json")
+SCHEMA_FILES = (
+    "snapshot.schema.json",
+    "trace.schema.json",
+    "scenario.schema.json",
+    "expectations.schema.json",
+)
 
 
 def load_contract_schema(name: str) -> dict[str, Any]:

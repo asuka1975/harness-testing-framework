@@ -2,7 +2,10 @@
 
 from harness_testing_framework.runtime.recorder import ReplayOnly
 from harness_testing_framework.testing.harness.fakes import (
+    AbortOperator,
+    AutoUser,
     ConformanceRegistry,
+    MarkerClassifier,
     ScriptedBody,
     ScriptedClassifier,
     ScriptedOperator,
@@ -27,8 +30,11 @@ from harness_testing_framework.testing.harness.trace import (
 
 __all__ = [
     "TRANSITION_KINDS",
+    "AbortOperator",
+    "AutoUser",
     "ConformanceRegistry",
     "Expectation",
+    "MarkerClassifier",
     "ReplayOnly",
     "Scenario",
     "ScenarioInvalid",

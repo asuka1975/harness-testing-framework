@@ -1,0 +1,62 @@
+# toy-minimal の確率的な偽ステージ本体の設計値。
+#
+# 本体は訪問ごとに、文脈の種（context.seed）だけを乱数の源にして変種を一つ選び、
+# tests/fixtures/<ステージ>/<変種>/ を作業領域に写し、変種の記憶を書く。
+# first は訪問 1、again は訪問 2 以降（carry を受けた再進入や再実行）の分布。
+# 分布テスト（expectations）、独立性検証、マルコフ合成の期待は、この表から手で導く。
+
+variants:
+  ask_topic:
+    ok: {class: goal}
+    unknown: {class: unknown}
+  plan_outline:
+    ok: {class: goal}
+    unclear: {class: topic_unclear, memory: {topic_questions: ["想定読者は誰か"]}}
+    unknown: {class: unknown}
+  write_note:
+    ok: {class: goal}
+    ok_b: {class: goal}
+    gaps: {class: outline_unfit, memory: {outline_gaps: ["例: 読者に照らして範囲外"]}}
+    unknown: {class: unknown}
+  review_note:
+    ok: {class: goal}
+    blocking: {class: findings_blocking, memory: {review_findings: ["例が抽象的すぎる"]}}
+    unknown: {class: unknown}
+
+profiles:
+  # 各ステージのクラスの分布が (ステージ, 訪問) だけで決まる。ステージどうし独立に作ってあるので、
+  # 独立性検証は違反を出さず、マルコフ合成の予測は実測と一致するはず
+  markov:
+    ask_topic:
+      first: {ok: 0.95, unknown: 0.05}
+      again: {ok: 0.95, unknown: 0.05}
+    plan_outline:
+      first: {ok: 0.70, unclear: 0.25, unknown: 0.05}
+      again: {ok: 0.90, unclear: 0.05, unknown: 0.05}
+    write_note:
+      first: {ok: 0.40, ok_b: 0.40, gaps: 0.15, unknown: 0.05}
+      again: {ok: 0.45, ok_b: 0.45, gaps: 0.05, unknown: 0.05}
+    review_note:
+      first: {ok: 0.65, blocking: 0.30, unknown: 0.05}
+      again: {ok: 0.85, blocking: 0.10, unknown: 0.05}
+
+  # review_note の分布が、同じクラス goal に属する write_note の二つの変種（ok と ok_b）で分かれる。
+  # 査読の本体は note.md の中身を読んで分布を選ぶ（下流の本体が読む成果物を通じた違い）。
+  # 独立性検証は write_note の goal で違反を検出するはず
+  divergent:
+    ask_topic:
+      first: {ok: 0.95, unknown: 0.05}
+      again: {ok: 0.95, unknown: 0.05}
+    plan_outline:
+      first: {ok: 0.70, unclear: 0.25, unknown: 0.05}
+      again: {ok: 0.90, unclear: 0.05, unknown: 0.05}
+    write_note:
+      first: {ok: 0.40, ok_b: 0.40, gaps: 0.15, unknown: 0.05}
+      again: {ok: 0.45, ok_b: 0.45, gaps: 0.05, unknown: 0.05}
+    review_note:
+      after_ok:
+        first: {ok: 0.85, blocking: 0.10, unknown: 0.05}
+        again: {ok: 0.90, blocking: 0.05, unknown: 0.05}
+      after_ok_b:
+        first: {ok: 0.35, blocking: 0.60, unknown: 0.05}
+        again: {ok: 0.60, blocking: 0.35, unknown: 0.05}

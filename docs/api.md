@@ -12,6 +12,8 @@
 - contract/trace.schema.json: 実行記録の一行の形式
 - contract/conformance/README.md: 契約適合テストとシナリオの書き方、偽物の振る舞い、実行記録の要約の規則
 - contract/conformance/scenario.schema.json: シナリオの形式
+- contract/conformance/manifests.json: マニフェストの正規形のテストベクトル
+- contract/formats/expectations.schema.json: 分布テストの基準（expectations）の形式
 
 ## `harness_testing_framework.schema`
 
@@ -116,5 +118,27 @@
 | `ScriptedUser` | 台本どおりに答える偽のユーザー |
 | `ConformanceRegistry` | 契約適合テストの指標レジストリ（flag と number） |
 | `Unreachable` | 呼ばれたら失敗する代役（再生の検査で使う） |
+| `MarkerClassifier` | 成果物の先頭の印 `[[class <対象の id>=<クラス>]]` を読む偽の分類器（確率的な偽の本体と組む） |
+| `AbortOperator` | escalate にいつも中止で答える運用者 |
+| `AutoUser` | いつも同じ回答をその場で返すユーザー |
 | `ReplayOnly` | runtime の `ReplayOnly` と同じもの |
 | `evaluation_target` | 状態文書の見出し行から、評価の対象を読む |
+
+## `harness_testing_framework.testing.stages`
+
+多数の実行による分布テスト（expectations）と、独立性検証と遷移行列の推定。
+
+| 名前 | 内容 |
+| --- | --- |
+| `RunRecord` | 一回の実行の記録（種、最後の状態、実行記録、評価ごとの代表のハッシュ） |
+| `RunSet` | 実行の記録の集まり |
+| `record_run` | ランタイムで一回実行し、代表のハッシュ（ステージが書いた成果物の内容のハッシュ）を添えて記録する |
+| `run_many` | 種を一つずつ変えて何回も実行する |
+| `runs_from_environment` | 実行の回数。環境変数 `HTF_RUNS` があればそれを使う |
+| `load_expectations` | expectations を読み、形式を検査する |
+| `Expectations` | 読み込んだ expectations |
+| `ExpectationsInvalid` | 形式に適合しないか、基準が矛盾する expectations |
+| `evaluate_expectations` | 実行の集まりで各基準を判定する |
+| `ExpectationReport` | 判定の結果（`passed`、`lines()`） |
+| `CriterionResult` | 一つの基準の判定（観測値、件数、Wilson の 95% 区間、成否） |
+| `wilson_interval` | 二項の割合の Wilson の区間 |

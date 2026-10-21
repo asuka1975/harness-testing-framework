@@ -1,2 +1,3 @@
+[[class write_note=outline_unfit]]
 ## 目的
 会議の決定と宿題を、出席しなかった人にも追えるようにする。
