@@ -482,6 +482,11 @@ user を与えると、シナリオの user の台本の代わりにそれ（ユ
 
 `('next', 'rollback', 'max_exceeded', 'unknown', 'suspend_resume', 'phase_crossing')`
 
+### `unmarked(text: str) -> str`
+
+印 `[[class <対象>=<クラス>]]` をすべて除いた文。偽の本体の代表の成果物を、人が記述だけで分類して
+ラベルを付ける時に、印を見せないために使う（adopting.md 第15節）。
+
 ### `Unreachable(names: Collection[str] = ())`
 
 再生の検査で外の代わりに束縛する。呼ばれたら失敗する。

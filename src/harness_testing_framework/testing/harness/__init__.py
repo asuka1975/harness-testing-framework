@@ -14,6 +14,7 @@ from harness_testing_framework.testing.harness.fakes import (
     Unreachable,
     evaluation_target,
     marked_class,
+    unmarked,
 )
 from harness_testing_framework.testing.harness.scenario import (
     Expectation,
@@ -57,5 +58,6 @@ __all__ = [
     "run_scenario",
     "summarize",
     "transition_coverage",
+    "unmarked",
     "verify",
 ]

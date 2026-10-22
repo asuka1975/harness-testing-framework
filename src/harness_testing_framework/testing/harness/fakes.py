@@ -187,6 +187,12 @@ def marked_class(state: str) -> str | None:
     return marked[-1] if marked else None
 
 
+def unmarked(text: str) -> str:
+    """印 `[[class <対象>=<クラス>]]` をすべて除いた文。偽の本体の代表の成果物を、人が記述だけで分類して
+    ラベルを付ける時に、印を見せないために使う（adopting.md 第15節）。"""
+    return _MARKER.sub("", text)
+
+
 class MarkerClassifier:
     """成果物に埋めた印 `[[class <対象の id>=<クラス>]]` を読む偽の分類器。
 

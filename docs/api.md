@@ -140,6 +140,7 @@
 | `conformance_scenarios` | 同梱した契約適合テストのシナリオのファイル |
 | `evaluation_target` | 状態文書の見出し行から、評価の対象を読む |
 | `marked_class` | 状態文書の見出し行が示す対象について、印 `[[class <対象>=<クラス>]]` が示すクラス |
+| `unmarked` | 印をすべて除いた文（人が記述だけで分類してラベルを付けるため） |
 
 ## `harness_testing_framework.testing.stages`
 

@@ -13,6 +13,8 @@ from harness_testing_framework.testing.harness import (
     AbortOperator,
     ConformanceRegistry,
     MarkerClassifier,
+    marked_class,
+    unmarked,
 )
 from harness_testing_framework.testing.oracle import (
     ConfusionClassifier,
@@ -243,3 +245,13 @@ def test_corpus_can_keep_one_item_per_state_document(tmp_path: Path) -> None:
     unique = build_corpus(runs, runtime.store, workflow, unique_states=True)
     assert len(every) == 3 * len(unique) == 3 * 5  # 三つのステージと二つのゲート
     assert unique == every[:5]
+
+
+def test_unmarked_removes_class_markers_for_labelers() -> None:
+    """印を除いた状態文書（人が記述だけで分類してラベルを付けるため）。"""
+    state = (
+        "# 評価: stage s2 visit 1\n## s2.txt\n[[class s2=e2_back]]\n本文 [[class s1=goal]] の続き\n"
+    )
+    assert unmarked(state) == "# 評価: stage s2 visit 1\n## s2.txt\n\n本文  の続き\n"
+    assert marked_class(state) == "e2_back"
+    assert "[[class" not in unmarked(state)

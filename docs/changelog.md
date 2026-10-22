@@ -11,13 +11,14 @@
 ### 足したもの
 
 - 公開の名前ごとの引数、属性、戻り値と説明の一覧 [api-reference.md](api-reference.md)
-- 公開の名前: `Criterion`、`EndState`、`Goal`、`Phase`、`Rollback`、`Event`、`Key`（runtime）、`Event`、`writes_hash`、`entries`、`Entry`、`entry_dependence`、`EntryDependenceResult`（testing.stages）、`Dist`（testing.e2e）、`SCHEMA_FILES`（contract）、`RandomGateClassifier`、`conformance_dir`、`conformance_scenarios`（testing.harness）
+- 公開の名前: `Criterion`、`EndState`、`Goal`、`Phase`、`Rollback`、`Event`、`Key`（runtime）、`Event`、`writes_hash`、`entries`、`Entry`、`entry_dependence`、`EntryDependenceResult`（testing.stages）、`Dist`（testing.e2e）、`SCHEMA_FILES`（contract）、`RandomGateClassifier`、`conformance_dir`、`conformance_scenarios`、`unmarked`（testing.harness）
 - シナリオの形式: `inputs` と `expect.starts` の `files` の値に、ファイルとディレクトリの参照 `{from: パス}`（contract/conformance/README.md の「ファイルの内容」）。契約適合テストのシナリオ `inputs_from_file` を足した
 - `run_scenario(..., user=)` と `run_coverage(..., user=)`: 台本の代わりにユーザーシミュレータを束縛する
 - `Prediction` の `evaluations`、`visit_outcomes`（訪問の区分ごとの評価の回数の期待値）と `visits_variance`（訪問の回数の分散）
 - `build_corpus(..., unique_states=True)`: 状態文書と選択肢の組ごとに一項目にする
 - `entries` と `entry_dependence`: 訪問 2 以降の評価の結果が入り方で違うかの検定（マルコフ合成の仮定の確かめ）
 - `RandomGateClassifier`: フェーズゲートの答えを実行ごとの種で決める偽の分類器
+- `unmarked`: 印を除いた文。手引き第15.1節（偽の本体の代表と記述の整合を、人のラベルと印で比べる手順）
 - 契約適合テスト一式（workflows/、scenarios/、files/、manifests.json）を Python のパッケージに同梱した
 
 ### 変えたもの（使い方は変わらない）
