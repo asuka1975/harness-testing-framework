@@ -8,7 +8,7 @@
   から決まる）だけ。そのうち、見出しのほかは訪問 1 と同じ状態文書は渡さない（design、plan_tasks、architecture のゲート、
   implement は訪問 2 以降がすべてそう）。上流の違いは、intake.md を読む対象では (ペルソナ, 持ち帰った問いの回答の有無)、
   unit_test では goal の実装の変種。シナリオだけが写す代表（plan_tasks/incomplete）は、シナリオで分類器が見る状態文書を
-  項目にする
+  （run_scenario の結果の置き場から）項目にする
 - 人に渡す human-labeling.md は、印（分類器の選択、代表のクラス）、選んだ規則、組ごとの数、項目の id を、どの形でも含まない。
   材料の文は、項目の (scope, 対象, 選択肢, 印を除いた状態文書) と、どの項目が同じ実行のものか、だけで決まる（印のクラス、
   項目の id、出どころ、渡す順を変えても同じ文になる）。項目は通し番号で示し、番号と id の対応はコーパスの側（source の
@@ -203,22 +203,36 @@ def test_scenario_only_representative_is_the_state_the_classifier_sees(
     committed: list[CorpusItem], tmp_path: Path
 ) -> None:
     """plan_tasks/incomplete（シナリオ plan_tasks_design_incomplete_rollback だけが写す）の項目の状態文書は、そのシナリオを
-    run_scenario で走らせた時に分類器が見た状態文書（実行記録の classification.state の SHA-256）と同じ。"""
+    run_scenario で走らせた時に分類器が見た状態文書（実行記録の evaluation の classification.state の SHA-256 を、結果の
+    置き場 store から読んだもの。手引き第15.1節）そのもの。scenario_corpus の各項目も、実行記録の評価ごとにその読み方で
+    読んだ状態文書と同じ（往復 15 で、ランタイムを組み立て直す回避を結果の store に置き換えた。コミットした材料は往復 14 の
+    回避で作ったもので、test_material_is_regenerated_from_the_trial_runs が、置き換えた後も材料の文が変わらないことを確かめる）。"""
     name, (scope, target, text) = next(iter(labeling.SCENARIO_ONLY.items()))
     items = [i for i in committed if i.source.get("scenario") == name]
     assert len(items) == 1
     item = items[0]
     assert (item.scope, item.target) == (scope, target) and text in item.state
     assert marked_class(item.state) == "design_incomplete"
-    result = run(SCENARIOS / f"{name}.yaml", tmp_path)
+    result = run(SCENARIOS / f"{name}.yaml", tmp_path / "run")
     assert result.problems == []
-    seen = set()
+    # 評価の (scope, 対象, seq) → 分類器が見た状態文書。対象は、ゲート（scope が phase）ではフェーズの id
+    seen: dict[tuple[str, str, int], str] = {}
     for event in result.trace:
-        if event["event"] == "evaluation" and (event["scope"], event["stage"]) == (scope, target):
-            classification = event["classification"]
-            assert isinstance(classification, dict)
-            seen.add(str(classification["state"]))
-    assert hashlib.sha256(item.state.encode("utf-8")).hexdigest() in seen
+        classification = event.get("classification")
+        if event["event"] != "evaluation" or classification is None:
+            continue
+        assert isinstance(classification, dict) and isinstance(event["seq"], int)
+        digest = str(classification["state"])
+        state = result.store.get(digest).decode("utf-8")
+        assert hashlib.sha256(state.encode("utf-8")).hexdigest() == digest
+        scope_of = str(event["scope"])
+        target_of = str(event["phase"] if scope_of == "phase" else event["stage"])
+        seen[(scope_of, target_of, event["seq"])] = state
+    assert item.state in {s for (sc, t, _), s in seen.items() if (sc, t) == (scope, target)}
+    built = labeling.scenario_corpus(name, tmp_path / "corpus")
+    for i in built:
+        assert seen[(i.scope, i.target, i.source["seq"])] == i.state, i.item
+    assert {i.state for i in built} == set(seen.values())
 
 
 def test_material_does_not_depend_on_marks_ids_sources_or_order(

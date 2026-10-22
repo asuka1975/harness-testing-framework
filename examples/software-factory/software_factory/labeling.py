@@ -14,7 +14,8 @@
   回答が intake.md に入る intake、analyze、discovery のゲートだけ（design、plan_tasks、architecture のゲート、implement の
   訪問 2 以降は、見出しのほかは訪問 1 と同じなので除く）
 - 確率的な実行に置かない代表（SCENARIO_ONLY。plan_tasks/incomplete）は、それを写すシナリオで分類器が見る状態文書を、
-  シナリオの台本の偽物で組み立てたランタイムから読んで、項目の候補に足す
+  `run_scenario` の結果の置き場（`ScenarioResult.store`）から読んで、項目の候補に足す（往復 15。往復 14 はシナリオの台本の
+  偽物でランタイムを組み立て直して読んでいた）
 - acceptance は、分布テストの主経路（markov）の goal の実装（ok、ok_b）の後のものに限る。requirement_unmet の代表の
   「Discount.apply が支払額を切り捨てている」は ok と ok_b でだけ成り立ち、試しの実行 labeling（と divergent）では正しい
   実装 ok_fixed とも組んで食い違う（手引き第12節）ので、その組を材料から外す
@@ -48,16 +49,11 @@ from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
 
-from harness_testing_framework.runtime import BlobStore, Runtime, Workflow
+from harness_testing_framework.runtime import Workflow
 from harness_testing_framework.testing.harness import (
     MarkerClassifier,
-    ScriptedBody,
-    ScriptedClassifier,
-    ScriptedOperator,
-    ScriptedUser,
     load_scenario,
     marked_class,
-    summarize,
     unmarked,
 )
 from harness_testing_framework.testing.oracle import (
@@ -70,10 +66,9 @@ from harness_testing_framework.testing.oracle import (
     save_corpus,
     save_labels,
 )
-from harness_testing_framework.testing.stages import RunSet, record_run
-from software_factory.metrics import REGISTRY
+from harness_testing_framework.testing.stages import RunRecord, RunSet
 from software_factory.personas import AFTER, KINDS, PERSONAS, REUSE, WHO
-from software_factory.stages.deterministic import FIXTURES, ROOT, SCENARIOS, WORKFLOW
+from software_factory.stages.deterministic import FIXTURES, ROOT, SCENARIOS, WORKFLOW, run
 from software_factory.stages.probabilistic import DISCOUNT, TABLE, WORKFLOW_MODEL, run_set
 
 DOCS = ROOT / "docs"
@@ -359,31 +354,19 @@ def select(corpus: Sequence[CorpusItem]) -> list[CorpusItem]:
 
 
 def scenario_corpus(name: str, workdir: Path) -> list[CorpusItem]:
-    """シナリオで分類器が見る状態文書の項目（状態文書と選択肢の組ごとに一項目）。run_scenario は置き場を返さないので、
-    シナリオの台本の偽物（contract/conformance/README.md の「偽物」）でランタイムを組み立てて一回実行し、実行記録の要約が
-    シナリオの期待と一致することを確かめる。source にシナリオの名前を足す。"""
-    scenario = load_scenario(SCENARIOS / f"{name}.yaml")
+    """シナリオで分類器が見る状態文書の項目（状態文書と選択肢の組ごとに一項目）。シナリオを `run_scenario` で実行し
+    （deterministic.run。期待どおりであること、つまり結果の problems が空であることを確かめる）、結果の実行記録（trace）を
+    RunRecord にして、結果の置き場（store。手引き第15.1節）から `build_corpus` で項目にする。trace は再開をまたいで続いた
+    実行記録なので、中断するシナリオでもこのまま使える。source にシナリオの名前を足す。"""
+    path = SCENARIOS / f"{name}.yaml"
+    scenario = load_scenario(path)
     if scenario.workflow.resolve() != WORKFLOW.resolve() or scenario.metrics is not None:
         raise ValueError(f"{name} はこの例のワークフローと指標のシナリオではない")
-    store = BlobStore(workdir / "store")
-    scripted = ScriptedBody(scenario.visits, FIXTURES)
-    classify = {k: v["classify"] for k, v in scenario.visits.items() if "classify" in v}
-    runtime = Runtime(
-        WORKFLOW_MODEL,
-        {stage.id: scripted for stage in WORKFLOW_MODEL.stages},
-        registry=REGISTRY,
-        classifier=ScriptedClassifier(classify, scenario.gates),
-        operator=ScriptedOperator(scenario.operator),
-        user_io=ScriptedUser(scenario.user),
-        store=store,
-        workdir=workdir / "work",
-        threshold=scenario.threshold,
-    )
-    inputs = {path: text.encode("utf-8") for path, text in scenario.inputs.items()}
-    record = record_run(runtime, scenario.seed, inputs)
-    if summarize(record.events) != scenario.expect.trace:
-        raise ValueError(f"{name} の実行記録がシナリオの期待と違う")
-    items = build_corpus(RunSet([record]), store, WORKFLOW_MODEL, unique_states=True)
+    result = run(path, workdir)
+    if result.problems:
+        raise ValueError(f"{name} の実行がシナリオの期待と違う: {result.problems}")
+    record = RunRecord(scenario.seed, result.status, result.trace)
+    items = build_corpus(RunSet([record]), result.store, WORKFLOW_MODEL, unique_states=True)
     return [replace(i, source={**i.source, "scenario": name}) for i in items]
 
 

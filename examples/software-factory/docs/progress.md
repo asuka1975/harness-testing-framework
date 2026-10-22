@@ -8,9 +8,9 @@ harness-testing-framework（v0.1.0）の利用者として、adopting.md だけ�
 
 ## 状態（2026-10-23）
 
-往復 14（往復 10〜13 の差分の確かめ、docs/review-findings.md の H への対応。人がラベルを付ける材料の直し）まで完了。`scripts/check.sh` が通る（ruff check、ruff format、mypy strict、pytest 676 件で 145.9 秒、全体で約 2 分 27 秒）。この例のテストは 213 件。変更は examples/software-factory/ の中だけ。adopting-gaps.md の未解消は N18（往復 14 で見つけた。シナリオで分類器が見る状態文書を読む手段）。N17 は往復 13 で解消した。
+往復 15（N18 を受けた `ScenarioResult.store` と文書の書き足しの確かめと、シナリオの状態文書を読む回避の置き換え）まで完了。`scripts/check.sh` が通る（ruff check、ruff format、mypy strict、pytest 677 件で 146.6 秒、全体で約 2 分 28 秒）。この例のテストは 213 件。変更は examples/software-factory/ の中だけ。adopting-gaps.md の未解消は無し（N18 は往復 15 で解消し、往復 15 で新しい不足は無かった）。
 
-最初の版（下の「経過」）の後、フレームワークの側が adopting-gaps.md の 30 項目を受けて直したので、往復 1 で各項目を確かめ、要らなくなった回避策を外した（下の「往復 1」）。往復 1 で見つけた N1〜N7 も直ったので往復 2 で、往復 2 で見つけた N8、N9 も直ったので往復 3 で、往復 3 で見つけた N10 も直ったので往復 4 で、往復 4 で見つけた N11 も直ったので往復 5 で確かめた（下の「往復 2」〜「往復 5」）。往復 6 で、人間のレビューの前の検証役の指摘（docs/review-findings.md）に対応した（下の「往復 6」）。往復 8 で完了判定の指摘（E）に、往復 10 で人間のレビューの回答と完了判定の二回目の指摘（F）に、往復 11 で往復 10 の後の人間の決定（G。tests\_defective の分割の取り消しと、人が付けるラベルの材料）に対応した。往復 12 で、往復 11 で見つけた N16 を受けた手引きの書き足しを確かめ、人に渡す材料の選び方をそれに合わせた（下の「往復 12」）。往復 13 で、往復 12 で見つけた N17 を受けて改められた手引きの目安を確かめ、人に渡す材料の選び方をそれに合わせた（下の「往復 13」）。往復 14 で、往復 10〜13 の差分の確かめ（review-findings.md の H）に対応し、人に渡す材料から印、選んだ規則、組ごとの数、項目の id が漏れないようにし、分量を減らし、対象と上流の違いを目安に揃えた（下の「往復 14」）。今の未解消は adopting-gaps.md の先頭にある（往復 14 の後は N18）。
+最初の版（下の「経過」）の後、フレームワークの側が adopting-gaps.md の 30 項目を受けて直したので、往復 1 で各項目を確かめ、要らなくなった回避策を外した（下の「往復 1」）。往復 1 で見つけた N1〜N7 も直ったので往復 2 で、往復 2 で見つけた N8、N9 も直ったので往復 3 で、往復 3 で見つけた N10 も直ったので往復 4 で、往復 4 で見つけた N11 も直ったので往復 5 で確かめた（下の「往復 2」〜「往復 5」）。往復 6 で、人間のレビューの前の検証役の指摘（docs/review-findings.md）に対応した（下の「往復 6」）。往復 8 で完了判定の指摘（E）に、往復 10 で人間のレビューの回答と完了判定の二回目の指摘（F）に、往復 11 で往復 10 の後の人間の決定（G。tests\_defective の分割の取り消しと、人が付けるラベルの材料）に対応した。往復 12 で、往復 11 で見つけた N16 を受けた手引きの書き足しを確かめ、人に渡す材料の選び方をそれに合わせた（下の「往復 12」）。往復 13 で、往復 12 で見つけた N17 を受けて改められた手引きの目安を確かめ、人に渡す材料の選び方をそれに合わせた（下の「往復 13」）。往復 14 で、往復 10〜13 の差分の確かめ（review-findings.md の H）に対応し、人に渡す材料から印、選んだ規則、組ごとの数、項目の id が漏れないようにし、分量を減らし、対象と上流の違いを目安に揃えた（下の「往復 14」）。往復 15 で、往復 14 で見つけた N18 を受けた `ScenarioResult.store` と文書の書き足しを確かめ、人に渡す材料を作る時にシナリオの状態文書を読む回避を、公開の手段（`run_scenario` の結果の `store`）に置き換えた（下の「往復 15」）。今の未解消は adopting-gaps.md の先頭にある（往復 15 の後は無し）。
 
 | 求められたこと | どこで満たしたか |
 | --- | --- |
@@ -426,6 +426,29 @@ harness-testing-framework（v0.1.0）の利用者として、adopting.md だけ�
 7. check.sh が通る（ruff check、ruff format、mypy strict、pytest 676 件で 145.9 秒、全体で約 2 分 27 秒）。最初の実行では ruff（RUF007、SIM300）と mypy（Optional の代入）で落ち、直した
 
 変えたファイル: software\_factory/labeling.py、tests/test\_labeling.py、tests/stochastic.yaml、tests/fixtures/review/changes/review.json、tests/README.md、docs/human-labeling.md、docs/human-labeling.corpus.jsonl、README.md、docs/adopting-gaps.md、docs/progress.md。
+
+## 往復 15（2026-10-23）
+
+往復 14 で上げた N18 を受けて、フレームワークの側が `run_scenario` の結果（`ScenarioResult`）に `store`（実行が使った置き場）を足し、api-reference.md に `ScenarioResult` の属性の説明と `ScriptedBody`、`ScriptedClassifier` の引数の形を書き、手引き第15.1節の 1 にシナリオの状態文書の読み方を一文足した（changelog.md の「未公開」の `ScenarioResult.store` の項目。コミット 453fd31）。利用者として、それで N18 を判断できるかを確かめ、この例の回避を公開の手段に置き換えた。記述（workflow.yaml）、分布、設計値、基準、種、フィクスチャ、人に渡す材料（docs/human-labeling.md とそのコーパス）は変えていない。人のラベルはまだ無い（docs/human-labels.jsonl が無く、「ラベル:」はすべて空）。
+
+| やること | 対応 |
+| --- | --- |
+| N18 を判断できるか | できる（解消。adopting-gaps.md の「解消済み（往復 15）」）。分類器が見た状態文書は、trace の evaluation の `classification.state` を `result.store.get` に渡して読める（中断して再開するシナリオでも）。`verify` に渡す store は、`result.store` のほかに無い（`verify(scenario, result, result.store)` が `problems` と同じく空）。`ScriptedClassifier` の stages と gates、`ScriptedBody` の visits の形は、往復 14 に試して知った形と同じ |
+| 回避の置き換え | 置き換えた。software\_factory/labeling.py の scenario\_corpus は、シナリオを `run_scenario`（software\_factory/stages/deterministic.py の run）で実行し、`problems` が空であることを確かめ、`RunRecord(scenario.seed, result.status, result.trace)` を `build_corpus(RunSet([...]), result.store, ...)` にかける。シナリオの台本の偽物（`ScriptedBody`、`ScriptedClassifier`、`ScriptedOperator`、`ScriptedUser`）と自分の置き場でランタイムを組み立て直すこと、`record_run`、実行記録の要約をシナリオの期待と自分で比べることを外した。README の「記述と代表の整合」と labeling.py の docstring を合わせた |
+| 材料の文 | 変わらない。置き換えた後のコードで試しの実行から作り直した human-labeling.md とコーパスは、コミットしたもの（往復 14 の回避で作った）とバイト単位で同じ。シナリオの項目の id（実行の id 46612a644073df0b）も同じ |
+| 新しい不足 | 無い。シナリオの状態文書をコーパスの項目にするために trace を `RunRecord` にしたのは、api-reference.md の `RunRecord`、`ScenarioResult.trace`、`build_corpus` の説明から判断できた（この例の選んだ手順として、adopting-gaps.md、README、labeling.py に記録した）。api-reference.md の `ScenarioResult` の属性の説明に `problems` が無いこと（手引き第8節にある）と、signature で `store` が `resumes` の前に入ったことは、判断に困らないので小さなこととして adopting-gaps.md に書いた |
+
+検証:
+
+1. 453fd31 の adopting.md、api-reference.md、changelog.md の差分を読み、N18 の三つ（置き場とその場所、`verify` に渡す store、`ScriptedClassifier` と `ScriptedBody` の引数の形）が、それぞれどの文で決まるかを確かめた
+2. スクラッチで、plan\_tasks\_design\_incomplete\_rollback（評価 16 件）と happy\_path\_user\_suspend（再開 1 回、評価 14 件）を `run_scenario` で実行した。trace の全評価の状態文書を `result.store.get` で読め、trace を `RunRecord` にした `build_corpus` の項目の状態文書がそれと同じで、`verify(scenario, result, result.store)` は空だった。plan\_tasks のシナリオでは、往復 14 の回避の出力と、16 項目の id、scope、対象、選択肢、状態文書、source（種と seq）が同じだった
+3. scenario\_corpus を置き換え、tests/test\_labeling.py の test\_scenario\_only\_representative\_is\_the\_state\_the\_classifier\_sees を、項目の状態文書を `result.store.get` で読んだ状態文書と文として比べ（前は SHA-256 が実行記録にあることだけ）、scenario\_corpus の全項目が評価ごとにそう読んだ状態文書と同じことも確かめる形にした。最初は、ゲートの評価の対象を出来事の stage で引いて KeyError で落ちた（ゲートの対象は出来事の phase）ので直した
+4. 材料を作り直さずに（コミットしたものは往復 14 の回避で作ったまま）tests/test\_labeling.py の 23 件を走らせ、すべて通る。test\_material\_is\_regenerated\_from\_the\_trial\_runs が、置き換えた後のコードで作り直した項目と材料の文が、コミットしたものと同じことを確かめる。加えて `labeling.write` をスクラッチのパスに書き、docs/human-labeling.md と docs/human-labeling.corpus.jsonl とバイト単位で同じことを確かめた
+5. check.sh が通る（ruff check、ruff format、mypy strict、pytest 677 件で 146.6 秒、全体で約 2 分 28 秒。往復 14 の 676 件から増えた 1 件は本体の側のテスト（往復 14 の後の本体のコミットは 453fd31 だけで、変えたファイルの名前に本体のテストがある。中身は読んでいない）。この例のテストは 213 件のまま）
+
+変わった数値: 無い。人に渡す材料は 66 項目、100,276 文字のまま。例のテストは 213 件のまま（tests/test\_labeling.py の 1 件を書き直した）。分布テストの観測値、独立性検証と入り方の検定の p 値、マルコフ合成の比較、オラクル、トリアージも変わらない（シナリオの状態文書を読む手段だけを変えた）。
+
+変えたファイル: software\_factory/labeling.py、tests/test\_labeling.py、README.md、docs/adopting-gaps.md、docs/progress.md。
 
 ## 残っていること
 
