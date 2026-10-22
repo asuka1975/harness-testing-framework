@@ -8,7 +8,7 @@ harness-testing-framework の利用者として、docs/adopting.md だけを手�
 - software\_factory/metrics.py: 指標レジストリ（実在のツールで測るものを含む）
 - software\_factory/personas.py: 要求の取り込みに束縛するユーザーシミュレータ（ペルソナ 3 つ）
 - software\_factory/stages/: 偽のステージ本体（deterministic はシナリオ、probabilistic は確率的なもの）
-- software\_factory/design.py: 設計値の MarkovModel を作り、synthesize の予測から分布テストの基準の根拠（評価の数の期待値 E[n]）を出す
+- software\_factory/design.py: 設計値の MarkovModel（ゲートの分布を足せる）を作り、synthesize の予測から分布テストの基準の根拠（評価の数の期待値 E[n]、訪問の回数の分散）を出す
 - software\_factory/scenarios.py: tests/scenarios/ のシナリオの YAML を作る（`python -m software_factory.scenarios`）。遷移の列を手で並べ、ファイルはフィクスチャを `{from: パス}` で参照する
 - tests/: テスト、フィクスチャ、シナリオ、expectations（tests/README.md）
 - docs/progress.md: 作業ログ
@@ -49,6 +49,7 @@ writes（repo/src/、repo/tests/）の外を変えるのは契約違反で、評
 - carry を受けた再進入で分布が変わる: release は、記憶 missing\_notes を受けたかで分布を選ぶ（goal 0.75 → 0.97）。release に戻る辺は自分自身への一本だけで、運用者が中止で答える実行では「訪問 2 以降」と一致する
 - クラス内で下流の分布が分かれる: divergent では、implement の goal の二つの変種のうち ok は REQ-1 の割引額の切り捨てを誤り、ok\_fixed は正しい。unit\_test の変種 defect のテストは、実在の pytest で ok では落ち（impl\_defect）、ok\_fixed では通る（goal）。markov では二つ目の変種が ok と同じ誤りを持つ ok\_b なので分かれない
 - intake は、種から選んだペルソナに尋ね、回答で intake.md を書く。ペルソナごとの intake.md は intake の goal の違う代表になるが、下流は変えない
+- ゲートの分布: markov の実行のゲートはいつも goal。もう一つの実行の集まり（tests/expectations/markov\_gated.yaml）では、assurance のゲートを、実行の種で組み立てた RandomGateClassifier が成果物によらず 0.2 の確率で changes\_requested にする（review の goal の時にも書く review\_findings を持って implement に戻る）。ゲートの答えが代表によらないので独立性検証は違反を出さず、ゲートの分布を足した設計値のモデルの予測が実測と合う
 
 ## 通したランナー
 
@@ -57,9 +58,9 @@ writes（repo/src/、repo/tests/）の外を変えるのは契約違反で、評
 | 整合性検査 | tests/test\_definition.py |
 | 契約適合テスト（パッケージに同梱した全シナリオ。参照ランタイムを使うので必須ではなく、版の確認として） | tests/test\_conformance.py |
 | 遷移の決定論テスト（14 シナリオ、遷移の六種、escalate の四択、記録再生、ペルソナの束縛） | tests/test\_scenarios.py |
-| 分布テスト（expectations） | tests/test\_stochastic.py |
+| 分布テスト（expectations。ゲートを揺らす実行を含む） | tests/test\_stochastic.py |
 | 独立性検証 | tests/test\_independence.py |
-| E2E のカバレッジ（ペルソナを束縛）とマルコフ合成 | tests/test\_e2e.py |
+| E2E のカバレッジ（ペルソナを束縛）とマルコフ合成（ゲートの分布を含む） | tests/test\_e2e.py |
 | 偽の分類器によるオラクル検証 | tests/test\_oracle.py |
 | トリアージの一周 | tests/test\_triage.py |
 | 指標とフィクスチャの整合、ユーザーシミュレータ | tests/test\_metrics.py、tests/test\_personas.py |

@@ -1,58 +1,46 @@
 # adopting.md の不足の記録（software-factory）
 
-software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。最初の版（30 項目、A1〜F2）を受けてフレームワークの側が直したので、往復 1 として各項目を利用者の立場で確かめ直した。
+software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。最初の版（30 項目、A1〜F2）を受けてフレームワークの側が直したので往復 1 で確かめ直し、そこで見つけた N1〜N7 を直したと言うので往復 2 で確かめ直した。
 
-読んだのは adopting.md、api.md、api-reference.md、examples/toy-minimal/、schema/workflow.schema.json、contract/ の文書と形式（contract.md、README.md、conformance/ の下のすべて、formats/ と trace と snapshot の schema）だけ。フレームワーク本体の実装（src/、tests/、scripts/、pyproject.toml、conftest.py の中身を含む）、plan.md、progress.md、decisions.md、reports/ は読んでいない。本体について知ったことは、公開の名前の signature と docstring、`scripts/check.sh` と本体のテスト（tests/test\_package.py だけ）を実行した時の出力、cProfile の出力（関数の名前と時間）からだけ。本体は直していない。回避策はこの例の中にだけ置いた。
+読んだのは adopting.md、api.md、api-reference.md、examples/toy-minimal/、schema/workflow.schema.json、contract/ の文書と形式（contract.md、README.md、conformance/ の下のすべて、formats/ と trace と snapshot の schema）だけ。往復 2 では、これらの文書の変更を git の差分で見た（読んでよい文書に限る）。フレームワーク本体の実装（src/、tests/、scripts/、pyproject.toml、conftest.py の中身を含む）、plan.md、progress.md、decisions.md、reports/ は読んでいない。本体について知ったことは、公開の名前の signature と docstring、`scripts/check.sh` と本体のテスト（tests/test\_package.py だけ）を実行した時の出力、cProfile の出力（関数の名前と時間）からだけ。本体は直していない。回避策はこの例の中にだけ置いた。
 
 ## 未解消
 
-### N1. 公開の名前の signature に出てくる型の一部が、どこにも書かれていない
+### N8. compare\_prediction がゲートの評価の結果を比べない
 
-api-reference.md の signature が、api.md に無い名前を使う: `Dist`（MarkovModel）、`Key`（Recorder.call）、`Event`（RunResult、RunRecord）、`Goal`、`EndState`、`Phase`、`Rollback`（Stage、Workflow.phase）、`writes_hash`（record\_run の representative の既定）、`SCHEMA_FILES`（load\_contract\_schema）。
+`RandomGateClassifier` でゲートの分布を持つ実行を作れるようになり（下の N5）、`Prediction.visit_outcomes` にもゲートの (phase, フェーズ, 区分, 結果) の期待値がある。一方 `compare_prediction` が比べるのは、最後の状態、訪問の回数、ステージの評価の結果ごとの回数の 41 の量だけで、ゲートの評価の結果は入らない（assurance のゲートを揺らした実行でも、比べた量に assurance は無かった）。
 
-- 困ったところ: この例は `Stage.end_states` の各項目の `.id` を使う（tests/test\_oracle.py）が、`EndState` の属性は書かれていない。`load_contract_schema` が受け取る名前（`triage_item.schema.json` など）は試して分かった。MarkovModel に渡す分布は `dict[str, float]` で動いたが、`Dist` の定義は見ていない
-- 欲しいもの: これらの型の属性か定義を api-reference.md に。`load_contract_schema` には受け取る名前の一覧を
+- どうしたか: tests/test\_e2e.py の test\_gate\_distribution\_prediction\_matches\_measurement で、assurance のゲートの評価の結果ごとの回数を、訪問の区分ごとに visit\_outcomes と手で比べた（差が回数の平方根の 4 倍以内）
+- 欲しいもの: `compare_prediction` がゲートの評価の結果も比べること。または、比べない量があると docstring に書くこと
 
-### N2. 契約に、読めない文書の決定の番号が二つ残っている（A3 の残り）
+### N9. 予測と実測が合っても、入り方による違いは隠れうる（N6 の説明の残り）
 
-contract/contract.md 第1節の「辺」の定義の末尾「（決定 A2）」と、contract/conformance/scenarios/self\_rollback.yaml の description の「（A2）」。ほかの参照（plan.md、decisions.md、決定 #n）は契約、形式、docstring から消えている。戻り先を自分自身にできる理由は adopting.md 第2.3節（carry を持ってやり直せる）から読み取れるので、判断には困らない。
+第14節の「実ハーネスでの合成の読み方」は、予測と実測が合わない時の調べ方（そのステージの訪問 2 以降を、直前にどの辺から入ったかで分けて比べる）を書く。試したところ、carry で振る舞いが変わる本体でも、推定したモデルの予測は実測と合った。推定が入り方の混ざりを平均するので、実測の混ざりが推定と同じなら合う。
 
-### N3. 例と本体の語の重なりの報告が、pytest の既定の出力で切れる（B2 の残り）
+- 試したこと（スクラッチで。この例には入れていない）: implement が自分自身から impl\_violations を受けた時だけ goal を 0.5 に下げる本体（ほかの入り方では 0.90）で、推定 400 回、実測 400 回。推定したモデルの予測は、比べた量すべてで実測と一致した（k = 4）。implement の訪問 2 以降の評価を直前の transition（kind、from、edge の state）で分けると、自分自身からの戻りの後の goal は 0.55（75/136）、ほかの入り方は 0.81〜0.90 で、分割表のカイ二乗統計量は 39.6（自由度 4）。carry で変わらない markov の本体では 2.4
+- 判断: 第14節の最後の「このようなステージを含む量は、合成の予測ではなく実測（分布テスト）で確かめる」に従えば困らない。ただし「合わない時は」と書かれているので、合えばよいと読まれうる。入り方が複数あるステージは、合っていても入り方で分けて確かめる、と書くとよい
+- 足りないもの: 入り方で分ける道具が無く、実行記録の transition を手で辿った（十数行）。`independence` のように、(ステージ, 訪問の区分, 直前の辺) ごとに結果の分布を比べる関数があるとよい
 
-重なった語は一度にすべて検査の値に入るようになった（下の B2）。ただし pytest の既定の出力は長い一覧を `...` で切るので、重なりが多いと一部の語が見えない（`-vv` を付ければ全部見える）。check.sh の出力で同じことが起きるかは、check.sh を読んでいないので分からない。試した時は語が二つで、どちらも見えた。
+## 解消済み（往復 2）
 
-### N4. synthesize は訪問の回数の分散を出さない（D3 の残り）
-
-visit や from\_visit で絞った基準の E[n] は `synthesize` で厳密に出るようになった（下の D3）。一方、`mean_visits` の基準の幅には、一回の実行の中での訪問の回数の標準偏差が要るが、`Prediction` は期待値（`mean_visits`）しか持たない。
-
-- どうしたか: 設計値とワークフロー定義の辺を辿る標本（software\_factory/design.py の simulate）を、この標準偏差のためだけに残した。標本の最後の状態と訪問の回数の平均が synthesize の厳密な値と一致することを tests/test\_e2e.py で確かめる
-- 回避したいこと: 遷移規則を例の中で書き直している（ハーネスの実行には使わない）。`Prediction` に訪問の回数の二次の積率（か分散）があれば要らない
-
-### N5. 第14節の「ゲートを落とすには…しかなく」は強すぎる（D4 の説明の残り）
-
-第14節は、確率的な実行でゲートを揺らすには最終ステージの goal の成果物にゲートの印を入れるしかないと書く。試したところ、成果物ではなく実行ごとの乱数でゲートの答えを決める偽の分類器でも揺らせ、その時は独立性検証が違反を出さず、ゲートの分布を持つマルコフ合成が実測と合った。
-
-- 試したこと（スクラッチで。この例には入れていない）: 実行の種から作った `random.Random` を持つ偽の分類器を、ペルソナと同じく実行ごとに組み立てて束縛した。assurance のゲートで changes\_requested が選択肢にあれば確率 0.2 でそれを返し、ほかは `MarkerClassifier` に任せる。markov の本体で 400 回（種 20000）を実測、400 回（種 40000）を推定に使い、ゲートの評価 370 件のうち changes\_requested は 86 件。推定したモデルの予測も、設計値のモデルに assurance のゲートの分布 {goal: 0.8, changes\_requested: 0.2} を足した予測も、41 の量すべてで実測と一致した（k = 4）。独立性検証の violated は無い
-- 欲しいもの: 第14節にこの形（実行ごとに組み立てる、成果物によらない乱数の偽の分類器）を書くか、フレームワークにその偽の分類器を置く。この例に入れなかったのは、実行の集まりを二つ足すと例のテストの時間が目安（N7）からさらに離れるため
-
-### N6. carry で振る舞いが変わる実際の本体で、マルコフ合成をどう扱うか（D2 の説明の残り）
-
-第14節の説明で、偽の本体で確かめる時の置き方は分かる（下の「直さないと言われたもの」）。実際の LLM の本体は carry を受ければたいてい振る舞いを変え、この例の implement のように carry を持つ辺が四本入るステージもある。そういうハーネスで、合成の予測が合わない時に、carry によるものかほかの非マルコフ性によるものかをどう見分けるか、合成をどのステージまで信じてよいかは書かれていない。
-
-### N7. この例のテストが、第11節の時間の目安（一つの例で一分以内）を超える
-
-第11節に目安が書かれ、`synthesize` も速くなった（下の B6）。それでもこの例のテストはカバレッジの計測の下で約 82 秒かかる（check.sh 全体は約 1 分 46 秒）。大半は 400 回の実行の集まり三つ（分布テスト、独立性検証の divergent、マルコフ合成の推定。一つ約 16〜18 秒）。
-
-- どうしたか: 指標の tasks.yaml の読み込みを内容ごとに覚えた（計測の下で、400 回の実行の集まり一つが約 20 秒から約 16〜18 秒に。計測なしでは約 7.8 秒）。cProfile（覚える前、計測なしの 100 回）では、ランタイムのスナップショットの作成（作業領域の走査と正規形の JSON）が約三分の一、残りは本体のフィクスチャの写し、指標、遷移の処理に分かれる。回数を減らさずに大きく縮める手は、例の側には見つからなかった
-- 判断できないこと: 回数を減らすと基準の幅（回数から決めた）と独立性検証の検出力が変わるので、減らしていない。目安を超えてよいのか、三つ目（推定）の集まりを分布テストの集まりと分け合うべきか（推定と実測が同じ実行になると比べる意味が薄れる）は決められない
+- **N1 signature に出てくる型が書かれていない**: 解消。api.md と api-reference.md に `Criterion`、`EndState`、`Goal`、`Phase`、`Rollback`、`Event`、`Key`、`Dist`、`writes_hash`、`SCHEMA_FILES` があり、どれも import できることを試した。tests/test\_oracle.py が使う `EndState.id` も書かれた。小さなこと: `Event` は runtime（`dict[str, JSONValue]`）と testing.stages（`Mapping[str, Any]`）で定義が違う。api-reference.md の `SCHEMA_FILES` の値は末尾が `…` で切れる（import すれば 8 つの名前が見える）。どちらも使う上では困らない
+- **N2 契約に決定の番号が残る**: 解消。contract.md 第1節と self\_rollback.yaml の description から消えた。contract/、schema/workflow.schema.json、api.md、api-reference.md、adopting.md を「決定」、plan.md、decisions.md で検索して、残りが無い
+- **N3 語の重なりの報告が切れる**: 解消。workflow.yaml の記憶の名前を一時的に本体にありそうな三つの語（`checkpoint`、`runner`、`fakes`）に変えて check.sh を実行すると、tests/test\_package.py の失敗が、三つの語の 16 か所を `ファイル:行:語` の一行ずつで出した（その後に切れた一覧も出るが、上の行で全部見える）。workflow.yaml は元に戻した
+- **N4 synthesize が訪問の回数の分散を出さない**: 解消。`Prediction.visits_variance` の implement は 1.368（標準偏差 1.170）で、前に標本で出した 1.168 と合う。adopting.md 第12節に mean\_visits の幅の出し方。design.simulate（遷移規則を例の中で辿る標本）と、それを確かめるテストを外し、mean\_visits の幅は visits\_variance から出すようにした（tests/test\_stochastic.py、markov.yaml の注記）。気づいたこと: この大きさのワークフローで synthesize が約 0.8 秒から約 3.4 秒に（計測の下で約 2.5 秒から約 6 秒に）遅くなった。目安（N7）には収まる
+- **N5 ゲートを揺らす偽の分類器**: 解消。`RandomGateClassifier` と第14節の書き方で、スクラッチでの往復 1 の試し（自前の偽の分類器）と同じことができた。例に取り込んだ: run\_set に gates を足して実行ごとに組み立て、assurance のゲートを {goal: 0.8, changes\_requested: 0.2} で揺らす実行の集まり（tests/expectations/markov\_gated.yaml、400 回、種 50000）を足した。四つの基準（ゲートの訪問 1 と 2 以降の changes\_requested、完了の割合、implement の訪問の回数の平均）が通り、ゲートの分布を足した設計値のモデルの予測が 41 の量で実測と合い、ゲートの評価の回数も予測と合い、独立性検証は違反を出さない。比べる関数がゲートを比べないことは N8
+- **N6 実ハーネスでの合成の読み方**: 解消（残りは N9）。第14節に、仮定が近似になる所（入り方が複数あるステージの二回目以降と、その後）、合わない時の調べ方（直前の辺で分けて比べる）、そういう量は実測で確かめることが書かれた。往復 1 で分からなかった「見分け方」と「どこまで信じてよいか」に答えている。調べ方はスクラッチで試し、carry で変わる本体を見分けられた（N9）
+- **N7 時間の目安**: 解消。第11節の目安が、カバレッジの計測の下で一つの例でおよそ二分以内になり、統計のテストの回数を減らさないこと、推定の集まりは推定の手順を確かめたい時だけ足すことが書かれた。この例は往復 2 の前で約 88 秒、ゲートを揺らす集まりを足して約 107 秒（check.sh 全体は約 2 分 15 秒）。推定の集まりは estimate\_model をこのワークフローで確かめるために残した
 
 ## 解消済み（往復 1）
+
+往復 1 の判定と確かめ方。ここで「N」を付けた残りは、上の往復 2 で確かめた。
+
 
 ### A. 文書と API の参照
 
 - **A1 api.md に引数と属性が無い**: 解消。api-reference.md に、前に挙げた名前（Question、record\_run、ConfusionClassifier、FlakyClassifier、enqueue、decide、plan\_coverage、MarkovModel、OracleReport など）の signature、属性、docstring があることを読んで確かめた。StageContext の項は使ってよい属性だけを挙げ、adopting.md 第5節が `dir(context)` で見えるほかの名前を使わないよう書く。signature の中の一部の型が無いことは N1
 - **A2 StageContext の属性の一覧の食い違い**: 解消。adopting.md 第5節と api-reference.md の StageContext に `stage_id` と `visit` がある
-- **A3 契約が読めない文書を根拠として指す**: 一部。contract/、schema/workflow.schema.json、api.md、api-reference.md を plan.md、decisions.md、「決定 #」で検索し、残りは二か所だけ（N2）
+- **A3 契約が読めない文書を根拠として指す**: 一部（往復 2 で解消。N2）。contract/、schema/workflow.schema.json、api.md、api-reference.md を plan.md、decisions.md、「決定 #」で検索し、残りは二か所だけ（N2）
 - **A4 記憶がまだ無い時の read\_memory**: 解消。adopting.md 第5節と StageContext.read\_memory の docstring に「値がまだ無ければ None」
 - **A5 保留中の質問の形**: 解消。adopting.md 第7節の手順 1 と RunState の docstring に `{"kind": "user", "question": {"text": ..., "choices": [...]}}`
 - **A6 置き場から状態文書を読む方法**: 解消。adopting.md 第7節（`store.get(snapshot.files[パス])`）、第15節（evaluation の `classification.state`）、第16節（`store.get(item.state)`）と BlobStore.get の docstring
@@ -76,7 +64,7 @@ visit や from\_visit で絞った基準の E[n] は `synthesize` で厳密に�
 ### D. 確率的な本体と分布テスト
 
 - **D1 ユーザーシミュレータに実行の種が届かない**: 解消。adopting.md 第12節に、`run_many` に渡す関数の中で選んだシミュレータのランタイムを実行ごとに組み立て、置き場と作業ディレクトリは共有する形と、回答を保留するシミュレータを束縛すると実行が中断のまま記録される注意がある（record\_run の docstring にも）。この例の run\_set と同じ形
-- **D3 visit で絞った基準の分母の期待値**: 解消（分散の残りは N4）。`synthesize(design_model, workflow).evaluations[("stage", 対象, 区分)]` と `visit_outcomes` で、markov.yaml の 10 の outcome\_rate の基準の E[n] と設計値の割合が出ることを試した。前に標本で出した値との差は 400 回の実行で最大 0.7（例: analyze の訪問 1 は 388.1 → 388.0、implement の訪問 2 以降は 320.9 → 320.3）で、基準の値は変わらない。markov.yaml の注記を厳密な値に直し、各基準が設計値の両側に標準誤差の 3 倍以上あることを synthesize の値から確かめるテスト（tests/test\_stochastic.py の test\_correct\_expectations\_follow\_the\_design）を足した。design.simulate から訪問ごとの評価の数え上げを除いた
+- **D3 visit で絞った基準の分母の期待値**: 解消（分散の残りは N4）。`synthesize(design_model, workflow).evaluations[("stage", 対象, 区分)]` と `visit_outcomes` で、markov.yaml の 10 の outcome\_rate の基準の E[n] と設計値の割合が出ることを試した。前に標本で出した値との差は 400 回の実行で最大 0.7（例: analyze の訪問 1 は 388.1 → 388.0、implement の訪問 2 以降は 320.9 → 320.3）で、基準の値は変わらない。markov.yaml の注記を厳密な値に直し、各基準が設計値の両側に標準誤差の 3 倍以上あることを synthesize の値から確かめるテスト（tests/test\_stochastic.py の test\_correct\_expectations\_follow\_the\_design）を足した。design.simulate から訪問ごとの評価の数え上げを除いた（往復 2 で simulate ごと外した。N4）
 - **D5 実在の指標と偽の本体のクラスの整合**: 解消。adopting.md 第12節の「偽の本体と実在の指標を組み合わせる時」。この例の設計値の metrics\_fail と tests/test\_metrics.py と同じ形
 - **D6 種の分布を疑った**: 解消。adopting.md 第5節と StageContext.seed の docstring に「`random.Random(seed)` にそのまま渡してよい。訪問ごとに独立な一様の種とみなせる」
 
@@ -98,10 +86,14 @@ visit や from\_visit で絞った基準の E[n] は `synthesize` で厳密に�
 
 adopting.md 第14節に「モデルの区分は (ステージ, 訪問の区分) だけで、carry を受けたかは入らない。そのステージに戻ってくる辺が carry を持つ一本だけでない限り仮定を壊し、予測が合わない。偽の本体で確かめる時は、戻ってくる辺が一本のステージに置く」とある。
 
-判断: この例にとっては十分。前に自分で選んだ置き方（release に戻る辺は自分自身への一本だけで、訪問 2 以降と carry を受けたことが一致する）が、そのまま文書の勧めになっている。制限として明示されたので、合成が合わない時の第一の疑いにできる。実際のハーネスでの扱いが足りないことは N6 に書いた。
+判断（往復 1）: この例にとっては十分。前に自分で選んだ置き方（release に戻る辺は自分自身への一本だけで、訪問 2 以降と carry を受けたことが一致する）が、そのまま文書の勧めになっている。制限として明示されたので、合成が合わない時の第一の疑いにできる。実際のハーネスでの扱いが足りないことは N6 に書いた。
+
+判断（往復 2）: 第14節に「実ハーネスでの合成の読み方」が足され、モデルに carry を入れないままでの扱い（どの量が近似になるか、どう見分けるか、そういう量は実測で確かめる）が分かるようになった。直さないことの説明として十分。合っている時にも隠れうることは N9 に書いた。
 
 ### D4. MarkerClassifier の下でのゲートの分布
 
 adopting.md 第14節に「ゲートを落とすには最終ステージの goal の成果物の一部にゲートの印を入れるしかなく、その成果物は goal の中で下流が違う代表になり、独立性検証は violated と判定する（正しい判定）。ゲートからの戻りはシナリオで確かめ、確率的な実行のゲートはいつも goal にする」とある。
 
-判断: MarkerClassifier を使う限りの説明として正しく、この例のやり方（確率的な実行のゲートは goal、ゲートからの戻りはシナリオの assurance\_gate\_rolls\_back）と一致する。ただし「しかない」は強すぎる。実行ごとの乱数でゲートを揺らす偽の分類器で、ゲートの分布を持つマルコフ合成を偽の本体のまま確かめられた（N5）。
+判断（往復 1）: MarkerClassifier を使う限りの説明として正しく、この例のやり方（確率的な実行のゲートは goal、ゲートからの戻りはシナリオの assurance\_gate\_rolls\_back）と一致する。ただし「しかない」は強すぎる。実行ごとの乱数でゲートを揺らす偽の分類器で、ゲートの分布を持つマルコフ合成を偽の本体のまま確かめられた（N5）。
+
+判断（往復 2）: 第14節は「成果物の印で落とすと violated になる。成果物によらずに揺らすには RandomGateClassifier を実行ごとに組み立てる」に直り、その偽の分類器が入った。もう「直さない」項目ではなく、この例も markov\_gated.yaml の実行の集まりでゲートの分布を持つマルコフ合成を確かめる（上の N5）。markov.yaml の実行のゲートは、前の数値を保つためにいつも goal のまま。

@@ -12,6 +12,7 @@
 import random
 import re
 import shutil
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +20,11 @@ import yaml
 
 from harness_testing_framework.contract import Classifier, Question, StageContext, UserIO
 from harness_testing_framework.runtime import BlobStore, Runtime, load_workflow
-from harness_testing_framework.testing.harness import AbortOperator, MarkerClassifier
+from harness_testing_framework.testing.harness import (
+    AbortOperator,
+    MarkerClassifier,
+    RandomGateClassifier,
+)
 from harness_testing_framework.testing.stages import (
     Expectations,
     RunRecord,
@@ -154,22 +159,32 @@ def run_set(
     workdir: Path,
     *,
     classifier: Classifier | None = None,
+    gates: Mapping[str, Mapping[str, float]] | None = None,
     threshold: float = 0.5,
 ) -> tuple[RunSet, BlobStore]:
-    """種 seed から runs 回実行する。ペルソナを種から選ぶので、実行ごとにランタイムを組み立て、置き場は共有する。"""
+    """種 seed から runs 回実行する。ペルソナを種から選ぶので、実行ごとにランタイムを組み立て、置き場は共有する。
+
+    gates（フェーズの id からゲートのクラスの分布）を与えると、そのフェーズのゲートを、成果物によらず実行の種で
+    揺らす（RandomGateClassifier。実行ごとに組み立てる）。ステージの評価は classifier（既定は印を読む分類器）が答える。
+    """
     store = BlobStore(workdir / "store")
 
     def one(s: int) -> RunRecord:
+        chosen = classifier if classifier is not None else MarkerClassifier()
+        if gates is not None:
+            chosen = RandomGateClassifier(chosen, s, gates)
         built = runtime(
-            profile, workdir, seed=s, store=store, classifier=classifier, threshold=threshold
+            profile, workdir, seed=s, store=store, classifier=chosen, threshold=threshold
         )
         return record_run(built, s, INPUTS)
 
     return run_many(runs, seed, one), store
 
 
-def run_expectations(expectations: Expectations, workdir: Path) -> RunSet:
-    """expectations の bindings.profile の本体で、expectations の回数（HTF_RUNS で増やせる）と種で実行する。"""
+def run_expectations(expectations: Expectations, workdir: Path) -> tuple[RunSet, BlobStore]:
+    """expectations の bindings の本体（profile）とゲートの分布（gates。あれば）で、expectations の回数（HTF_RUNS で
+    増やせる）と種で実行する。"""
     count = runs_from_environment(expectations.runs)
-    runs, _ = run_set(str(expectations.bindings["profile"]), count, expectations.seed, workdir)
-    return runs
+    profile = str(expectations.bindings["profile"])
+    gates = expectations.bindings.get("gates")
+    return run_set(profile, count, expectations.seed, workdir, gates=gates)

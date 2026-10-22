@@ -4,7 +4,7 @@
 
 ## 次にやること
 
-現在のマイルストーン: F4（software factory）。利用者セッションの成果物を取り込み（af2e0d0）、adopting-gaps.md の 30 項目を本体で直した（D-11、bd2591f）。いまは一回目の往復の利用者役の再検証中。
+現在のマイルストーン: F4（software factory）。利用者セッションの成果物を取り込み（af2e0d0）、adopting-gaps.md の 30 項目を本体で直した（D-11、bd2591f）。往復 1 の利用者役の判定は解消 27、一部 1、直さないもの 2（a8c7468）。新しい不足 N1〜N7 を直した（D-12、1412a8d）。いまは往復 2 の利用者役の再検証中。
 
 1. 利用者役の再検証（F4 と同じ読取制限のサブエージェント）の結果を受ける。adopting-gaps.md の「未解消」に残ったものを本体で直し、また再検証する。「未解消」が空になるまで繰り返す（第6節 F4）
 2. 「未解消」が空になったら、workflow.yaml の MECE の事前レビュー（検証役）と、F4 の完了条件の判定（実装を見ていない検証役、第5.9節）。事前レビューの指摘は、利用者役が workflow.yaml を直す（通常のセッションは examples/software-factory/ を直さない）
@@ -61,6 +61,12 @@ F3 のタスク（テストランナー群。すべて LLM なし）。
   - A1 docs/api-reference.md を本体から作る（食い違えばテストが落ちる）。A3 契約と docstring から内部の文書への参照を除いた
   - 文書の不足は adopting.md、api.md、契約、docstring に書いた
   - D2 と D4 は直さず、理由を D-11 と adopting.md 第14節に書いた
+- 往復 1 の利用者役の再検証（a8c7468）。解消 27、一部 1（A3 の残り）、直さないもの 2（説明は十分）。例から回避策を外した（.code/、入れ子の ruff.toml、collect_ignore、シナリオへの内容の写し、標本による E[n]、手書きの重複除き、確信度を絞る偽の分類器）。新しい不足 N1〜N7
+- N1〜N7 を本体で直した（D-12、1412a8d）
+  - signature に出る型を公開し、それをテストで保証する
+  - Prediction.visits_variance（逆向きにたどる二次の積率）
+  - RandomGateClassifier（D-11 の D4 の「契約の変更が要る」は誤りだった）
+  - 実ハーネスでの合成の読み方と、テストの時間の目安の根拠を adopting.md に書いた
 - v0.1 の公開（人間の承認による）
   - version を 0.1.0 にし、README を v0.1 の内容に合わせた。契約 第11節に残っていた「（下書き）」を消した
   - git tag `v0.1.0` と GitHub Release を作った（https://github.com/asuka1975/harness-testing-framework/releases/tag/v0.1.0）。Release の説明に D-1〜D-9 の要点を書いた

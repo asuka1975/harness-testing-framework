@@ -2,18 +2,19 @@
 
 - カバレッジ計画が全 (ステージ, クラス) を踏む。誘発（その状態を表す成果物を書かせる。実在の指標がその成果物を測る）と、
   注入（分類の結果だけを変える）の両方を使う
-- 設計値の MarkovModel の厳密な予測（synthesize）と、設計値の標本（design.simulate。mean_visits の幅の根拠）が一致する
+- ゲートを実行の種で揺らす実行（RandomGateClassifier）でも、ゲートの分布を足した設計値のモデルの予測が実測と一致し、
+  ゲートの評価の結果ごとの回数（訪問の区分ごと）も予測と合う
 - 推定したモデルの予測と、設計値のモデルの予測が、別の種の実行の実測と一致する
 
 markov の本体は、クラスの分布が (ステージ, 訪問) だけで決まるように作ってある（release は carry の有無で決まり、
 それは訪問の区分と一致する）。予測と実測の一致は合成の仕組みの確認で、マルコフ性という方法そのものの検証ではない。
 """
 
+import math
 from pathlib import Path
 from typing import Any
 
 import pytest
-from software_factory.design import simulate
 from software_factory.metrics import REGISTRY
 from software_factory.personas import PERSONAS, QUESTIONS, PersonaUser
 from software_factory.stages.deterministic import FIXTURES, WORKFLOW, inputs
@@ -83,18 +84,6 @@ def test_coverage_plan_reaches_every_stage_class(tmp_path: Path) -> None:
     assert len(user.asked) >= len(QUESTIONS) * len(plan)
 
 
-def test_design_samples_match_exact_synthesis(design_prediction: Prediction) -> None:
-    """design.simulate（mean_visits の基準の幅に使う、訪問の回数の標準偏差の根拠）の最後の状態と訪問の回数の平均が、
-    synthesize の厳密な値と一致する。"""
-    prediction = design_prediction
-    sim = simulate("markov", 100_000, 1)
-    for status, p in prediction.status.items():
-        se = (p * (1 - p) / sim.samples) ** 0.5
-        assert abs(sim.status[status] / sim.samples - p) <= 4 * se + 1e-9, status
-    for stage, mean in prediction.mean_visits.items():
-        assert abs(sim.visits[stage] / sim.samples - mean) <= 0.02, stage
-
-
 RUNS = runs_from_environment(400)
 
 
@@ -119,3 +108,28 @@ def test_design_prediction_matches_measurement(
     """設計値から作ったモデルの厳密な予測と、実行の実測が一致する（推定の誤差を含まない比較）。"""
     comparisons = compare_prediction(design_prediction, measurement)
     assert all(c.within for c in comparisons), [c.line() for c in comparisons if not c.within]
+
+
+def test_gate_distribution_prediction_matches_measurement(
+    gated_prediction: Prediction, gated_runs: tuple[RunSet, BlobStore]
+) -> None:
+    """assurance のゲートの分布を足した設計値のモデルの予測と、ゲートを実行の種で揺らした実行の実測が一致する。"""
+    runs = gated_runs[0]
+    comparisons = compare_prediction(gated_prediction, runs)
+    assert all(c.within for c in comparisons), [c.line() for c in comparisons if not c.within]
+    # compare_prediction はステージの評価を比べるので、ゲートの評価の回数は visit_outcomes と直に比べる
+    n = len(runs.runs)
+    for (scope, target, bucket, outcome), expected in gated_prediction.visit_outcomes.items():
+        if scope != "phase" or target != "assurance":
+            continue
+        measured = sum(
+            1
+            for run in runs.runs
+            for e in run.evaluations()
+            if e["scope"] == "phase"
+            and e["phase"] == "assurance"
+            and min(int(str(e["visit"])), 2) == bucket
+            and e["outcome"] == outcome
+        )
+        se = math.sqrt(expected * n) + 1e-9
+        assert abs(measured - expected * n) <= 4 * se, (bucket, outcome, measured, expected * n)

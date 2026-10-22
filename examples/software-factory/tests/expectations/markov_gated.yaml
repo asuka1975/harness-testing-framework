@@ -1,0 +1,42 @@
+# markov の本体に、assurance のゲートの分布を足した実行の基準。ゲートの答えは成果物によらず、実行の種で組み立てた
+# RandomGateClassifier が bindings.gates の分布から引く（ほかのフェーズのゲートと、ステージの評価は印を読む分類器）。
+# review の goal の成果物はどの変種も同じ（goal の時にも修正を要しない指摘を記憶 review_findings に書く）なので、ゲートが
+# changes_requested を選ぶと、その指摘を持って implement に戻る。
+#
+# 基準は設計値の MarkovModel（software_factory/design.py の design_model に bindings.gates を足したもの）に synthesize を
+# かけた厳密な値から導いた。中心は設計値、幅は既定の回数（400）での標準誤差のおよそ 3.2 倍以上をとり、0.01 の単位で
+# 外側に丸めた。E[n] は evaluations の 400 倍、mean_visits の標準誤差は visits_variance から出した。
+# test_stochastic.py の test_correct_expectations_follow_the_design が、各基準が設計値の両側に 3 SE 以上あることを確かめる。
+# 種は基準を書く前に決めた。
+expectations: software-factory-markov-gated
+description: markov の確率的な偽ステージ本体と、実行ごとの種で揺らす assurance のゲートでの、ゲートの結果の出現率、実行の最後の状態、訪問の回数
+workflow: ../../workflow.yaml
+runs: 400
+seed: 50000
+bindings:
+  profile: markov
+  gates:
+    assurance: {goal: 0.8, changes_requested: 0.2}
+criteria:
+  - kind: outcome_rate     # 設計値 0.20（review の訪問 1 の後のゲート）、E[n] 233.3、SE 0.0262。両側 3.4 SE
+    scope: phase
+    target: assurance
+    visit: 1
+    outcome: changes_requested
+    min: 0.11
+    max: 0.29
+  - kind: outcome_rate     # 設計値 0.20（review の訪問 2 以降の後のゲート）、E[n] 106.2、SE 0.0388。両側 3.3 SE
+    scope: phase
+    target: assurance
+    from_visit: 2
+    outcome: changes_requested
+    min: 0.07
+    max: 0.33
+  - kind: status_rate      # synthesize の厳密な値 0.6608、SE 0.0237。下側 3.4 SE、上側 3.3 SE
+    status: completed
+    min: 0.58
+    max: 0.74
+  - kind: mean_visits      # synthesize の厳密な値 1.872、訪問の回数の標準偏差 1.353（visits_variance）、SE 0.0676。両側 3.2 SE
+    target: implement
+    min: 1.65
+    max: 2.09

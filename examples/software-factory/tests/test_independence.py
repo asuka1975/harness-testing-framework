@@ -5,6 +5,8 @@
   独立性検証は stage:implement=goal で違反を検出する
 - markov: goal の実装の二つの変種（ok と ok_b）は同じ系統なので違反を出さない
 - どちらでも、intake の goal のペルソナごとの代表（回答が違う intake.md）は下流を変えない
+- assurance のゲートを成果物によらず実行の種で揺らす実行（RandomGateClassifier）では、ゲートが下流を変えても代表には
+  よらないので、違反を出さない
 """
 
 import pytest
@@ -48,3 +50,9 @@ def test_persona_representatives_do_not_change_downstream(
     verdict, groups = verdicts[profile][("stage:intake=goal", 1, 1)]
     assert verdict == "not_detected"
     assert len(groups) == 3, groups
+
+
+def test_random_gate_is_not_flagged(gated_runs: tuple[RunSet, BlobStore]) -> None:
+    verdicts = {r.verdict for r in independence(gated_runs[0])}
+    assert "violated" not in verdicts
+    assert "not_detected" in verdicts
