@@ -14,6 +14,9 @@
 # metrics_fail は、その変種の成果物（上流は goal の変種）に実在の指標をかけた時に落ちる、ステージの goal の指標
 # （test_metrics.py が確かめる）。goal の変種は全部通る。
 #
+# variants には、どの分布（profiles）にも置かない変種もある（unit_test の defective）。確率的な実行には現れず、E2E の
+# カバレッジの誘発とシナリオが写す。
+#
 # 分布テスト（expectations）、独立性検証、マルコフ合成の期待は、この表から導く。
 
 families:
@@ -45,10 +48,14 @@ variants:
       metrics_fail: [design_covers_requirements]
     unknown: {class: unknown, memory: {requirement_gaps: []}, metrics_fail: [design_covers_requirements]}
   plan_tasks:
-    # design_incomplete の変種は置かない。plan_tasks は design が goal の後にしか走らず、design の goal の代表の design.md は
-    # すべての要件を構成のファイルに割り当てているので、それを読む plan_tasks が記述どおりに design_incomplete になる代表は
-    # 作れない（クラスは種だけで選ぶので、代表は組みうるすべての上流の成果物と整合しなければならない）。design_incomplete は
-    # E2E のカバレッジで注入して踏む（README の「人間のレビューで確かめてほしいこと」）
+    # design_incomplete の変種は置かない（往復 10 の人間の回答で、この形のまま残すと決まった）。クラスは種だけで選ぶので、
+    # 代表は組みうるすべての上流の成果物と整合しなければならない。plan_tasks は design の goal の後に走り、design の goal の
+    # 代表の design.md はすべての要件を構成のファイルに割り当てている。記述の上では、design の goal を正しく満たした後でも、
+    # implement が「paths の外のファイルを変えないと実装できない」と問いを持ち帰り、そのファイルが design.md の「## 構成」に
+    # 無いと分かる経路で design_incomplete は起きうる。しかし plan_tasks の訪問の多く（訪問 1 と、design から next で入り直した
+    # 訪問）はそういう問いを持たず、この例の implement の task_unclear の代表の問いも割引の適用の単位で、paths の外のファイル
+    # ではない。そのため、どの上流と組んでも記述どおりになる代表は作れない。design_incomplete は E2E のカバレッジで注入して
+    # 踏み、シナリオ plan_tasks_design_incomplete_rollback が持ち帰る記憶を確かめる（README の「人間のレビューの回答」）
     ok: {class: goal, memory: {design_issues: []}}
     unknown: {class: unknown, memory: {design_issues: []}}
   implement:
@@ -74,10 +81,10 @@ variants:
         impl_violations: []
     unknown: {class: unknown, memory: {task_questions: [], impl_violations: []}}
   unit_test:
-    ok: {class: goal, memory: {failing_tests: [], coverage_gaps: []}}
+    ok: {class: goal, memory: {failing_tests: [], coverage_gaps: [], test_defects: []}}
     thin:
       class: tests_insufficient
-      memory: {failing_tests: [], coverage_gaps: [REQ-1、REQ-2、REQ-3 の受け入れ基準にテストが無い]}
+      memory: {failing_tests: [], coverage_gaps: [REQ-1、REQ-2、REQ-3 の受け入れ基準にテストが無い], test_defects: []}
       metrics_fail: [line_coverage]
     defect:
       # 実装の系統（families）ごとに、写すフィクスチャとクラスが分かれる
@@ -88,12 +95,24 @@ variants:
           memory:
             failing_tests: ["test_percent_discount_rounds_the_discount_down: 333 円の PCT10 が 299 円になる（期待 300 円）"]
             coverage_gaps: []
+            test_defects: []
           metrics_fail: [tests_pass]
         correct:
           fixture: defect_passed
           class: goal
-          memory: {failing_tests: [], coverage_gaps: []}
-    unknown: {class: unknown, memory: {failing_tests: [], coverage_gaps: []}}
+          memory: {failing_tests: [], coverage_gaps: [], test_defects: []}
+    # tests_defective の代表。どの分布（profiles）にも置かない（確率 0。確率的な実行には現れない）。往復 10 で tests_defective
+    # を tests_insufficient から分けた時、今の不足の代表（thin）は新しい境界でも不足だったので、分布と設計値を変えなかった
+    # （README）。E2E のカバレッジの誘発と、シナリオ unit_test_defective_self_rollback が写す。test_metrics.py が指標を確かめる。
+    # 要件に反する期待（REQ-2 の 0 円の下限に反して -200 円を期待する）のテストは、どちらの実装の系統でも落ちる
+    defective:
+      class: tests_defective
+      memory:
+        failing_tests: []
+        coverage_gaps: []
+        test_defects: ["repo/tests/test_discount.py の test_amount_code_subtracts_the_whole_amount: 小計 300 円に OFF500 で -200 円を期待しているが、REQ-2 は支払額が 0 円を下回らない（受け入れ基準は 0 円）。期待が要件に反するので、このテストは落ちる"]
+      metrics_fail: [tests_pass]
+    unknown: {class: unknown, memory: {failing_tests: [], coverage_gaps: [], test_defects: []}}
   acceptance:
     ok: {class: goal, memory: {unmet_requirements: [], requirement_gaps: []}}
     unmet:

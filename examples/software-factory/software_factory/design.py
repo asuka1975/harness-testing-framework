@@ -4,7 +4,7 @@
   RandomGateClassifier に与えるもの（gates）をそのまま書き、無いフェーズは常に goal
 - expected_count: その MarkovModel に synthesize をかけた予測から、一回の実行あたりの、条件（scope、visit か from_visit、
   結果）に合う評価の回数の期待値。基準の分母の期待値 E[n] と、その中の結果の割合の根拠。mean_visits の基準の幅は、
-  同じ予測の visits_variance（一回の実行の中での訪問の回数の分散）から出す
+  同じ予測の visits_variance（実行ごとの訪問の回数の、実行の間での分散。一度も訪れない実行は 0 と数える）から出す
 """
 
 from collections.abc import Mapping, Sequence

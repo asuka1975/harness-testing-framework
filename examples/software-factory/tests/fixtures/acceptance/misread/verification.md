@@ -10,4 +10,4 @@
 | REQ-4 | test_no_code_pays_subtotal | 合格 |
 
 ## 依頼との食い違い
-- intake.md の回答では、購入者がレジの画面でコードを入力する（requirements.md の「## 利用者」にもある）。人が打つコードには大文字と小文字の揺れが出るが、requirements.md の要件にはその扱いが無く、入力された pct10 を拒む
+- intake.md の回答では、購入者がレジの画面でコードを入力する（requirements.md の REQ-3 にもある）。人が打つコードには大文字と小文字の揺れが出るが、requirements.md の要件にはその扱いが無く、入力された pct10 を拒む

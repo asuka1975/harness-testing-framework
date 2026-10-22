@@ -4,9 +4,9 @@ description: acceptance が REQ-1 の不合格を見つけ、記憶 unmet_requir
 workflow: ../../workflow.yaml
 seed: 11
 inputs:
-  feature_request.md: &id006
+  feature_request.md: &id007
     from: ../fixtures/inputs/feature_request.md
-  repo/: &id007
+  repo/: &id008
     from: ../fixtures/inputs/repo/
 visits:
   intake#1:
@@ -18,17 +18,17 @@ visits:
     fixture: analyze/ok
     classify: *id001
     memory:
-      intake_questions: &id008 []
+      intake_questions: &id009 []
   design#1:
     fixture: design/ok
     classify: *id001
     memory:
-      requirement_gaps: &id009 []
+      requirement_gaps: &id010 []
   plan_tasks#1:
     fixture: plan_tasks/ok
     classify: *id001
     memory:
-      design_issues: &id010 []
+      design_issues: &id011 []
   implement#1:
     fixture: implement/ok
     classify: *id001
@@ -41,10 +41,11 @@ visits:
     memory:
       failing_tests: &id004 []
       coverage_gaps: &id005 []
+      test_defects: &id006 []
   acceptance#1:
     fixture: acceptance/unmet
     memory:
-      unmet_requirements: &id011
+      unmet_requirements: &id012
       - 'REQ-1: 小計 333 円に PCT10 を適用すると支払額が 299 円になる（割引額の 1 円未満を切り捨てれば 300 円）。repo/src/shopcart/discount.py
         の Discount.apply が支払額を切り捨てている'
       requirement_gaps: []
@@ -63,6 +64,7 @@ visits:
     memory:
       failing_tests: *id004
       coverage_gaps: *id005
+      test_defects: *id006
   acceptance#2:
     fixture: acceptance/ok
     classify: *id001
@@ -143,8 +145,8 @@ expect:
   starts:
     implement#2:
       files:
-        feature_request.md: *id006
-        repo/: *id007
+        feature_request.md: *id007
+        repo/: *id008
         intake.md:
           from: ../fixtures/intake/ok/intake.md
         requirements.md:
@@ -154,10 +156,10 @@ expect:
         tasks.yaml:
           from: ../fixtures/plan_tasks/ok/tasks.yaml
       memory:
-        intake_questions: *id008
-        requirement_gaps: *id009
-        design_issues: *id010
-        unmet_requirements: *id011
+        intake_questions: *id009
+        requirement_gaps: *id010
+        design_issues: *id011
+        unmet_requirements: *id012
       gates:
       - discovery
       - architecture

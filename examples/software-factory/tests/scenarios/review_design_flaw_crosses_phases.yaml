@@ -4,9 +4,9 @@ description: review が設計を直さなければ解消しない指摘を見つ
 workflow: ../../workflow.yaml
 seed: 11
 inputs:
-  feature_request.md: &id010
+  feature_request.md: &id011
     from: ../fixtures/inputs/feature_request.md
-  repo/: &id011
+  repo/: &id012
     from: ../fixtures/inputs/repo/
 visits:
   intake#1:
@@ -18,7 +18,7 @@ visits:
     fixture: analyze/ok
     classify: *id001
     memory:
-      intake_questions: &id012 []
+      intake_questions: &id013 []
   design#1:
     fixture: design/ok
     classify: *id001
@@ -41,17 +41,18 @@ visits:
     memory:
       failing_tests: &id006 []
       coverage_gaps: &id007 []
+      test_defects: &id008 []
   acceptance#1:
     fixture: acceptance/ok
     classify: *id001
     memory:
-      unmet_requirements: &id008 []
-      requirement_gaps: &id009 []
+      unmet_requirements: &id009 []
+      requirement_gaps: &id010 []
   review#1:
     fixture: review/design_flaw
     memory:
       review_findings: []
-      design_issues: &id013
+      design_issues: &id014
       - 割引の種類を Discount の分岐で表しており、種類を足すたびに apply を直すことになる
     classify:
       choice: design_flaw
@@ -78,12 +79,13 @@ visits:
     memory:
       failing_tests: *id006
       coverage_gaps: *id007
+      test_defects: *id008
   acceptance#2:
     fixture: acceptance/ok
     classify: *id001
     memory:
-      unmet_requirements: *id008
-      requirement_gaps: *id009
+      unmet_requirements: *id009
+      requirement_gaps: *id010
   review#2:
     fixture: review/ok
     classify: *id001
@@ -170,15 +172,15 @@ expect:
   starts:
     design#2:
       files:
-        feature_request.md: *id010
-        repo/: *id011
+        feature_request.md: *id011
+        repo/: *id012
         intake.md:
           from: ../fixtures/intake/ok/intake.md
         requirements.md:
           from: ../fixtures/analyze/ok/requirements.md
       memory:
-        intake_questions: *id012
-        design_issues: *id013
+        intake_questions: *id013
+        design_issues: *id014
       gates:
       - discovery
   memory:

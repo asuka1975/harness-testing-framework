@@ -1,0 +1,9 @@
+# [[class plan_tasks=design_incomplete]]
+# design.md の「## 構成」に、REQ-3 と REQ-4 を受け持つ構成要素（コードを受け取る Cart の操作）と、変えるファイル
+# （repo/src/shopcart/cart.py）が無い。REQ-3 と REQ-4 は、どのタスクにも割り当てていない
+tasks:
+  - id: T1
+    title: 割引コードの適用
+    requirements: [REQ-1, REQ-2]
+    paths: [repo/src/shopcart/discount.py]
+    tests: [repo/tests/test_discount.py]

@@ -6,6 +6,8 @@
 - フェーズ境界を越えるロールバック、carry、ユーザー回答待ちを含み、遷移の六種のそれぞれが定義の上で起こりうる
 - 全ステージに unknown があり、unknown 以外の end_state はそれぞれ一つの戻り先を持つ
 - carry する記憶は、その end_state の記述が証拠として名指す（記述が観測できる条件として書かれていることの一部）
+- unit_test は、テストの不備（tests_defective）と不足（tests_insufficient）を分け、test_report.md の節も分ける。代表の
+  test_report.md は、印のクラスの記述が証拠とする節だけが埋まっている
 """
 
 from pathlib import Path
@@ -84,6 +86,66 @@ def test_end_states_name_the_carried_memory_as_evidence() -> None:
         description = next(e["description"] for e in stage["end_state"] if e["id"] == rb["state"])
         for item in rb["carry"]:
             assert f"記憶 {item}" in description, (stage["id"], rb["state"], item)
+
+
+def test_unit_test_separates_defective_from_insufficient_tests() -> None:
+    """unit_test のテストの不備（誤っているテスト）と不足（足りないテスト）は別の end_state で、どちらも unit_test 自身に
+    戻る。優先は impl_defect、tests_defective、tests_insufficient の順。不備で戻る時は、同時にある不足も持ち帰る（往復 10、
+    docs/review-findings.md の F-1。README の「人間のレビューで確かめてほしいこと」）。"""
+    unit_test = next(s for _, s in STAGES if s["id"] == "unit_test")
+    ids = [e["id"] for e in unit_test["end_state"]]
+    assert ids == ["impl_defect", "tests_defective", "tests_insufficient", "unknown"]
+    edges = {rb["state"]: rb for rb in unit_test["rollback"]}
+    assert edges["tests_defective"] == {
+        "state": "tests_defective",
+        "stage": "unit_test",
+        "carry": ["test_defects", "coverage_gaps"],
+        "max": 2,
+    }
+    assert edges["tests_insufficient"]["carry"] == ["coverage_gaps"]
+    assert unit_test["artifacts"]["memory_in"] == ["coverage_gaps", "test_defects"]
+    assert unit_test["artifacts"]["memory_out"] == [
+        "failing_tests",
+        "coverage_gaps",
+        "test_defects",
+    ]
+    description = {e["id"]: e["description"] for e in unit_test["end_state"]}
+    assert "tests_defective と tests_insufficient に優先する" in description["impl_defect"]
+    assert "tests_insufficient に優先する" in description["tests_defective"]
+    for section in ("「## 失敗」", "「## 不備」", "「## 未網羅」"):
+        assert section in unit_test["goal"]["qualitative"], section
+    construction = next(p for p in PHASES if p["id"] == "construction")
+    assert "失敗、不備、未網羅" in construction["goal"]["qualitative"]
+
+
+REPORT_SECTIONS = ["## テスト", "## 失敗", "## 不備", "## 未網羅"]
+# 印のクラスごとに、test_report.md の空でない節（「（なし）」でない節）。記述が証拠とする節だけが埋まる
+FILLED = {
+    "goal": set(),
+    "impl_defect": {"## 失敗"},
+    "tests_defective": {"## 不備"},
+    "tests_insufficient": {"## 未網羅"},
+}
+
+
+def test_unit_test_reports_fill_the_section_their_class_names() -> None:
+    """unit_test の全フィクスチャの test_report.md が四つの節を持ち、印のクラスの記述が証拠とする節だけが埋まっている。"""
+    reports = sorted(
+        (WORKFLOW.parent / "tests" / "fixtures" / "unit_test").glob("*/test_report.md")
+    )
+    seen: set[str] = set()
+    for path in reports:
+        text = path.read_text("utf-8")
+        mark = text.splitlines()[0].removeprefix("[[class unit_test=").removesuffix("]]")
+        headings = [line for line in text.splitlines() if line.startswith("## ")]
+        assert headings == REPORT_SECTIONS, path
+        if mark == "unknown":
+            continue
+        bodies = dict(zip(headings, text.split("\n## ")[1:], strict=True))
+        filled = {h for h in REPORT_SECTIONS[1:] if "（なし）" not in bodies[h].split("\n", 1)[1]}
+        assert filled == FILLED[mark], (path, filled)
+        seen.add(mark)
+    assert seen == set(FILLED)
 
 
 def test_every_phase_has_a_gate() -> None:

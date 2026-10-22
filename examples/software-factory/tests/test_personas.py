@@ -1,6 +1,8 @@
 """要求の取り込みに束縛するユーザーシミュレータ（ペルソナ）。
 
 - 三つ以上のペルソナが、intake の全ての質問（持ち帰る問いを含む）に、互いに違う空でない回答を返す
+- analyze の goal の代表が、どのペルソナの回答にも根拠を持ち、回答を要件か受け入れ基準に反映する（切り捨てるのは割引額の
+  端数で、利用者と入力の場所は受け入れ基準を持つ要件の文にある）
 - 確率的な実行では、種からペルソナを選び、intake.md の「## 質問と回答」がそのペルソナの回答になる
 - 持ち帰った問い（intake_questions）も依頼者に尋ね、回答を intake.md に書く
 - 最初の質問で回答を保留すると実行は中断し、保存した状態を別のランタイムで読み戻し、ペルソナの回答で再開できる
@@ -9,7 +11,17 @@
 import json
 from pathlib import Path
 
-from software_factory.personas import AFTER, PERSONAS, QUESTIONS, REUSE, PersonaUser, persona_for
+from software_factory.personas import (
+    AFTER,
+    KINDS,
+    PERSONAS,
+    QUESTIONS,
+    REUSE,
+    WHO,
+    PersonaUser,
+    persona_for,
+)
+from software_factory.stages.deterministic import FIXTURES
 from software_factory.stages.probabilistic import INPUTS, run_set, runtime
 
 from harness_testing_framework.runtime import BlobStore, RunState
@@ -25,6 +37,37 @@ def test_personas_answer_every_question_differently() -> None:
         assert all(a.strip() for a in answers)
         assert len(set(answers)) == len(PERSONAS), question
     assert [persona_for(s).name for s in range(6)] == [p.name for p in PERSONAS] * 2
+
+
+def test_every_persona_says_what_is_rounded_down() -> None:
+    """どのペルソナも、切り捨てるのが割引額（割り引く額）の端数だと答える。analyze の goal の代表の REQ-1「割引額の 1 円未満は
+    切り捨てる」は、どのペルソナの回答にも根拠を持たなければならない（クラスは種だけで選ぶ）。"""
+    for persona in PERSONAS:
+        answer = persona.answer(KINDS)
+        assert "切り捨て" in answer, persona.name
+        assert "割引額" in answer or "割り引く額" in answer, persona.name
+
+
+def _section(text: str, heading: str) -> str:
+    return text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
+
+
+def test_goal_requirements_reflect_the_user_in_a_requirement() -> None:
+    """discovery のゲートは、intake.md の回答（利用者を含む）が requirements.md の「要件か受け入れ基準に」反映されることを
+    求める。analyze の goal の代表は、どのペルソナの回答にもある利用者（購入者）と入力の場所（レジの画面）を、受け入れ基準
+    を持つ要件の文に書く（要件でも受け入れ基準でもない節には置かない）。"""
+    text = (FIXTURES / "analyze" / "ok" / "requirements.md").read_text("utf-8")
+    headings = [line for line in text.splitlines() if line.startswith("## ")]
+    assert headings == ["## 要件", "## 未決事項"]
+    requirements = _section(text, "要件")
+    carrying = [
+        block
+        for block in requirements.split("\n- REQ-")
+        if "購入者" in block and "レジの画面" in block
+    ]
+    assert carrying and all("受け入れ基準:" in block for block in carrying)
+    for persona in PERSONAS:
+        assert "レジの画面" in persona.answer(WHO), persona.name
 
 
 def _intake_texts(runs_dir: Path, profile: str, n: int, seed: int) -> list[tuple[int, int, str]]:

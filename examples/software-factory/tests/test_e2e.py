@@ -52,7 +52,8 @@ def _script(stage: str, variant: str, family: str = "rounds_total") -> dict[str,
 GOAL = {s.id: _script(s.id, "ok") for s in WORKFLOW_MODEL.stages}
 GOAL["intake"] = {**GOAL["intake"], "ask": list(QUESTIONS)}
 # (ステージ, クラス) → 誘発に使う変種。intake と review の unknown は誘発の手段を用意せず、注入で踏む。plan_tasks の
-# design_incomplete は、design の goal の後に記述どおりに当たる代表が無い（tests/stochastic.yaml）ので、注入で踏む
+# design_incomplete は、確率的な本体の代表を置かない（上流の goal の代表と両立しない。tests/stochastic.yaml）ので、注入で踏む。
+# unit_test の tests_defective の変種 defective は、確率的な本体の分布には置かず（確率 0）、こことシナリオで踏む
 INDUCED = {
     ("analyze", "needs_unclear"): "unclear",
     ("analyze", "unknown"): "unknown",
@@ -63,6 +64,7 @@ INDUCED = {
     ("implement", "quality_violation"): "lint",
     ("implement", "unknown"): "unknown",
     ("unit_test", "impl_defect"): "defect",
+    ("unit_test", "tests_defective"): "defective",
     ("unit_test", "tests_insufficient"): "thin",
     ("unit_test", "unknown"): "unknown",
     ("acceptance", "requirement_misread"): "misread",
@@ -133,11 +135,13 @@ def test_class_distributions_do_not_depend_on_the_entry(
     name: str, markov_runs: tuple[RunSet, BlobStore], gated_runs: tuple[RunSet, BlobStore]
 ) -> None:
     """訪問 2 以降の評価の結果が、入り方（どの辺から戻ったか、next で入り直したか）で違わない。入り方が五通りある
-    implement は not_detected（release は入り方が自分自身からの一本だけ）。ほかのステージは、検定の数で alpha を割って
-    確かめる（補正の無い alpha 0.01 で全ステージを見ると、正しい本体でも種や回数によって数 % の確率で落ちる）。"""
+    implement は判定でき、p 値が 0.001 以上（release は入り方が自分自身からの一本だけ）。ほかのステージは、検定の数で
+    alpha を割って確かめる。補正の無い alpha 0.01 で確かめると（implement に絞っても）、正しい本体でも種や回数（HTF_RUNS）
+    によって数 % の確率で落ちる（tests/README.md）。"""
     runs = (markov_runs if name == "markov" else gated_runs)[0]
     results = {r.stage: r for r in entry_dependence(runs)}
     assert family_wise_violations(list(results.values())) == []
-    assert results["implement"].verdict == "not_detected"
-    assert len(results["implement"].groups) == 5, results["implement"].groups
+    implement = results["implement"]
+    assert implement.p_value is not None and implement.p_value >= 0.001, implement
+    assert len(implement.groups) == 5, implement.groups
     assert set(results["release"].groups) == {"rollback:release=notes_incomplete"}

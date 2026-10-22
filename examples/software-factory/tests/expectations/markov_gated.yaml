@@ -8,7 +8,7 @@
 # 外側に丸めた。E[n] は evaluations の 400 倍、mean_visits の標準誤差は visits_variance から出した。
 # test_stochastic.py の test_correct_expectations_follow_the_design が、各基準が設計値の両側に 3 SE 以上 5 SE 以下あることを
 # 確かめる。往復 8 で plan_tasks の design_incomplete を設計値から外したので、導き直した。
-# 種は基準を書く前に決めた。
+# 種は基準を書く前に決めた。往復 10 で、SE の倍数の注記を四捨五入に揃えた（3.45 → 3.5、3.55 → 3.6）。値は変えていない。
 # 四つのうち、ゲートを揺らす前後を見分けるのはゲートの二つの基準だけ。status_rate と mean_visits は、ゲートを揺らさない本体
 # （完了 0.6942、implement の訪問の回数 1.674）でも通りうる（status_rate は 99%、mean_visits は 52% ほど）。ゲートの分布が
 # 効いていることは、markov_gated_shifted.yaml のずらした基準がすべて落ちることでも確かめる。
@@ -22,7 +22,7 @@ bindings:
   gates:
     assurance: {goal: 0.8, changes_requested: 0.2}
 criteria:
-  - kind: outcome_rate     # 設計値 0.20（review の訪問 1 の後のゲート）、E[n] 235.2、SE 0.0261。両側 3.4 SE
+  - kind: outcome_rate     # 設計値 0.20（review の訪問 1 の後のゲート）、E[n] 235.2、SE 0.0261。両側 3.5 SE
     scope: phase
     target: assurance
     visit: 1
@@ -36,7 +36,7 @@ criteria:
     outcome: changes_requested
     min: 0.07
     max: 0.33
-  - kind: status_rate      # synthesize の厳密な値 0.6662、SE 0.0236。下側 3.2 SE、上側 3.5 SE
+  - kind: status_rate      # synthesize の厳密な値 0.6662、SE 0.0236。下側 3.2 SE、上側 3.6 SE
     status: completed
     min: 0.59
     max: 0.75

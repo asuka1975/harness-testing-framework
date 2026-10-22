@@ -41,17 +41,18 @@ visits:
     memory:
       failing_tests: &id004 []
       coverage_gaps: &id005 []
+      test_defects: &id006 []
   acceptance#1:
     fixture: acceptance/ok
     classify: *id001
     memory:
-      unmet_requirements: &id006 []
-      requirement_gaps: &id007 []
+      unmet_requirements: &id007 []
+      requirement_gaps: &id008 []
   review#1:
     fixture: review/ok
     classify: *id001
     memory:
-      review_findings: &id008
+      review_findings: &id009
       - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
       design_issues: []
   implement#2:
@@ -66,12 +67,13 @@ visits:
     memory:
       failing_tests: *id004
       coverage_gaps: *id005
+      test_defects: *id006
   acceptance#2:
     fixture: acceptance/ok
     classify: *id001
     memory:
-      unmet_requirements: *id006
-      requirement_gaps: *id007
+      unmet_requirements: *id007
+      requirement_gaps: *id008
   review#2:
     fixture: review/ok
     classify: *id001
@@ -157,4 +159,4 @@ expect:
     - changes_requested
     - unknown
   memory:
-    review_findings: *id008
+    review_findings: *id009

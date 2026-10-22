@@ -1,0 +1,161 @@
+scenario: plan_tasks_design_incomplete_rollback
+description: design が要件への問いを残すが分類の確信度が低く unknown になり、運用者が goal 到達扱いで続行する。plan_tasks は design.md の「## 構成」に
+  REQ-3 と REQ-4 を受け持つ構成要素が無いことを記憶 design_issues に書き（実在の指標で goal が選択肢から外れる）、design に戻る。二回目の design は持ち帰った設計の問題を受けて書き直す（同じフェーズの中の
+  rollback と carry。design の goal を正しく満たした後にも起きる経路は README にある）
+workflow: ../../workflow.yaml
+seed: 11
+inputs:
+  feature_request.md: &id002
+    from: ../fixtures/inputs/feature_request.md
+  repo/: &id003
+    from: ../fixtures/inputs/repo/
+visits:
+  intake#1:
+    fixture: intake/ok
+    classify: &id001
+      choice: goal
+      confidence: 0.9
+  analyze#1:
+    fixture: analyze/ok
+    classify: *id001
+    memory:
+      intake_questions: &id004 []
+  design#1:
+    fixture: design/gap
+    memory:
+      requirement_gaps:
+      - 'REQ-3 と REQ-4: コードを Cart のどの操作で受け取るかが決まっていない'
+    classify:
+      choice: requirements_gap
+      confidence: 0.3
+  plan_tasks#1:
+    fixture: plan_tasks/incomplete
+    memory:
+      design_issues: &id005
+      - 'REQ-3 と REQ-4: design.md の「## 構成」に、コードを受け取る Cart の操作と、変えるファイル（repo/src/shopcart/cart.py）が無く、どのタスクにも割り当てられない'
+    classify:
+      choice: design_incomplete
+      confidence: 0.9
+  design#2:
+    fixture: design/ok
+    classify: *id001
+    memory:
+      requirement_gaps: []
+  plan_tasks#2:
+    fixture: plan_tasks/ok
+    classify: *id001
+    memory:
+      design_issues: []
+  implement#1:
+    fixture: implement/ok
+    classify: *id001
+    memory:
+      task_questions: []
+      impl_violations: []
+  unit_test#1:
+    fixture: unit_test/ok
+    classify: *id001
+    memory:
+      failing_tests: []
+      coverage_gaps: []
+      test_defects: []
+  acceptance#1:
+    fixture: acceptance/ok
+    classify: *id001
+    memory:
+      unmet_requirements: []
+      requirement_gaps: []
+  review#1:
+    fixture: review/ok
+    classify: *id001
+    memory:
+      review_findings:
+      - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
+      design_issues: []
+  release#1:
+    fixture: release/ok
+    classify: *id001
+    memory:
+      missing_notes: []
+gates:
+  discovery#1: *id001
+  architecture#2: *id001
+  construction#1: *id001
+  assurance#1: *id001
+  delivery#1: *id001
+operator:
+- kind: continue_as_goal
+  note: REQ-3 と REQ-4 のコードの受け取り方は、設計の中で決める
+  by: 設計の責任者
+expect:
+  status: completed
+  trace:
+  - start intake#1
+  - eval stage intake = goal
+  - next intake -> analyze
+  - start analyze#1
+  - eval stage analyze = goal
+  - eval phase discovery = goal
+  - gate_pass analyze
+  - next analyze -> design
+  - start design#1
+  - eval stage design = unknown
+  - escalation design unknown -> continue_as_goal
+  - next design -> plan_tasks
+  - start plan_tasks#1
+  - eval stage plan_tasks = design_incomplete
+  - rollback plan_tasks -> design [design_incomplete 1]
+  - start design#2
+  - eval stage design = goal
+  - next design -> plan_tasks
+  - start plan_tasks#2
+  - eval stage plan_tasks = goal
+  - eval phase architecture = goal
+  - gate_pass plan_tasks
+  - next plan_tasks -> implement
+  - start implement#1
+  - eval stage implement = goal
+  - next implement -> unit_test
+  - start unit_test#1
+  - eval stage unit_test = goal
+  - eval phase construction = goal
+  - gate_pass unit_test
+  - next unit_test -> acceptance
+  - start acceptance#1
+  - eval stage acceptance = goal
+  - next acceptance -> review
+  - start review#1
+  - eval stage review = goal
+  - eval phase assurance = goal
+  - gate_pass review
+  - next review -> release
+  - start release#1
+  - eval stage release = goal
+  - eval phase delivery = goal
+  - gate_pass release
+  - complete
+  - end completed
+  starts:
+    design#2:
+      files:
+        feature_request.md: *id002
+        repo/: *id003
+        intake.md:
+          from: ../fixtures/intake/ok/intake.md
+        requirements.md:
+          from: ../fixtures/analyze/ok/requirements.md
+      memory:
+        intake_questions: *id004
+        design_issues: *id005
+      gates:
+      - discovery
+  options:
+    stage:design#1:
+    - requirements_gap
+    - unknown
+    stage:plan_tasks#1:
+    - design_incomplete
+    - unknown
+  memory:
+    design_issues: []
+    requirement_gaps: []

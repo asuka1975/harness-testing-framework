@@ -119,6 +119,15 @@ def ok_files(*stages: str) -> dict[str, Any]:
     return out
 
 
+def ok_files_by_file(*stages: str) -> dict[str, Any]:
+    """ok_files と同じ範囲を、inputs の repo/ もファイルごとに展開して書く。implement の ok のフィクスチャのように repo/ の
+    下のファイルを置き換えるステージを重ねられる（ディレクトリの参照と、その下のファイルの参照を混ぜない）。"""
+    out = refs("inputs")
+    for s in stages:
+        out |= refs(FIX[s])
+    return out
+
+
 class Run:
     def __init__(self) -> None:
         self.trace: list[str] = []
@@ -632,6 +641,118 @@ write(
         },
         "memory": {"requirement_gaps": []},
     },
+)
+
+
+# --- 16. 単体テストの不備（要件に反する期待）を見つけ、持ち帰って自分自身に戻る ---
+DEFECTIVE = TABLE["variants"]["unit_test"]["defective"]["memory"]
+r = Run()
+r.through("intake", "implement")
+r.start(
+    "unit_test",
+    {"fixture": "unit_test/defective", "memory": DEFECTIVE, "classify": cls("tests_defective")},
+)
+r.eval("unit_test", "tests_defective")
+r.line("rollback unit_test -> unit_test [tests_defective 1]")
+r.through("unit_test")
+write(
+    "unit_test_defective_self_rollback",
+    "unit_test が、要件に反する期待のテスト（小計 300 円に OFF500 で -200 円を期待する。実在の pytest で落ちる）を不備として"
+    "記憶 test_defects に書き、自分自身に戻る。テストは落ちるが期待が要件に反するので impl_defect ではない。二回目の unit_test は"
+    "持ち帰った不備と不足（test_defects と coverage_gaps）を受けて書き直す（自分自身への rollback と carry。実在の指標で goal が"
+    "選択肢から外れる）",
+    r,
+    {
+        "starts": {
+            "unit_test#2": {
+                # unit_test#1 の開始時スナップショット（implement の goal の後）に、持ち帰った二つの記憶を重ねる
+                "files": ok_files_by_file("intake", "analyze", "design", "plan_tasks", "implement"),
+                "memory": ok_memory("intake", "analyze", "design", "plan_tasks", "implement")
+                | {
+                    "test_defects": DEFECTIVE["test_defects"],
+                    "coverage_gaps": DEFECTIVE["coverage_gaps"],
+                },
+                "gates": ["discovery", "architecture"],
+            }
+        },
+        "options": {
+            "stage:unit_test#1": [
+                "impl_defect",
+                "tests_defective",
+                "tests_insufficient",
+                "unknown",
+            ],
+            "stage:unit_test#2": [
+                "goal",
+                "impl_defect",
+                "tests_defective",
+                "tests_insufficient",
+                "unknown",
+            ],
+        },
+        # unit_test#2 が空の一覧を書くので、持ち帰った不備は最後の記憶に残らない
+        "memory": {"test_defects": [], "coverage_gaps": []},
+    },
+)
+
+# --- 17. 構成の欠けた設計を運用者が goal 到達扱いで通し、タスク分割が設計の欠けを持って design に戻る ---
+DESIGN_GAPS = TABLE["variants"]["design"]["gap"]["memory"]["requirement_gaps"]
+INCOMPLETE = [
+    "REQ-3 と REQ-4: design.md の「## 構成」に、コードを受け取る Cart の操作と、変えるファイル（repo/src/shopcart/cart.py）が"
+    "無く、どのタスクにも割り当てられない"
+]
+r = Run()
+r.through("intake", "analyze")
+r.start(
+    "design",
+    {
+        "fixture": "design/gap",
+        "memory": {"requirement_gaps": DESIGN_GAPS},
+        "classify": cls("requirements_gap", 0.3),
+    },
+)
+r.eval("design", "unknown")
+r.line("escalation design unknown -> continue_as_goal", "next design -> plan_tasks")
+r.start(
+    "plan_tasks",
+    {
+        "fixture": "plan_tasks/incomplete",
+        "memory": {"design_issues": INCOMPLETE},
+        "classify": cls("design_incomplete"),
+    },
+)
+r.eval("plan_tasks", "design_incomplete")
+r.line("rollback plan_tasks -> design [design_incomplete 1]")
+r.through("design")
+write(
+    "plan_tasks_design_incomplete_rollback",
+    "design が要件への問いを残すが分類の確信度が低く unknown になり、運用者が goal 到達扱いで続行する。plan_tasks は "
+    "design.md の「## 構成」に REQ-3 と REQ-4 を受け持つ構成要素が無いことを記憶 design_issues に書き（実在の指標で goal が選択肢"
+    "から外れる）、design に戻る。二回目の design は持ち帰った設計の問題を受けて書き直す（同じフェーズの中の rollback と carry。"
+    "design の goal を正しく満たした後にも起きる経路は README にある）",
+    r,
+    {
+        "starts": {
+            "design#2": {
+                "files": ok_files("intake", "analyze"),
+                "memory": ok_memory("intake", "analyze") | {"design_issues": INCOMPLETE},
+                "gates": ["discovery"],
+            }
+        },
+        "options": {
+            "stage:design#1": ["requirements_gap", "unknown"],
+            "stage:plan_tasks#1": ["design_incomplete", "unknown"],
+        },
+        # plan_tasks#2 と review が空の一覧を書き、design#2 が空の requirement_gaps を書く
+        "memory": {"design_issues": [], "requirement_gaps": []},
+    },
+    operator=[
+        {
+            "kind": "continue_as_goal",
+            "note": "REQ-3 と REQ-4 のコードの受け取り方は、設計の中で決める",
+            "by": "設計の責任者",
+        }
+    ],
 )
 
 

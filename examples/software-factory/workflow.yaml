@@ -183,7 +183,7 @@ workflow:
       goal:
         qualitative: >-
           repo/tests/ のテストがすべて通って requirements.md の受け入れ基準を確かめ、impl_notes.md と test_report.md に未解決の違反、
-          問い、失敗、未網羅が無い（repo/ の変更がタスクの範囲に収まることは、指標 out_of_scope_changes が測る）。
+          問い、失敗、不備、未網羅が無い（repo/ の変更がタスクの範囲に収まることは、指標 out_of_scope_changes が測る）。
         quantitative:
           build_passes:
             description: repo/src/ の下のすべての .py を byte-compile でき、すべてのモジュールを import できる
@@ -273,22 +273,24 @@ workflow:
           name: Unit test
           description: >-
             requirements.md の受け入れ基準、tasks.yaml のタスクの tests、impl_notes.md の「## テストへの依頼」に従って repo/tests/ に
-            単体テストを書き、テストの内容、失敗、未網羅を test_report.md（「## テスト」「## 失敗」「## 未網羅」の節）に書く。終える
-            前に、pytest、repo/src/ の行カバレッジ、repo/tests/ の lint、tasks.yaml の tests に照らした変更の範囲を自分で確かめる。
-            テストが repo/src/ の欠陥を示した時は、失敗したテストとその欠陥を記憶 failing_tests に書く。unit_test 自身が直すべき
-            不足か不備（テストの無い受け入れ基準、実行されない箇所、lint の違反、tests に無いファイルの変更、要件に反する期待）が
-            ある時は、その箇所を記憶 coverage_gaps に書く。どちらも無ければ空の一覧を書く（訪問のたびに必ず書く）。記憶には、
-            パス、関数、期待する振る舞いで書く（戻ると repo/ が書き直されるので、行番号は使わない）。持ち帰った不足や不備
-            （coverage_gaps）があれば、それを直す
+            単体テストを書き、test_report.md に、テストの内容を「## テスト」、repo/src/ の欠陥を示した失敗を「## 失敗」、誤っている
+            テスト（不備）を「## 不備」、足りないテスト（不足）を「## 未網羅」の節に書く。終える前に、pytest、repo/src/ の行
+            カバレッジ、repo/tests/ の lint、tasks.yaml の tests に照らした変更の範囲、各テストの期待と requirements.md の要件との
+            一致を自分で確かめる。テストが repo/src/ の欠陥を示した時は、失敗したテストとその欠陥を記憶 failing_tests に書く。
+            unit_test 自身が直すべき不備（要件に反する期待を持つテスト、テスト自身の誤りで失敗するテスト、repo/tests/ の lint の
+            違反、tests に無いファイルの変更）は記憶 test_defects に、不足（テストの無い受け入れ基準、テストの無い「## テストへの
+            依頼」、実行されない箇所）は記憶 coverage_gaps に書く。どれも無ければ空の一覧を書く（訪問のたびに必ず書く）。記憶には、
+            パス、関数、期待する振る舞いで書く（戻ると repo/ が書き直されるので、行番号は使わない）。持ち帰った不備
+            （test_defects）や不足（coverage_gaps）があれば、それを直す
           artifacts:
             reads: [requirements.md, tasks.yaml, repo/, impl_notes.md]
             writes: [repo/tests/, test_report.md]
-            memory_in: [coverage_gaps]
-            memory_out: [failing_tests, coverage_gaps]
+            memory_in: [coverage_gaps, test_defects]
+            memory_out: [failing_tests, coverage_gaps, test_defects]
           goal:
             qualitative: >-
               repo/tests/ のテストが requirements.md のすべての受け入れ基準と、impl_notes.md の「## テストへの依頼」のすべてを
-              確かめ、すべて通り、test_report.md の「## 失敗」と「## 未網羅」が空である。
+              確かめ、すべて通り、test_report.md の「## 失敗」「## 不備」「## 未網羅」が空である。
             quantitative:
               tests_pass:
                 description: repo/tests/ のテストが一件以上あり、pytest で全部通る
@@ -311,19 +313,30 @@ workflow:
               description: >-
                 repo/tests/ のテストの一部が失敗し、その期待が requirements.md の受け入れ基準か要件の記述に従っている（テストではなく
                 repo/src/ が誤っている）。失敗したテストと、それが示す repo/src/ の欠陥が、記憶 failing_tests と test_report.md の
-                「## 失敗」に列挙されている。tests_insufficient に優先する。
+                「## 失敗」に列挙されている。tests_defective と tests_insufficient に優先する。
+            - id: tests_defective
+              description: >-
+                repo/tests/ に、unit_test 自身が直すべき不備（テストが誤っている）がある: requirements.md の要件の記述か受け入れ
+                基準に反する期待を持つテスト（通るか失敗するかによらない）、テスト自身の誤り（準備、呼び出し、import）で失敗する
+                テスト、repo/tests/ の lint の違反、tasks.yaml のタスクの tests に無いファイルの変更。その不備が、記憶 test_defects と
+                test_report.md の「## 不備」の両方に列挙されている（どのファイルが変わったかは状態からは見えないので、変更の範囲の
+                不備はこの列挙で判断する）。同時に不足もあれば、それも記憶 coverage_gaps と「## 未網羅」に列挙されている（一度に
+                持ち帰って直す）。tests_insufficient に優先する。
             - id: tests_insufficient
               description: >-
-                unit_test 自身が直すべき不足か不備がある: requirements.md の受け入れ基準のうちテストの無いもの、repo/src/ の実行され
-                ない箇所（行カバレッジが 80% に届かない）、repo/tests/ の lint の違反、tasks.yaml のタスクの tests に無いファイルの
-                変更、requirements.md の要件に反する期待を持つテスト。その不足か不備が、記憶 coverage_gaps と test_report.md の
-                「## 未網羅」に列挙されている。
+                unit_test 自身が直すべき不足（テストが足りない）があり、不備は無い: requirements.md の受け入れ基準のうちテストの
+                無いもの、impl_notes.md の「## テストへの依頼」のうちテストの無いもの、repo/src/ の実行されない箇所（行カバレッジが
+                80% に届かない）。その不足が、記憶 coverage_gaps と test_report.md の「## 未網羅」に列挙されている。
             - id: unknown
               description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
           rollback:
             - state: impl_defect
               stage: implement
               carry: [failing_tests]
+              max: 2
+            - state: tests_defective
+              stage: unit_test
+              carry: [test_defects, coverage_gaps]
               max: 2
             - state: tests_insufficient
               stage: unit_test

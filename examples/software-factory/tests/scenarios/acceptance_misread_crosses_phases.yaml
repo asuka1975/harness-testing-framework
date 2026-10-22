@@ -5,9 +5,9 @@ description: acceptance が requirements.md と intake.md の回答の食い違�
 workflow: ../../workflow.yaml
 seed: 11
 inputs:
-  feature_request.md: &id009
+  feature_request.md: &id010
     from: ../fixtures/inputs/feature_request.md
-  repo/: &id010
+  repo/: &id011
     from: ../fixtures/inputs/repo/
 visits:
   intake#1:
@@ -42,11 +42,12 @@ visits:
     memory:
       failing_tests: &id007 []
       coverage_gaps: &id008 []
+      test_defects: &id009 []
   acceptance#1:
     fixture: acceptance/misread
     memory:
       unmet_requirements: []
-      requirement_gaps: &id011
+      requirement_gaps: &id012
       - requirements.md にコードの大文字と小文字の扱いが無く、入力された pct10 を拒む
     classify:
       choice: requirement_misread
@@ -78,6 +79,7 @@ visits:
     memory:
       failing_tests: *id007
       coverage_gaps: *id008
+      test_defects: *id009
   acceptance#2:
     fixture: acceptance/ok
     classify: *id001
@@ -173,12 +175,12 @@ expect:
   starts:
     analyze#2:
       files:
-        feature_request.md: *id009
-        repo/: *id010
+        feature_request.md: *id010
+        repo/: *id011
         intake.md:
           from: ../fixtures/intake/ok/intake.md
       memory:
-        requirement_gaps: *id011
+        requirement_gaps: *id012
       gates: []
   memory:
     requirement_gaps: []

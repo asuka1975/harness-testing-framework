@@ -1,6 +1,7 @@
 """software-factory の遷移の決定論テスト。
 
 - 遷移の六種をすべて通す（フェーズ境界越えは、定義の上の六本の辺のすべてと、運用者による越境）
+- 定義の上のロールバックの辺 13 本をすべて通す（unit_test の tests_defective と、plan_tasks の design_incomplete を含む）
 - escalate の四つの選択が動く
 - 指標は実在のツール（pytest、coverage、ruff、compileall）で測り、その値で選択肢から goal が外れることも確かめる
 - 記録再生で同一のスナップショットが得られる
@@ -11,13 +12,16 @@
 - 要求の取り込みのペルソナ（ユーザーシミュレータ）を、台本の user の代わりに束縛しても、シナリオの期待どおりに動く
 """
 
+import re
 from pathlib import Path
+from typing import Any
 
 import pytest
 from software_factory.personas import AFTER, PERSONAS, QUESTIONS, REUSE, Persona, PersonaUser
 from software_factory.scenarios import GENERATED
-from software_factory.stages.deterministic import SCENARIOS, inputs, run
+from software_factory.stages.deterministic import SCENARIOS, WORKFLOW, inputs, run
 
+from harness_testing_framework.schema import load_workflow_document
 from harness_testing_framework.testing.harness import (
     TRANSITION_KINDS,
     load_scenario,
@@ -71,6 +75,26 @@ def test_crossing_rollbacks_from_every_later_phase(tmp_path: Path) -> None:
         ("review", "design"),
         ("release", "implement"),
     }
+
+
+def test_every_rollback_edge_is_taken(tmp_path: Path) -> None:
+    """定義の上のすべてのロールバックの辺（13 本。自分自身への辺と、同じフェーズの中の plan_tasks → design を含む）を、
+    どれかのシナリオが通る。持ち帰る記憶が戻り先の開始時スナップショットに届くことは、各シナリオの expect.starts が確かめる。"""
+    doc: Any = load_workflow_document(WORKFLOW)
+    edges = {
+        (stage["id"], rb["stage"], rb["state"])
+        for phase in doc["workflow"]["phases"]
+        for stage in phase["stages"]
+        for rb in stage["rollback"]
+    }
+    taken: set[tuple[str, str, str]] = set()
+    for i, path in enumerate(PATHS):
+        for line in run(path, tmp_path / str(i)).summary:
+            match = re.fullmatch(r"rollback (\S+) -> (\S+) \[(\S+) \d+\]( crossing)?", line)
+            if match:
+                taken.add((match[1], match[2], match[3]))
+    assert len(edges) == 13
+    assert taken == edges, edges - taken
 
 
 @pytest.mark.parametrize("name", ["happy_path_user_suspend", "construction_rollbacks"])
