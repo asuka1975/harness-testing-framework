@@ -54,6 +54,7 @@
 - **goal と end\_state と unknown を合わせて、漏れなく重なりなく分ける。** end\_state を goal の言い換えにしない
 - **二つのクラスに当てはまりうるなら、記述の中に優先を書く。** たとえば「この状態は X に優先する」「goal に優先する」。優先順は記述の一部で、別の属性は無い
 - **戻り先が直すのに使う情報は、記憶（memory\_out）に書かせ、その記憶を証拠として記述に書く。** 戻るとファイルは捨てられ、carry で運べるのは記憶だけだから
+- **memory\_out の記憶は、訪問のたびに必ず書かせる（問題が無ければ空の一覧などの空の値）。** 書かなければ、開始時スナップショットの値（carry で持ち帰った値や、前の訪問の値）がそのまま状態文書に出る。「記憶 X に問いがあればこの状態」と書いた end\_state は、問いが解けていても前の値で選ばれうる。ステージの description にも「無ければ空の一覧を書く」と書く
 - `goal` と `unknown` は予約語。end\_state の id に `goal` は使えない
 
 ### 2.2 成果物の宣言（artifacts）
@@ -177,7 +178,7 @@ python -m harness_testing_framework.testing.spec workflow.yaml --registry パッ
 - `stage_id`: このステージの id
 - `visit`: この実行でこのステージに入った回数（1 から）
 - `workspace`: 作業領域。ランタイムが毎回スナップショットから作る
-- `read_memory(name)`、`write_memory(name, value)`: memory\_in / memory\_out に宣言した記憶。値がまだ無い（carry で受け取っていない）記憶を読むと None
+- `read_memory(name)`、`write_memory(name, value)`: memory\_in / memory\_out に宣言した記憶。値がまだ無い（carry で受け取っていない）記憶を読むと None。memory\_out の記憶は訪問のたびに書く（第2.1節）
 - `seed`: 確率的な振る舞いの唯一の乱数の源。`random.Random(context.seed)` にそのまま渡してよい。実行の種、ステージ、訪問から SHA-256 で導くので、訪問ごとに独立な一様の種とみなせる
 - `user_io`: awaits\_user のステージだけ
 - `llm`: LLM クライアント。必ずこれを通す（記録再生のため）

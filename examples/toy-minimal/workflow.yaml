@@ -43,7 +43,7 @@ workflow:
           description: >-
             topic.txt から、ノートの節とその要約を outline.md に書く。outline.md は「## 節」の見出しの下に
             「- 節の名前: 一行の要約」を並べる。主題か読者が曖昧で節を決められない時は、ユーザーに尋ねるべき問いを
-            記憶 topic_questions に書く
+            記憶 topic_questions に書く。問いが無ければ空の一覧を書く（訪問のたびに必ず書く）
           artifacts:
             reads: [topic.txt]
             writes: [outline.md]
@@ -86,7 +86,8 @@ workflow:
           name: Write note
           description: >-
             outline.md の節の順に note.md を書く。note.md は節ごとに「## 節の名前」の見出しと本文を持つ。
-            outline.md の節のうち書けないものがあれば、その節と理由を記憶 outline_gaps に書く
+            outline.md の節のうち書けないものがあれば、その節と理由を記憶 outline_gaps に書く。無ければ空の一覧を
+            書く（訪問のたびに必ず書く）
           artifacts:
             reads: [topic.txt, outline.md]
             writes: [note.md]
@@ -118,7 +119,7 @@ workflow:
           description: >-
             note.md を outline.md と topic.txt に照らして査読し、指摘を review.json に書く。review.json は
             {"findings": [{"section": 節の名前, "blocking": 修正を要するか, "comment": 指摘}]} の形。
-            修正を要する指摘は記憶 review_findings にも書く
+            修正を要する指摘は記憶 review_findings にも書く。無ければ空の一覧を書く（訪問のたびに必ず書く）
           artifacts:
             reads: [topic.txt, outline.md, note.md]
             writes: [review.json]

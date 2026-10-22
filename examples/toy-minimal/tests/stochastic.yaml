@@ -1,7 +1,8 @@
 # toy-minimal の確率的な偽ステージ本体の設計値。
 #
 # 本体は訪問ごとに、文脈の種（context.seed）だけを乱数の源にして変種を一つ選び、
-# tests/fixtures/<ステージ>/<変種>/ を作業領域に写し、変種の記憶を書く。
+# tests/fixtures/<ステージ>/<変種>/ を作業領域に写し、変種の記憶を書く。memory_out の記憶は訪問のたびに書く
+# （問題が無ければ空の一覧）。書かないと、持ち帰った前の値が状態文書に残る。
 # first は訪問 1、again は訪問 2 以降（carry を受けた再進入や再実行）の分布。
 # 分布テスト（expectations）、独立性検証、マルコフ合成の期待は、この表から手で導く。
 
@@ -10,18 +11,18 @@ variants:
     ok: {class: goal}
     unknown: {class: unknown}
   plan_outline:
-    ok: {class: goal}
+    ok: {class: goal, memory: {topic_questions: []}}
     unclear: {class: topic_unclear, memory: {topic_questions: ["想定読者は誰か"]}}
-    unknown: {class: unknown}
+    unknown: {class: unknown, memory: {topic_questions: []}}
   write_note:
-    ok: {class: goal}
-    ok_b: {class: goal}
+    ok: {class: goal, memory: {outline_gaps: []}}
+    ok_b: {class: goal, memory: {outline_gaps: []}}
     gaps: {class: outline_unfit, memory: {outline_gaps: ["例: 読者に照らして範囲外"]}}
-    unknown: {class: unknown}
+    unknown: {class: unknown, memory: {outline_gaps: []}}
   review_note:
-    ok: {class: goal}
+    ok: {class: goal, memory: {review_findings: []}}
     blocking: {class: findings_blocking, memory: {review_findings: ["例が抽象的すぎる"]}}
-    unknown: {class: unknown}
+    unknown: {class: unknown, memory: {review_findings: []}}
 
 profiles:
   # 各ステージのクラスの分布が (ステージ, 訪問) だけで決まる。ステージどうし独立に作ってあるので、

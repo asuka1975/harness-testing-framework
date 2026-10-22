@@ -81,3 +81,16 @@ def test_every_shifted_criterion_fails(markov_runs: RunSet) -> None:
         load_expectations(EXPECTATIONS / "markov_shifted.yaml"), markov_runs
     )
     assert not any(r.passed for r in report.results), report.lines()
+
+
+def test_every_variant_writes_every_memory_out_item() -> None:
+    """memory_out の記憶は訪問のたびに書く（問題が無ければ空の一覧）。書かないと、持ち帰った前の値が
+    状態文書に残り、問いが解けていても同じ end_state に分類されうる（adopting.md 第2.1節）。"""
+    from toy_minimal.metrics import REGISTRY
+
+    from harness_testing_framework.runtime import load_workflow
+
+    workflow = load_workflow(Path(__file__).parents[1] / "workflow.yaml", REGISTRY.names())
+    for stage in workflow.stages:
+        for name, spec in TABLE["variants"][stage.id].items():
+            assert set(spec.get("memory", {})) == set(stage.memory_out), (stage.id, name)

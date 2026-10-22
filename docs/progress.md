@@ -4,10 +4,10 @@
 
 ## 次にやること
 
-現在のマイルストーン: F4（software factory）。利用者セッションの成果物を取り込み（af2e0d0）、adopting-gaps.md の 30 項目を本体で直した（D-11、bd2591f）。往復 1 の利用者役の判定は解消 27、一部 1、直さないもの 2（a8c7468）。新しい不足 N1〜N7 を直した（D-12、1412a8d）。往復 2 で N1〜N7 は解消（115720c）、新しい N8、N9 を直し（D-13）、往復 3 で解消（a2d1b2a）。往復 3 の N10 は changelog.md で直した（D-14、a583f19）。いまは往復 4 の利用者役の再検証中。
+現在のマイルストーン: F4（software factory）。利用者セッションの成果物を取り込み（af2e0d0）、adopting-gaps.md の 30 項目を本体で直した（D-11、bd2591f）。往復 1 の利用者役の判定は解消 27、一部 1、直さないもの 2（a8c7468）。新しい不足 N1〜N7 を直した（D-12、1412a8d）。往復 2 で N1〜N7 は解消（115720c）、新しい N8、N9 を直し（D-13）、往復 3 で解消（a2d1b2a）。往復 3 の N10 は changelog.md で直した（D-14、a583f19）。往復 4 の N11（changelog の書き漏らし）を直し（9c7b4cd）、往復 5 で adopting-gaps.md の「未解消」が空になった（87f03d5）。いまは検証役二人の確認中（workflow.yaml の MECE の事前レビュー、分布テストの基準）。
 
-1. 利用者役の再検証（F4 と同じ読取制限のサブエージェント）の結果を受ける。adopting-gaps.md の「未解消」に残ったものを本体で直し、また再検証する。「未解消」が空になるまで繰り返す（第6節 F4）
-2. 「未解消」が空になったら、workflow.yaml の MECE の事前レビュー（検証役）と、F4 の完了条件の判定（実装を見ていない検証役、第5.9節）。事前レビューの指摘は、利用者役が workflow.yaml を直す（通常のセッションは examples/software-factory/ を直さない）
+1. 検証役二人の結果を受ける（reports/f4-workflow-review.md、reports/f4-criteria-review.md）。高と中の指摘は、各報告の「利用者への指摘（公開の文書の語だけで）」の節をそのまま利用者役に渡し、利用者役が workflow.yaml と expectations を直す（D-15）
+2. F4 の完了条件の判定（実装を見ていない検証役、第5.9節）。読取制限が守られたことの機械的な証拠、changelog.md の「未公開」の漏れ、オラクルの期待値の独立な再計算も見てもらう
 3. 【人間ゲート】人間が examples/software-factory/workflow.yaml をレビューして承認する
 4. F4 の後: F5（v1.0、adopting.md の完成版、雛形、CI の段階、分類体系の版の管理、maintenance.md）
 5. F4・F5 に持ち越す制限
@@ -71,6 +71,10 @@ F3 のタスク（テストランナー群。すべて LLM なし）。
 - N8、N9 を直した（D-13）: compare_prediction がゲートの結果も比べる（返す量が増えるので、量の種類を固定で確かめていた toy-minimal のテストを直した）。entries と entry_dependence（訪問 2 以降の結果が入り方で違うかの検定）
 - 往復 3（a2d1b2a）: N8、N9 は解消。新しい不足 N10（公開の振る舞いの変更を知る場所が無い）
 - N10 を直した（D-14、a583f19）: docs/changelog.md を公開の文書に加えた。公開 API を変えるコミットは同じコミットで記録する
+- 往復 4（9c7b4cd）: N10 は解消。N11（adopting.md 第11節の変化が changelog に無い）を直した
+- 往復 5（87f03d5）: N11 は解消。adopting-gaps.md の「未解消」は「無し」になった
+- D-15: software factory の workflow.yaml と expectations は、F4 の間は利用者役が書く（第5.9節の保護ファイルの表と、第7節の F4 のプロンプトの食い違いの読み方）
+- 検証役二人を起動した（第5.9節の静的な役割。動的ワークフローではない）
 - v0.1 の公開（人間の承認による）
   - version を 0.1.0 にし、README を v0.1 の内容に合わせた。契約 第11節に残っていた「（下書き）」を消した
   - git tag `v0.1.0` と GitHub Release を作った（https://github.com/asuka1975/harness-testing-framework/releases/tag/v0.1.0）。Release の説明に D-1〜D-9 の要点を書いた
