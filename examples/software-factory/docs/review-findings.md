@@ -173,3 +173,48 @@ acceptance の tests\_pass は unit\_test の goal と construction のゲート
 
 - 正しい基準の幅を広げても（たとえば [0.0, 1.0]）、このテストは通る。ずらした基準は固定の値なので、正しい幅とずらした幅が重なっても気づかない
 - 幅が 5 SE 以下であること、または正しい幅とずらした幅が重ならないことも確かめるとよい
+
+## E. 完了判定の指摘（往復 7 の後）
+
+第三者の検証役が F4 の完了を判定した。完了の条件はすべて満たし、読取の制限も守られているが、例の側に直すべき点が中 2、低 6 ある。中は直す。低は任意（直すか、直さない理由を README か adopting-gaps.md に書く）。
+
+### 中
+
+**E-M1. 記述と代表の成果物の食い違い（README の「記述と代表の整合（試しのラベル）」の三つ）が直されていない**
+
+検証役も同じ食い違いを確かめた。
+
+1. acceptance の requirement\_misread の代表（tests/fixtures/acceptance/misread/verification.md）の「依頼と intake.md はレジの画面で入力する前提」は、precise\_pm の回答にしか無く、feature\_request.md にも無い。記述どおりに読む分類器では、vague\_founder と terse\_engineer の実行で unknown になる
+2. plan\_tasks の design\_incomplete の代表（tests/fixtures/plan\_tasks/incomplete/tasks.yaml）の「構成に REQ-3 と REQ-4 を受け持つ箇所が無い」は、plan\_tasks がいつも読む design の goal の代表の design.md（REQ-3 は parse\_code、REQ-4 は Cart.total）と矛盾する。いつも unknown になる
+3. analyze の goal の代表（tests/fixtures/analyze/ok/requirements.md）の「nn は 1〜50」は、vague\_founder の「上限はまだ決めていない」と矛盾する。vague\_founder の実行で unknown になる
+4. あわせて、REQ-2 の「支払額は 0 円を下回らない」は、最初の訪問ではどのペルソナの回答にも根拠が無い（その点を尋ねる問いは needs\_unclear の変種だけが持ち帰る）
+
+どれも、分類器の検証のコーパスのラベルとも食い違う（手引き第15.1節）。クラスの選び方は種だけで決まるので、成果物の中身を直しても分布テストの数値は変わらない。
+
+- 直し方の案:
+  - (1) 食い違いを依頼から言える点にする（たとえば「10% 引き」の書き方の揺れを要件が扱わない）か、全ペルソナの回答に前提を入れる
+  - (2) design の goal の代表の design.md でも、本当に割り当てられない点を代表にする
+  - (3) analyze の goal の成果物をペルソナごとに用意する（種でクラスを選んだ後に、intake.md の回答に合う成果物を写す）か、vague\_founder の回答を値の決まったものにする
+  - REQ-2 の下限は、回答に根拠を持たせるか、goal の代表から外す
+  - 分類体系は変えない
+
+**E-M2. discovery のゲートの goal を、goal の代表がどのペルソナでも字義どおりには満たさない**
+
+- discovery の goal の qualitative は「intake.md の回答（利用者、割引の種類と上限、無効なコードの扱い）がすべて requirements.md の要件か受け入れ基準に反映されている」を求める
+- 一方、goal の代表の requirements.md は、利用者に一言も触れない（precise\_pm の「ネットショップの購入者。レジの画面でコードを入力する」、terse\_engineer の「購入者」が反映されない）。vague\_founder では「上限はまだ決めていない」も反映されず、要件の「nn は 1〜50」と食い違う
+- ゲートの状態文書は intake.md と requirements.md を含む（契約 2.4）。ゲートの選択肢は goal、needs\_unclear、unknown で、needs\_unclear は goal の時に空の intake\_questions を証拠にするので選ばれない。記述どおりに読む分類器では、主経路が毎回このゲートで unknown になる（「反映」を緩く読めば precise\_pm と terse\_engineer では満たしうるが、vague\_founder では満たさない）
+- 第15.1節の試しがステージの項目だけだったので見つかっていなかった。手引き第15.1節は、ゲートの項目も含めるように直された
+- 直し方の案:
+  - 代表の側を直す: requirements.md に利用者（と入力の場所）を書く節を設け、goal の代表に書く。これは成果物の直しで、人間の承認は要らない
+  - 記述の側を直す（discovery の goal から「利用者」を外す、または要件にしない回答の置き場を決める）のは記述の改訂なので、人間のレビューで承認を受ける。直すなら提案として README に書く
+  - vague\_founder の食い違いは E-M1 の (3) と一緒に直す
+  - ゲートの項目も、第15.1節の手順で試しのラベルを付けて確かめる
+
+### 低（任意）
+
+- **E-L1:** markov では goal の実装が二つとも REQ-1 の切り捨てを誤る（333 円に PCT10 で 299 円）。そのため、完了した実行はいつも REQ-1 の記述に反するコードをリリースし、acceptance/ok は REQ-1 を合格とする。記述（表がすべて合格）には合っているが、assurance のゲートの「repo/ をこのままリリースしてよい」は、repo/ を読む分類器には満たさないと読まれうる。直し方の案: ゲートの判定の範囲が「verification.md と review.json に基づく」ことを記述に書くか、README に意図（玩具の主経路は既知の欠陥を持つ）として書く
+- **E-L2:** tests/test\_scenarios.py の docstring は「フェーズ境界越えは五通り」とあるが、定義の上の越境は六本ある。acceptance→analyze（requirement\_misread）は決定論のシナリオでは通らない（E2E のカバレッジで踏む）。直し方の案: docstring を直し、requirement\_misread で analyze に戻るシナリオを一本足す
+- **E-L3:** unit\_test の goal に「impl\_notes.md の『## テストへの依頼』のすべてに応えるテストがある」が無いので、依頼を無視したテストでも goal に分類される。直し方の案: goal に足す（unit\_test は impl\_notes.md を読むので観測できる）
+- **E-L4:** tests/test\_oracle.py の揺れる分類器のテストは、一致率を `approx(0.75, abs=0.05)` で確かめている。値は 95/127 に決まる。直し方の案: `1 - ceil(len(corpus) / 4) / len(corpus)` と一致することを確かめる
+- **E-L5:** 本体が memory\_out を毎回書くことを、本体の振る舞いではなく設計値の表（tests/stochastic.yaml）でだけ確かめている。空の記憶を書かない変更をしても、テストが落ちない。直し方の案: 分布テストの実行の集まりで、各評価の終了時スナップショットの記憶が、そのステージの memory\_out をすべてその訪問の値で持つことを確かめる
+- **E-L6:** markov とゲートを揺らす実行の全状態に violated が無いことを、補正の無い alpha 0.01 の検定 5〜7 個で求めている。既定の種では通るが、種か回数を変えると、正しい本体でも数 % の確率で落ちる（`entry_dependence` は、markov の 20 通りの種の基点で 1 回、ゲートを揺らす実行の 12 通りで 1 回 violated になった）。直し方の案: 確かめる状態を絞る（仕込んだ所と、入り方の多い implement だけ）か、多重性を見込んだ alpha にする。「HTF\_RUNS を増やすと偶然に落ちうる」ことを注記する
