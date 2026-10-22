@@ -221,7 +221,7 @@ profiles:
       without_carry: {ok: 0.75, incomplete: 0.23, unknown: 0.02}
       with_carry: {ok: 0.97, incomplete: 0.02, unknown: 0.01}
 
-  # 人がラベルを付ける材料（docs/human-labeling.md）を作る試しの実行の分布（adopting.md 第15.1節。software_factory/labeling.py）。
+  # 人がラベルを付ける材料（docs/human-labeling/ の下）を作る試しの実行の分布（adopting.md 第15.1節。software_factory/labeling.py）。
   # 分布テスト、独立性検証、マルコフ合成には使わない。往復 10 で変えた代表と、それが届く上流の組み合わせ（三つのペルソナ、
   # 持ち帰った問いの回答の有無、goal の実装の三つの変種）を、少ない実行で踏むように分布を寄せる。分布テストの分布に無い
   # unit_test の defective も置く。

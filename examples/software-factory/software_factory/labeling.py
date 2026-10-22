@@ -1,4 +1,4 @@
-"""人がラベルを付ける材料（docs/human-labeling.md）と、受け取ったラベルを印と比べる仕組み（adopting.md 第15.1節）。
+"""人がラベルを付ける材料（docs/human-labeling/ の下）と、受け取ったラベルを印と比べる仕組み（adopting.md 第15.1節）。
 
 往復 10 で代表を変えた所を、人が印を除いて読み、選択肢の記述だけでラベルを付ける（docs/review-findings.md の G-6）。
 項目の選び方は、手引き第15.1節の「変えた所に絞ってラベルを付け直す時」の目安（対象、訪問、まとめ方）に従う（往復 12。
@@ -9,13 +9,14 @@
 - 訪問（AGAIN）: 訪問 1 を渡す。訪問 2 以降も渡すのは、memory_in を持つステージと、そのステージを含むフェーズのゲートだけ。
   見出しのほかは訪問 1 の項目と同じ状態文書は除く
 - まとめ方: (対象, 訪問の区分, 印, 上流の違い) ごとに一つ、状態文書の短いもの。上流の違いは、intake.md を読む対象では
-  (ペルソナ, 持ち帰った問いの回答の有無)、unit_test では goal の実装の変種、ほかの対象（implement と review を含む）には
-  無い。この例の偽の本体は入り直しても同じ代表を写すので、訪問 2 以降で訪問 1 と違う状態文書になるのは、持ち帰った問いの
-  回答が intake.md に入る intake、analyze、discovery のゲートだけ（design、plan_tasks、architecture のゲート、implement の
-  訪問 2 以降は、見出しのほかは訪問 1 と同じなので除く）
+  (ペルソナ, 持ち帰った問いの回答の有無)、unit_test では goal の実装の変種。review と acceptance の状態文書も goal の実装の
+  変種で repo/src/shopcart/discount.py だけが変わる（review は ok、ok_b、ok_fixed、acceptance は材料に入れる ok と ok_b）が、
+  記述は review.json、verification.md と記憶で判断し、変種で当てはまり方が変わらないので、まとめる（往復 16。
+  docs/review-findings.md の I-L4）。implement には上流の違いが無い。この例の偽の本体は入り直しても同じ代表を写すので、
+  訪問 2 以降で訪問 1 と違う状態文書になるのは、持ち帰った問いの回答が intake.md に入る intake、analyze、discovery の
+  ゲートだけ（design、plan_tasks、architecture のゲート、implement の訪問 2 以降は、見出しのほかは訪問 1 と同じなので除く）
 - 確率的な実行に置かない代表（SCENARIO_ONLY。plan_tasks/incomplete）は、それを写すシナリオで分類器が見る状態文書を、
-  `run_scenario` の結果の置き場（`ScenarioResult.store`）から読んで、項目の候補に足す（往復 15。往復 14 はシナリオの台本の
-  偽物でランタイムを組み立て直して読んでいた）
+  `run_scenario` の結果の置き場（`ScenarioResult.store`）から読んで、項目の候補に足す（往復 15）
 - acceptance は、分布テストの主経路（markov）の goal の実装（ok、ok_b）の後のものに限る。requirement_unmet の代表の
   「Discount.apply が支払額を切り捨てている」は ok と ok_b でだけ成り立ち、試しの実行 labeling（と divergent）では正しい
   実装 ok_fixed とも組んで食い違う（手引き第12節）ので、その組を材料から外す
@@ -23,15 +24,24 @@
 確率的な実行の分布に無い代表（unit_test の defective）と、訪問 2 以降の各クラスも届くように、試しの実行は
 tests/stochastic.yaml の profiles の labeling（分布を寄せたもの）で走らせる。
 
-人に渡す human-labeling.md には、印（分類器の選択、代表のクラス）、選んだ規則、組ごとの数、項目の id を書かない
-（手引き第15.1節の 2）。項目は通し番号で示し、番号と id の対応はコーパス（docs/human-labeling.corpus.jsonl）の並びと
-source の number に持つ。並びは対象ごとで、対象の中は人に見せる文の SHA-256 の順にし、同じ実行の項目を続けない（材料の
-文は、印のクラス、項目の id、出どころ、渡す順によらない）。選択肢の記述と、対象の項目の過半（二つ以上）で同じ区切りは、
-対象の節の頭に一度だけ示す。印だけの行（印を除くと空か「#」だけになる行）は落とす。
+人に渡す材料には、印（分類器の選択、代表のクラス）、比べる相手の答え、選んだ規則、組ごとの数、項目の id を書かない
+（手引き第15.1節の 2）。項目は全ファイルを通した通し番号で示し、番号と id の対応はコーパス
+（docs/human-labeling.corpus.jsonl）の並びと source の number に持つ。並びは対象ごとで、対象の中は人に見せる文の
+SHA-256 の順にし、同じ実行の項目を続けない（材料の文は、印のクラス、項目の id、出どころ、渡す順によらない）。選択肢の
+記述と、対象の項目の過半（二つ以上）で同じ区切りは、対象のファイルの頭に一度だけ示す。印だけの行（印を除くと空か「#」
+だけになる行）は落とす。
+
+材料は、読み方のファイル（00-guide.md）と、対象ごとのファイル（01-intake.md から）に分ける（往復 16。
+docs/review-findings.md の I-M2）。ワークフローは goal でだけ進むので、後の対象とゲートの状態文書は前の対象の goal の
+成果物を含み、前の対象の項目の印が推せる。対象のファイルはワークフローの順（ORDER）で、ゲートはそのフェーズの最終
+ステージの直後に置く（最終ステージより前に置くと、ゲートの状態文書が最終ステージの goal の成果物を先に見せる。最後に回すと、
+後のフェーズの対象の状態文書が、ゲートの状態文書のファイルをすべて含み（フェーズを通った状態文書）、ゲートのラベルより先に
+見える）。各ファイルの冒頭に、前のファイルを付け終えるまで開かないこと、付け終えたラベルを後で変えないこと、ほかの項目や
+ファイルと見比べないことを書く。
 
 コマンドは examples/software-factory/ で実行する（リポジトリの根では `No module named 'software_factory'` になる）。
 
-    uv run python -m software_factory.labeling write                   # 試しの実行から human-labeling.md とコーパスを書き直す
+    uv run python -m software_factory.labeling write                   # 試しの実行から材料とコーパスを書き直す
     uv run python -m software_factory.labeling labels --labeler <名前>  # 埋めた「ラベル:」を docs/human-labels.jsonl にする
     uv run python -m software_factory.labeling compare                 # human-labels.jsonl を印と比べる
 
@@ -45,7 +55,7 @@ import re
 import sys
 import tempfile
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import replace
 from pathlib import Path
 
@@ -72,7 +82,9 @@ from software_factory.stages.deterministic import FIXTURES, ROOT, SCENARIOS, WOR
 from software_factory.stages.probabilistic import DISCOUNT, TABLE, WORKFLOW_MODEL, run_set
 
 DOCS = ROOT / "docs"
-MATERIAL = DOCS / "human-labeling.md"
+# 人に渡す材料のファイルを置くディレクトリ（この下のファイルだけを渡す）
+MATERIAL_DIR = DOCS / "human-labeling"
+GUIDE = "00-guide.md"
 CORPUS = DOCS / "human-labeling.corpus.jsonl"
 LABELS = DOCS / "human-labels.jsonl"
 TRIAL_PROFILE = "labeling"
@@ -89,7 +101,7 @@ def _fixture(stage: str, variant: str, name: str) -> str:
     return (FIXTURES / stage / variant / name).read_text("utf-8")
 
 
-# 往復 10 で変えた代表と、それを見分ける文（状態文書に印つきのまま入る、成果物の内容か回答）
+# 往復 10 で変えた代表と、それを見分ける文（状態文書に印つきのまま入る、成果物の内容か回答）。review は往復 14 で直した代表
 CHANGED: dict[str, tuple[str, ...]] = {
     # REQ-3 に利用者と入力の場所をまとめた requirements.md（analyze の goal と needs_unclear の代表）
     "requirements": (
@@ -104,14 +116,17 @@ CHANGED: dict[str, tuple[str, ...]] = {
     "answer": (f"A: {PERSONAS[1].answer(KINDS)}\n",),
     # 往復 11 で tests_insufficient の確率 0 の代表にした、要件に反する期待を持つテスト
     "tests": (_fixture("unit_test", "defective", "test_report.md"),),
+    # 往復 14 で、前提が事実に合う指摘に直した changes_requested の代表の review.json（docs/review-findings.md の H-L6）。
+    # review.json は review だけが書き、changes_requested では後のステージに進まないので、review の状態文書にだけ届く
+    "review": (_fixture("review", "changes", "review.json"),),
 }
 # 対象（scope, id）→ 記述（ステージの goal と end_state、フェーズの goal）がその変えた所を判断の根拠にしうる、変えた代表。
-# 並びは human-labeling.md の対象の並び（ワークフローの順）。変えた所は、requirements.md の REQ-3 の文のうち誰がどこで入力する
-# かの句（購入者がレジの画面で入力する。外した「## 利用者」の節の中身。REQ-3 の振る舞いと受け入れ基準は変えていない）、
-# design.md の「## 対応」の REQ-3 の、画面は repo/ の外でコードを文字列で受け取るという句、verification.md の「## 依頼との
-# 食い違い」、vague_founder の回答、defective のテストと「## 未網羅」。変えた所の区切りは、成果物の節や要件より細かい句にした
-# （手引きの「直した節、要件、回答など」の「など」として。REQ-3 を一つの変えた所とすると、要件の記述に照らす unit_test も
-# 対象になるが、変えた句はテストが期待も否定もできない）
+# 変えた所は、requirements.md の REQ-3 の文のうち誰がどこで入力するかの句（購入者がレジの画面で入力する。外した「## 利用者」
+# の節の中身。REQ-3 の振る舞いと受け入れ基準は変えていない）、design.md の「## 対応」の REQ-3 の、画面は repo/ の外でコードを
+# 文字列で受け取るという句、verification.md の「## 依頼との食い違い」、vague_founder の回答、defective のテストと「## 未網羅」、
+# review.json の changes_requested の指摘。変えた所の区切りは、成果物の節や要件より細かい句にした（手引きの「直した節、要件、
+# 回答など」の「など」として。REQ-3 を一つの変えた所とすると、要件の記述に照らす unit_test も対象になるが、変えた句はテストが
+# 期待も否定もできない）
 # - requirements.md: 要件の根拠（analyze、discovery）、要件の構成要素への割り当てと受け持つ構成要素の欠け（design、
 #   plan_tasks、architecture）、要件と依頼や回答の食い違い（acceptance）を判断する記述
 # - design.md: 「## 対応」を判断に使う記述（design の goal、architecture）。plan_tasks は「## 構成」に要件を受け持つ構成要素が
@@ -120,13 +135,14 @@ CHANGED: dict[str, tuple[str, ...]] = {
 #   （コードを文字列で受け取る、画面は repo/ の外）はインターフェースと境界を述べるので、その判断の根拠になりうる（往復 13）。
 #   implement の goal の「repo/src/ の変更が design.md の構成どおり」も節を名指さず、変えた句は parse_code のインターフェース
 #   （文字列で受け取る）と、画面を repo/ に置かないという構成を述べるので、goal と quality_violation（「## 構成」から外れる）の
-#   判断の根拠になりうる（往復 14 で足した。往復 13 までは「「## 構成」で判断する」として外していたが、review を足した理由と
-#   揃っていなかった。docs/review-findings.md の H-L4）
+#   判断の根拠になりうる（往復 14）
+# - review.json: review の記述（goal、design_flaw、changes_requested）は review.json の指摘で判断する（往復 16 で記録した。
+#   review の項目はどれも design.md を含むので、選ぶ項目は変わらない）
 # 渡さない対象: unit_test と construction のゲートの requirements.md（テストの期待と結果を、受け入れ基準と要件の振る舞いに
 # 照らす。REQ-3 の受け入れ基準と振る舞いは変えておらず、変えたのは誰がどこで入力するかで、テストが期待も否定もできない）、
 # construction のゲートの design.md（状態文書には入るが、フェーズの goal は design.md に触れず、impl_notes.md の違反と
 # test_report.md で判断する）、release、assurance、delivery（verification.md の合格、review.json と要件の id で判断する。
-# どれも変えた所を含まない）
+# どれも変えた所を含まない。changes_requested の review.json はゲートに届かない）
 EVIDENCE: dict[tuple[str, str], tuple[str, ...]] = {
     ("stage", "intake"): ("answer",),
     ("stage", "analyze"): ("requirements", "answer"),
@@ -137,7 +153,7 @@ EVIDENCE: dict[tuple[str, str], tuple[str, ...]] = {
     ("stage", "implement"): ("design",),
     ("stage", "unit_test"): ("tests",),
     ("stage", "acceptance"): ("requirements", "verification", "answer"),
-    ("stage", "review"): ("design",),
+    ("stage", "review"): ("design", "review"),
 }
 # 確率的な実行に置かない代表（手引き第15.1節の 1）: シナリオの名前 → (scope, 対象, 代表を見分ける文)。往復 10 で足した
 # plan_tasks/incomplete は、上流の design/gap を運用者が goal 到達扱いで通した後にしか組まない（試しの実行の運用者は中止で
@@ -160,6 +176,20 @@ def receives_carry(workflow: Workflow) -> set[tuple[str, str]]:
     return out
 
 
+def target_order(workflow: Workflow, targets: Collection[tuple[str, str]]) -> list[tuple[str, str]]:
+    """材料の対象の順: フェーズとステージのワークフローの順で、ゲートはそのフェーズの（対象にある）最終ステージの直後。"""
+    out: list[tuple[str, str]] = []
+    for phase in workflow.phases:
+        out += [("stage", s) for s in phase.stages if ("stage", s) in targets]
+        if ("phase", phase.id) in targets:
+            out.append(("phase", phase.id))
+    if set(out) != set(targets):
+        raise ValueError(f"ワークフローに無い対象: {sorted(set(targets) - set(out))}")
+    return out
+
+
+# 対象のファイルの順（docs/review-findings.md の I-M2）
+ORDER = tuple(target_order(WORKFLOW_MODEL, EVIDENCE))
 # 訪問 2 以降の項目も渡す対象（手引き第15.1節の「memory_in を持つステージと、そのステージを含むフェーズのゲートだけ」）。
 # acceptance と review は memory_in を持たないので訪問 1 だけ（そのフェーズ assurance にも memory_in を持つステージは無い）
 AGAIN = {target for target in EVIDENCE if target in receives_carry(WORKFLOW_MODEL)}
@@ -179,6 +209,12 @@ _SECTION = re.compile(r"^(?=## (?:ファイル|記憶) )", re.M)
 _MARK_ONLY = re.compile(r"(#\s*)?\[\[class [^\]]*\]\]\s*")
 _LABEL = re.compile(r"^ラベル[:：](.*)$")
 _ITEM = re.compile(r"### 項目 (\d+)")
+# 材料のファイルの名前（読み方のファイルと、対象ごとのファイル）
+_FILE = re.compile(r"\d{2}-[a-z0-9_-]+\.md")
+# 置き書き: 行の全体が括弧の中の文（箇条の印が付いてもよい）。「（なし）」など
+PLACEHOLDER = re.compile(r"\s*(?:- )?([（(][^（）()]+[）)])\s*")
+# 「ラベル:」の後の、選択肢の id の形の語
+_ID_TOKEN = re.compile(r"(?<![A-Za-z0-9_-])([a-z][a-z0-9_]*)(?![A-Za-z0-9_-])")
 
 
 def visit_of(item: CorpusItem) -> int:
@@ -216,7 +252,7 @@ def responded(item: CorpusItem) -> bool:
 
 def upstream(item: CorpusItem) -> str:
     """上流の違い: unit_test では goal の実装の変種、intake.md を読む対象ではペルソナ（持ち帰った問いの回答があれば、後に
-    CARRIED を付ける）、ほかは空。"""
+    CARRIED を付ける）、ほかは空（review と acceptance の goal の実装の変種はまとめる）。"""
     if item.target == "unit_test":
         return implementation(item) or ""
     name = persona(item)
@@ -294,10 +330,10 @@ def _same_runs(out: Sequence[CorpusItem]) -> list[int]:
 
 
 def arrange(items: Sequence[CorpusItem]) -> list[CorpusItem]:
-    """材料の並びにし、source に通し番号（number）を書く（分類器の選択 choice は除く）。対象は EVIDENCE の順、対象の中は
+    """材料の並びにし、source に通し番号（number）を書く（分類器の選択 choice は除く）。対象は ORDER の順、対象の中は
     _order_key の順にし、同じ実行の項目が続く所は、その項目か直前の項目を、同じ対象の中の別の項目と入れ替えて無くす
     （並びは、人に見せる文と、実行が同じかどうかだけで決まる）。"""
-    order = list(EVIDENCE)
+    order = list(ORDER)
     groups: dict[tuple[str, str], list[CorpusItem]] = {}
     for item in items:
         groups.setdefault((item.scope, item.target), []).append(item)
@@ -398,8 +434,20 @@ def by_target(items: Sequence[CorpusItem]) -> dict[tuple[str, str], list[CorpusI
 
 
 def target_title(scope: str, target: str) -> str:
-    """材料の対象の節の見出し。"""
+    """材料の対象の見出し。"""
     return f"フェーズ {target} のゲート" if scope == "phase" else f"ステージ {target}"
+
+
+def file_names(items: Sequence[CorpusItem]) -> dict[tuple[str, str], str]:
+    """対象 → 対象のファイルの名前（項目のある対象を ORDER の順に 01 から番号を付ける）。"""
+    present = {(item.scope, item.target) for item in items}
+    targets = [t for t in ORDER if t in present]
+    if len(targets) != len(present):
+        raise ValueError(f"ORDER に無い対象: {sorted(present - set(targets))}")
+    return {
+        (scope, target): f"{n:02d}-{target}{'-gate' if scope == 'phase' else ''}.md"
+        for n, (scope, target) in enumerate(targets, start=1)
+    }
 
 
 def _target_line(item: CorpusItem) -> str:
@@ -437,101 +485,164 @@ def _options(group: Sequence[CorpusItem]) -> list[tuple[str, str]]:
     return [(o.id, o.description) for o in longest]
 
 
-HEADER = """# 人がラベルを付ける材料
+def placeholders(items: Sequence[CorpusItem]) -> list[str]:
+    """人に見せる状態文書に現れる置き書き（行の全体が括弧の中の文）。多く現れる順。"""
+    counts: Counter[str] = Counter()
+    for item in items:
+        for line in shown_state(item).split("\n"):
+            match = PLACEHOLDER.fullmatch(line)
+            if match is not None:
+                counts[match[1]] += 1
+    return [text for text, _ in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
 
-ワークフロー定義の記述（選択肢の記述）だけを読んで、各項目の状態文書がどの選択肢に当たるかを選んでもらうための材料
-（adopting.md 第15.1節）。手で書くのは各項目の「ラベル:」の行だけで、ほかは直さない。
+
+def guide(items: Sequence[CorpusItem]) -> str:
+    """読み方のファイル（00-guide.md）の文。地の文には、比べる相手の答え、選んだ規則、組ごとの数を書かない。"""
+    names = list(file_names(items).values())
+    listed = "".join(f"「{p}」" for p in placeholders(items))
+    return f"""# 人がラベルを付ける材料: 読み方
+
+ワークフロー定義の記述（選択肢の記述）だけを読んで、各項目の状態文書がどの選択肢に当たるかを選んでもらうための材料。
+材料は、このファイルと、対象（ステージか、フェーズのゲート）ごとのファイル（{names[0]} から {names[-1]}）。手で書くのは、
+対象ごとのファイルの各項目の「ラベル:」の行だけで、ほかは直さない。
 
 項目の選び方は README にある。ラベルを付け終えるまで README の「記述と代表の整合」を読まない。README のほかの節、docs/ の
 ほかの文書、tests/ と software\\_factory/ の下にも、代表がどの選択肢に当たるかが書いてあるので、ラベルを付け終えるまで
-この文書のほかは開かない（比べる時のコーパス docs/human-labeling.corpus.jsonl とフィクスチャには、分類器が読む印が残って
-いる）。
+この材料（docs/human-labeling/ の下のファイル）のほかは開かない（比べる時のコーパス docs/human-labeling.corpus.jsonl と
+フィクスチャには、分類器が読む印が残っている）。
+
+## 付ける順
+
+- 対象ごとのファイルを、番号の順に一つずつ付ける。前のファイルを付け終えるまで、次のファイルを開かない
+- 付け終えたファイルのラベルは、後で変えない。後のファイルを読んでから前のファイルの項目を思い直しても、変えない
+- 各項目は、その項目の状態文書と選択肢の記述だけで選ぶ。ほかの項目や、ほかのファイルと見比べない
+- ファイルを一つずつ受け取る時は、付け終えたファイルを返してから、次のファイルを受け取る
 
 ## 読み方
 
 方針:
 
 - 分類器と同じ立場で選ぶ。記述を字義どおりに読み、状態文書から判断できることだけで選ぶ
-- 記述が中身の条件（テストが通る、要件どおり、など）を書いていれば、状態文書の中身（コード、テスト、回答など）を確かめる。
-  書いていなければ確かめない
-- 記述の括弧の中の列挙は、記述が書いた範囲として読む
 - 迷ったら unknown を選び、理由を一行添える（例: `ラベル: unknown（REQ-3 の根拠が回答に無い）`）。ほかの選択肢にも理由を
-  添えてよい。理由は「ラベル:」と同じ行に書く。理由は比べる時には使わないが、食い違いを直す時に読む
+  添えてよい。理由は比べる時には使わないが、食い違いを直す時に読む
 
 事実:
 
-- 各項目の「状態文書」は、分類器が見たもの（そのステージの reads と writes のファイルの内容と、memory\\_out の記憶。ゲートの
-  項目はフェーズの全体）から、偽の本体が書いた印を除いたもの。指標の値は入っていない。指標が落ちた評価では、goal が選べる
-  選択肢に無い
-- goal が選べる選択肢に無い時は、選択肢の記述の「goal に優先する」という文は働かない
-- 「（なし）」などの置き書きは、空の節として数える
+- 各項目の「状態文書」は、分類器が見たもの（そのステージの reads と writes のファイルの内容と、memory\\_out の記憶）から、
+  偽の本体が書いた印を除いたもの
+- ゲートの項目の状態文書は、フェーズの全体（フェーズのすべてのステージの reads と writes のファイルの内容と、memory\\_out の
+  記憶）
+- 指標の値は入っていない。テストを実際に実行した結果（指標の一つ）も入っていないので、テストが通るかは、状態文書のコードと
+  テストから判断することになる
+- 指標が落ちた評価では、goal が選べる選択肢に無い。goal が選べる選択肢に無い時は、選択肢の記述の「goal に優先する」という
+  文は働かない
+- 節の中身が置き書き（この材料に現れるのは、次のすべて: {listed}）だけの時は、空の節
+  として数える
+- 記憶の `[]` は空の一覧
 - 訪問 2 以降の項目は、戻りの後に入り直した評価。持ち帰った記憶（memory\\_in）そのものは状態文書に入らない。戻りの後の
   状態文書（intake の訪問 2 以降と、それより後の評価）では、intake.md の「## 質問と回答」に持ち帰った問いとその回答が入る
 - 印を除いた跡（review.json の `"marker": ""` のような空の値）が残るが、意味は無い。印だけの行は落としてある
-- 項目の番号と、対象の中の並びに意味は無い
+- 項目の番号と、ファイルの中の並びに意味は無い
 
 ## 見せ方
 
-- 項目は対象（ステージか、フェーズのゲート）ごとの節にある。節の頭に、選択肢の記述（ワークフロー定義の記述そのもの）を
-  一度だけ示す。各項目には、その項目で選べる選択肢の id を示す
-- 対象の項目の半分より多くで同じ区切り（「## ファイル …」と「## 記憶 …」）は、節の頭に一度だけ示す。項目の状態文書では、
-  それと同じ区切りを、見出しに「（共通）」を付けて、分類器が見た順の位置に示す。「（共通）」の付かない区切りは、その項目の
-  全文を示す
+- 項目は対象ごとのファイルにある。ファイルの頭に、選択肢の記述（ワークフロー定義の記述そのもの）を一度だけ示す。各項目
+  には、その項目で選べる選択肢の id を示す
+- 対象の項目の半分より多くで同じ区切り（「## ファイル …」と「## 記憶 …」）は、ファイルの頭に一度だけ示す。項目の状態
+  文書では、それと同じ区切りを、見出しに「（共通）」を付けて、分類器が見た順の位置に示す。「（共通）」の付かない区切りは、
+  その項目の全文を示す
 
-## ラベルの書き方と、付けた後
+## ラベルの書き方
 
 - 当てはまる選択肢の id を一つ、「ラベル:」と同じ行に書く（例: `ラベル: goal`）。コロンは全角でもよい
+- 理由は、id の後の括弧の中に書く。括弧の外に選択肢の id を二つ以上書くと、読めない誤りになる（例:
+  `ラベル: goal か unknown`）
+
+## 付けた後
+
 - 付け終えたら、examples/software-factory/ で次を実行する（リポジトリの根で実行すると `No module named 'software_factory'`
   になる）
-  1. `uv run python -m software_factory.labeling labels --labeler <名前>`: この文書の「ラベル:」から docs/human-labels.jsonl
-     （contract/formats/label.schema.json の形）を作る。空の「ラベル:」は数えて報告し、「ラベル:」の後が空で次の行に文が
-     ある時は警告する。読めないラベルと、選べる選択肢に無い id は、項目の番号を添えた誤りにする（終了コード 2）
-  2. `uv run python -m software_factory.labeling compare`: ラベルを印（ゲートは goal）と比べ、食い違う項目を番号で挙げる
+  1. `uv run python -m software_factory.labeling labels --labeler <名前>`: docs/human-labeling/ の下のファイルの「ラベル:」
+     から docs/human-labels.jsonl（contract/formats/label.schema.json の形）を作る。空の「ラベル:」は数えて報告し、
+     「ラベル:」の後が空で次の行に文がある時は警告する。読めないラベル、括弧の外の二つ以上の id、選べる選択肢に無い id、
+     別のファイルに移った項目は、項目の番号を添えた誤りにする（終了コード 2）
+  2. `uv run python -m software_factory.labeling compare`: ラベルを印と比べ、食い違う項目を番号で挙げる
+- 選び方と比べ方の手引きは adopting.md 第15.1節にある。ラベルを付け終えるまで読まない
 - `uv run python -m software_factory.labeling write` は材料を作り直し、埋めた「ラベル:」を空にする（付け始めた後は、
   付け直す範囲を決めてから実行する）
 """
 
 
-def render(items: Sequence[CorpusItem]) -> str:
-    """human-labeling.md の文。項目は渡された並びで、番号はその位置。対象ごとの項目が続いて並んでいること。"""
+def _file_head(n: int, names: Sequence[str], title: str) -> str:
+    """対象のファイルの冒頭: 読み方のファイルと、付ける順と、見比べないことの頼み。"""
+    name = names[n - 1]
+    before = (
+        f"{GUIDE} を読んでから、このファイルを開く"
+        if n == 1
+        else f"前のファイル（{names[n - 2]}）を付け終えるまで、このファイル（{name}）を開かない"
+    )
+    after = (
+        f"このファイルを付け終えるまで、次のファイル（{names[n]}）を開かない"
+        if n < len(names)
+        else "これが最後のファイル"
+    )
+    return f"""# 人がラベルを付ける材料（{n} / {len(names)}）: {title}
+
+読み方は {GUIDE} にある。このファイルで手で書くのは、各項目の「ラベル:」の行だけ。
+
+- {before}
+- {after}
+- 付け終えたら、このファイルのラベルを後で変えない（後のファイルを読んでから思い直しても変えない）
+- 各項目は、その項目の状態文書と選択肢の記述だけで選ぶ。ほかの項目や、ほかのファイルと見比べない
+- 迷ったら unknown を選び、理由を括弧の中に一行添える
+"""
+
+
+def render(items: Sequence[CorpusItem]) -> dict[str, str]:
+    """材料のファイルの名前 → 文。読み方のファイルと、対象ごとのファイル。項目は渡された並びで、番号はその位置（全ファイルを
+    通した通し番号）。対象ごとの項目が ORDER の順に、続いて並んでいること。"""
     groups = by_target(items)
-    commons = {target: common_sections(group) for target, group in groups.items()}
-    out = [HEADER]
-    done: set[tuple[str, str]] = set()
-    current: tuple[str, str] | None = None
-    for n, item in enumerate(items, start=1):
-        target = (item.scope, item.target)
-        if target != current:
-            if target in done:
-                raise ValueError(f"{target} の項目が続いて並んでいない")
-            done.add(target)
-            current = target
-            options = "\n".join(f"- `{i}`: {d}" for i, d in _options(groups[target]))
-            out.append(
-                f"\n## {target_title(*target)}\n\n選択肢の記述（この対象のどの項目でも同じ。各項目には、その項目で"
-                f"選べる選択肢の id を示す）:\n\n{options}\n"
+    names = file_names(items)
+    seen = [(item.scope, item.target) for item in items]
+    runs = [t for k, t in enumerate(seen) if k == 0 or seen[k - 1] != t]
+    if runs != list(names):
+        raise ValueError("項目が、対象ごとに ORDER の順で続いて並んでいない")
+    ordered = list(names.values())
+    out = {GUIDE: guide(items)}
+    numbers = {id(item): n for n, item in enumerate(items, start=1)}
+    for k, (target, name) in enumerate(names.items(), start=1):
+        group = groups[target]
+        title = target_title(*target)
+        common = common_sections(group)
+        options = "\n".join(f"- `{i}`: {d}" for i, d in _options(group))
+        parts = [
+            _file_head(k, ordered, title),
+            f"\n## {title}\n\n選択肢の記述（この対象のどの項目でも同じ。各項目には、その項目で選べる選択肢の id を"
+            f"示す）:\n\n{options}\n",
+        ]
+        if common:
+            shared = "\n\n".join(common.values())
+            parts.append(
+                "\nこの対象の項目に共通の区切り（項目の状態文書で、見出しに「（共通）」を付けた区切りは、これと同じ）:"
+                f"\n\n{FENCE}text\n{shared}\n{FENCE}\n"
             )
-            if commons[target]:
-                shared = "\n\n".join(commons[target].values())
-                out.append(
-                    "\nこの対象の項目に共通の区切り（項目の状態文書で、見出しに「（共通）」を付けた区切りは、これと同じ）:"
-                    f"\n\n{FENCE}text\n{shared}\n{FENCE}\n"
-                )
-        shown_state(item)  # 囲みの印が状態文書に無いことを確かめる
-        head, parts = _parts(item)
-        common = commons[target]
-        shown = "\n\n".join(
-            [head, *(name + COMMON if common.get(name) == text else text for name, text in parts)]
-        )
-        out.append(
-            f"\n### 項目 {n}\n\n対象: {_target_line(item)}\n\n選べる選択肢: {option_ids(item)}\n\n"
-            f"状態文書:\n\n{FENCE}text\n{shown}\n{FENCE}\n\nラベル:\n"
-        )
-    return "".join(out)
+        for item in group:
+            shown_state(item)  # 囲みの印が状態文書に無いことを確かめる
+            head, sections = _parts(item)
+            shown = "\n\n".join(
+                [head, *(s + COMMON if common.get(s) == text else text for s, text in sections)]
+            )
+            parts.append(
+                f"\n### 項目 {numbers[id(item)]}\n\n対象: {_target_line(item)}\n\n"
+                f"選べる選択肢: {option_ids(item)}\n\n"
+                f"状態文書:\n\n{FENCE}text\n{shown}\n{FENCE}\n\nラベル:\n"
+            )
+        out[name] = "".join(parts)
+    return out
 
 
 def item_blocks(text: str) -> list[tuple[int, str]]:
-    """human-labeling.md の項目ごとの (番号, 見出しより後の本文)。囲みの中の行は見出しとして読まない。"""
+    """材料のファイルの項目ごとの (番号, 見出しより後の本文)。囲みの中の行は見出しとして読まない。"""
     blocks: list[tuple[int, list[str]]] = []
     current: list[str] | None = None
     inside = False
@@ -555,7 +666,7 @@ def item_blocks(text: str) -> list[tuple[int, str]]:
 
 
 def blank_labels(text: str) -> str:
-    """埋めた human-labeling.md の各項目の、状態文書の囲みより後を `write` が作る形（空の「ラベル:」）に戻した文。状態文書の
+    """埋めた材料のファイルの各項目の、状態文書の囲みより後を `write` が作る形（空の「ラベル:」）に戻した文。状態文書の
     中の行には触れない。「ラベル:」の後の行に書いた文も除く。"""
     out: list[str] = []
     inside = in_item = after = False
@@ -582,65 +693,116 @@ def blank_labels(text: str) -> str:
     return "\n".join(out)
 
 
+def read_material(directory: Path = MATERIAL_DIR) -> dict[str, str]:
+    """材料のファイルの名前 → 文（読み方のファイルと、対象ごとのファイル。名前の順）。"""
+    if not directory.is_dir():
+        return {}
+    return {
+        path.name: path.read_text("utf-8")
+        for path in sorted(directory.iterdir())
+        if _FILE.fullmatch(path.name)
+    }
+
+
+def _outside_parens(text: str) -> str:
+    """括弧（「（ ）」と「( )」。入れ子も）の外の文。閉じない括弧は行の終わりまで。"""
+    out: list[str] = []
+    depth = 0
+    for char in text:
+        if char in "（(":
+            depth += 1
+        elif char in "）)" and depth:
+            depth -= 1
+        elif depth == 0:
+            out.append(char)
+    return "".join(out)
+
+
 def parse_labels(
-    text: str, corpus: Sequence[CorpusItem], labeler: str
+    files: Mapping[str, str], corpus: Sequence[CorpusItem], labeler: str
 ) -> tuple[list[Label], list[str], list[str], list[str]]:
-    """埋めた human-labeling.md から (ラベル, 空の項目の id, 誤り, 警告)。項目は通し番号で、番号 n の項目はコーパスの n 番目
-    （source の number と同じ）。ラベルは「ラベル:」（全角のコロンも読む）の後の最初の id（` で囲んでもよい）で、後の理由は
-    捨てる。誤りと警告には項目の番号を添える。"""
+    """埋めた材料のファイル（名前 → 文）から (ラベル, 空の項目の id, 誤り, 警告)。項目は全ファイルを通した通し番号で、番号 n
+    の項目はコーパスの n 番目（source の number と同じ）で、その対象のファイルにある。ラベルは「ラベル:」（全角のコロンも
+    読む）の後の最初の id（` で囲んでもよい）で、括弧の中の理由は捨てる。括弧の外に選択肢の id がほかにもあれば誤り。
+    誤りと警告には項目の番号を添える。"""
     numbered: dict[int, CorpusItem] = {}
     for n, item in enumerate(corpus, start=1):
         if int(item.source.get("number", n)) != n:
             raise ValueError(f"コーパスの {n} 番目の項目の番号が {item.source.get('number')}")
         numbered[n] = item
+    names = file_names(corpus)
+    every_id = {o.id for item in corpus for o in item.options}
     labels: list[Label] = []
     empty: list[str] = []
     errors: list[str] = []
     warnings: list[str] = []
     seen: list[int] = []
-    for n, block in item_blocks(text):
-        seen.append(n)
-        if n not in numbered:
-            errors.append(f"項目 {n}: コーパスに無い番号")
-            continue
-        item = numbered[n]
-        ids = [o.id for o in item.options]
-        tail = block.rsplit(f"\n{FENCE}\n", 1)[-1].split("\n")
-        found = [k for k, line in enumerate(tail) if _LABEL.match(line)]
-        if len(found) != 1:
-            what = "無い" if not found else f" {len(found)} 個ある"
-            errors.append(f"項目 {n}: 状態文書の後の「ラベル:」の行が{what}")
-            continue
-        match = _LABEL.match(tail[found[0]])
-        value = match[1].strip() if match is not None else ""
-        if not value:
-            if any(line.strip() for line in tail[found[0] + 1 :]):
-                warnings.append(
-                    f"項目 {n}: 「ラベル:」の後が空で、次の行に文がある。ラベルは「ラベル:」と同じ行に書く"
-                    "（この項目は空として数えた）"
+    for name in sorted(files):
+        for n, block in item_blocks(files[name]):
+            seen.append(n)
+            if n not in numbered:
+                errors.append(f"項目 {n}: コーパスに無い番号（{name}）")
+                continue
+            item = numbered[n]
+            home = names[(item.scope, item.target)]
+            if name != home:
+                errors.append(f"項目 {n}: {name} にあるが、{home} の項目")
+                continue
+            ids = [o.id for o in item.options]
+            tail = block.rsplit(f"\n{FENCE}\n", 1)[-1].split("\n")
+            found = [k for k, line in enumerate(tail) if _LABEL.match(line)]
+            if len(found) != 1:
+                what = "無い" if not found else f" {len(found)} 個ある"
+                errors.append(f"項目 {n}: 状態文書の後の「ラベル:」の行が{what}")
+                continue
+            match = _LABEL.match(tail[found[0]])
+            value = match[1].strip() if match is not None else ""
+            if not value:
+                if any(line.strip() for line in tail[found[0] + 1 :]):
+                    warnings.append(
+                        f"項目 {n}: 「ラベル:」の後が空で、次の行に文がある。ラベルは「ラベル:」と同じ行に書く"
+                        "（この項目は空として数えた）"
+                    )
+                empty.append(item.item)
+                continue
+            label = re.match(r"`?([a-z][a-z0-9_-]*)`?(?![a-z0-9_-])", value)
+            if label is None:
+                errors.append(
+                    f"項目 {n}: 「{value}」を読めない（選べる選択肢の id を一つ書く: {ids}）"
                 )
-            empty.append(item.item)
-            continue
-        label = re.match(r"`?([a-z][a-z0-9_-]*)`?(?![a-z0-9_-])", value)
-        if label is None:
-            errors.append(f"項目 {n}: 「{value}」を読めない（選べる選択肢の id を一つ書く: {ids}）")
-            continue
-        if label[1] not in ids:
-            errors.append(f"項目 {n}: 「{value}」は選べる選択肢 {ids} のどれでもない")
-            continue
-        labels.append(Label(item.item, label[1], labeler))
+                continue
+            others = [
+                t for t in _ID_TOKEN.findall(_outside_parens(value[label.end() :])) if t in every_id
+            ]
+            if others:
+                errors.append(
+                    f"項目 {n}: 「{value}」は括弧の外に選択肢の id が二つ以上ある（{[label[1], *others]}）。"
+                    "id を一つだけ書き、理由は括弧の中に書く"
+                )
+                continue
+            if label[1] not in ids:
+                errors.append(f"項目 {n}: 「{value}」は選べる選択肢 {ids} のどれでもない")
+                continue
+            labels.append(Label(item.item, label[1], labeler))
     for n in sorted({n for n in seen if seen.count(n) > 1}):
         errors.append(f"項目 {n}: 材料に {seen.count(n)} 回ある")
     errors += [f"項目 {n}: 材料に無い" for n in sorted(set(numbered) - set(seen))]
     return labels, empty, errors, warnings
 
 
-def write(material: Path = MATERIAL, corpus: Path = CORPUS) -> list[CorpusItem]:
-    """試しの実行から材料を作り直す。"""
+def write(material: Path = MATERIAL_DIR, corpus: Path = CORPUS) -> list[CorpusItem]:
+    """試しの実行から材料（material の下のファイル）とコーパスを作り直す。material の下の、材料のファイルの名前の形で、
+    作り直した材料に無いファイルは消す。"""
     with tempfile.TemporaryDirectory() as tmp:
         items = trial_items(Path(tmp))
     save_corpus(items, corpus)
-    material.write_text(render(items), "utf-8")
+    files = render(items)
+    material.mkdir(parents=True, exist_ok=True)
+    for path in material.iterdir():
+        if _FILE.fullmatch(path.name) and path.name not in files:
+            path.unlink()
+    for name, text in files.items():
+        (material / name).write_text(text, "utf-8")
     return items
 
 
@@ -649,13 +811,14 @@ def compare(labels_path: Path, corpus_path: Path = CORPUS) -> int:
     if not labels_path.exists():
         print(
             f"ラベルのファイルが無い: {labels_path}\n"
-            f"{MATERIAL.name} の「ラベル:」を埋め、examples/software-factory/ で `uv run python -m "
-            "software_factory.labeling labels --labeler <名前>` を実行して作る"
+            f"{MATERIAL_DIR.name}/ の下のファイルの「ラベル:」を埋め、examples/software-factory/ で "
+            "`uv run python -m software_factory.labeling labels --labeler <名前>` を実行して作る"
         )
         return 1
     loaded = load_corpus(corpus_path)
     corpus = {item.item: item for item in loaded}
     numbers = {item.item: int(item.source.get("number", n)) for n, item in enumerate(loaded, 1)}
+    names = file_names(loaded)
     labels = load_labels(labels_path)
     missing = [label.item for label in labels if label.item not in corpus]
     if missing:
@@ -669,8 +832,9 @@ def compare(labels_path: Path, corpus_path: Path = CORPUS) -> int:
         choice = marker.classify(item.state, item.options).choice
         if choice != label.label:
             differ.append(
-                f"- 項目 {numbers[item.item]}（{item.item}、{item.scope} {item.target}、訪問 "
-                f"{visit_of(item)}）: 印 {choice}、ラベル {label.label}（{label.labeler}）"
+                f"- 項目 {numbers[item.item]}（{names[(item.scope, item.target)]}、{item.item}、"
+                f"{item.scope} {item.target}、訪問 {visit_of(item)}）: 印 {choice}、ラベル {label.label}"
+                f"（{label.labeler}）"
             )
     print(f"ラベル {len(labels)} 件（コーパス {len(corpus)} 項目）")
     print(f"kappa {report.kappa:.3f}、一致率 {report.accuracy:.3f}")
@@ -684,10 +848,10 @@ def compare(labels_path: Path, corpus_path: Path = CORPUS) -> int:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m software_factory.labeling")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("write", help="試しの実行から human-labeling.md とコーパスを書き直す")
+    sub.add_parser("write", help="試しの実行から docs/human-labeling/ の下とコーパスを書き直す")
     labels = sub.add_parser("labels", help="埋めた「ラベル:」を JSON Lines にする")
     labels.add_argument("--labeler", required=True)
-    labels.add_argument("--material", type=Path, default=MATERIAL)
+    labels.add_argument("--material", type=Path, default=MATERIAL_DIR)
     labels.add_argument("--out", type=Path, default=LABELS)
     labels.add_argument("--corpus", type=Path, default=CORPUS)
     comparing = sub.add_parser("compare", help="ラベルを印と比べる")
@@ -696,12 +860,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "write":
         items = write()
-        print(f"{MATERIAL}: {len(items)} 項目")
+        print(f"{MATERIAL_DIR}: {len(items)} 項目")
         return 0
     if args.command == "labels":
         corpus = load_corpus(args.corpus)
         found, empty, errors, warnings = parse_labels(
-            args.material.read_text("utf-8"), corpus, args.labeler
+            read_material(args.material), corpus, args.labeler
         )
         for warning in warnings:
             print(f"警告: {warning}")
