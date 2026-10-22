@@ -8,7 +8,7 @@ harness-testing-framework（v0.1.0）の利用者として、adopting.md だけ�
 
 ## 状態（2026-10-22）
 
-往復 6（検証役の指摘への対応）まで完了。`scripts/check.sh` が通る（ruff check、ruff format、mypy strict、pytest 633 件で 145.5 秒、全体で約 2 分 26 秒）。この例のテストは 173 件。変更は examples/software-factory/ の中だけ。adopting-gaps.md の未解消は N12 の一つ（印を読む偽の分類器の下では、記述と代表の食い違いがテストに出ない）。
+往復 6（検証役の指摘への対応）まで完了。`scripts/check.sh` が通る（ruff check、ruff format、mypy strict、pytest 633 件で 145.5 秒、全体で約 2 分 26 秒）。この例のテストは 173 件。変更は examples/software-factory/ の中だけ。往復 7 で N12 も解消し、adopting-gaps.md の未解消は無し。
 
 最初の版（下の「経過」）の後、フレームワークの側が adopting-gaps.md の 30 項目を受けて直したので、往復 1 で各項目を確かめ、要らなくなった回避策を外した（下の「往復 1」）。往復 1 で見つけた N1〜N7 も直ったので往復 2 で、往復 2 で見つけた N8、N9 も直ったので往復 3 で、往復 3 で見つけた N10 も直ったので往復 4 で、往復 4 で見つけた N11 も直ったので往復 5 で確かめた（下の「往復 2」〜「往復 5」）。往復 6 で、人間のレビューの前の検証役の指摘（docs/review-findings.md）に対応した（下の「往復 6」）。今の未解消は adopting-gaps.md の先頭にある。
 
@@ -168,9 +168,18 @@ harness-testing-framework（v0.1.0）の利用者として、adopting.md だけ�
 2. フレームワークの文書だけでは判断できなかったこととして、印を読む偽の分類器の下では記述と代表の食い違いがテストに出ないことを gaps N12 に書いた
 3. check.sh が通る（633 件、145.5 秒）
 
+## 往復 7（2026-10-22）
+
+フレームワークの側が N12 を直したと言うので（コミット ef46fe8。adopting.md 第15.1節と `unmarked`）、手順を試した。
+
+1. markov と divergent の 400 回ずつを一つの置き場で走らせ、`build_corpus(..., unique_states=True)` のステージの 315 項目から (ステージ, 印) ごとに一つ、30 項目を選んだ。並びを混ぜ、`unmarked` で印を除いた状態文書と選択肢の記述だけを読んで、試しのラベルを付けた（スクラッチで。例のテストには入れていない）
+2. `oracle_report(MarkerClassifier(), corpus, labels)` で κ 0.915。食い違いは acceptance の requirement\_misread（前提が precise\_pm の回答にしか無い）と、plan\_tasks の design\_incomplete（goal の design.md は REQ-3 と REQ-4 を受け持たせている）の 2 件。同じ見方で、analyze の goal の代表が vague\_founder の回答と組むと根拠を欠くことも分かった
+3. N12 は解消。三つの食い違いはこの例の代表の誤りで、直し方の案とともに README の「記述と代表の整合（試しのラベル）」に書き、人間のレビューに回す（直していない）
+4. 例のコードとテストは変えていないので、check.sh は実行していない（往復 6 の最後で 633 件が通っている）
+
 ## 残っていること
 
 - markov.yaml の実行のゲートはいつも goal（前の数値を保つため）。ゲートの分布は markov\_gated.yaml の実行の集まりで確かめる
 - release 以外で carry によって分布が変わる本体は、マルコフ合成と合わないので例には置いていない（gaps D2）。entry\_dependence がそれを見分けることはスクラッチで確かめた（gaps N9）
 - 分類器の検証の閾値は、偽の分類器なので決めていない（第15節の「人間が閾値を決める」は実際の分類器の時の手順）
-- 記述と代表の成果物の照合は、検証役のレビューに頼っている（gaps N12）
+- 記述と代表の食い違いが三つ残っている（acceptance の requirement\_misread、plan\_tasks の design\_incomplete、vague\_founder と組んだ analyze の goal）。README に書き、人間のレビューに回す。試しのラベルは人手のラベルではないので、第15.1節の手順は人間のレビューで改めて行う

@@ -1,18 +1,20 @@
 # adopting.md の不足の記録（software-factory）
 
-software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。最初の版（30 項目、A1〜F2）を受けてフレームワークの側が直したので往復 1 で確かめ直し、そこで見つけた N1〜N7 を往復 2 で、往復 2 で見つけた N8、N9 を往復 3 で、往復 3 で見つけた N10 を往復 4 で、往復 4 で見つけた N11 を往復 5 で確かめ直した。往復 6 では、検証役による workflow.yaml の事前レビューと基準の確認の指摘（docs/review-findings.md）に対応し、そこで分かった不足を N12 に書いた。
+software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。最初の版（30 項目、A1〜F2）を受けてフレームワークの側が直したので往復 1 で確かめ直し、そこで見つけた N1〜N7 を往復 2 で、往復 2 で見つけた N8、N9 を往復 3 で、往復 3 で見つけた N10 を往復 4 で、往復 4 で見つけた N11 を往復 5 で確かめ直した。往復 6 では、検証役による workflow.yaml の事前レビューと基準の確認の指摘（docs/review-findings.md）に対応し、そこで分かった不足を N12 に書いた。往復 7 で N12 を確かめた。
 
 読んだのは adopting.md、api.md、api-reference.md、examples/toy-minimal/、schema/workflow.schema.json、contract/ の文書と形式（contract.md、README.md、conformance/ の下のすべて、formats/ と trace と snapshot の schema）だけ。往復 2 と往復 3 では、これらの文書の変更を git の差分で見た（読んでよい文書に限る。往復 3 はコミット前の作業ツリーとの差分）。フレームワーク本体の実装（src/、tests/、scripts/、pyproject.toml、conftest.py の中身を含む）、plan.md、progress.md、decisions.md、reports/ は読んでいない。本体について知ったことは、公開の名前の signature と docstring、`scripts/check.sh` と本体のテスト（tests/test\_package.py だけ）を実行した時の出力、cProfile の出力（関数の名前と時間）からだけ。本体は直していない。回避策はこの例の中にだけ置いた。
 
 ## 未解消
 
-### N12. 印を読む偽の分類器の下では、記述と代表の成果物の食い違いがどのテストにも出ない
+無し。
 
-往復 6 で、人間のレビューの前に検証役が workflow.yaml を読み、記述と代表の成果物（フィクスチャ）や記憶が食い違う所を見つけた（docs/review-findings.md の高 1、高 2、中 10。たとえば plan\_tasks の goal の記述を、goal の代表の tasks.yaml が満たさない）。この時点で、例のテストはすべて通っていた。
+## 解消済み（往復 7）
 
-- 理由: 確率的な実行も、E2E も、分類器の検証も、クラスを `MarkerClassifier` が成果物の印から読む（決定論テストは台本の `classify`）。印は作った人の意図で、記述から導いたものではないので、記述が代表を正しく分けているかは確かめられない。第15節で印をラベルの代わりにすると、ラベルも同じ意図になり、食い違いは κ にも出ない。記憶を前の値のまま残す誤り（高 1）も、偽の本体が記憶を毎回書き、偽の分類器が記憶を読まないので見えなかった
-- 足りないもの: 手引きに、この限界と確かめ方が無い。第12節か第15節に「印や台本は記述の確かめにならない。代表の状態文書（各クラスの代表を、選択肢の記述と並べたもの）を、記述だけを読んで分類させ（人か、実際の分類器で）、印と食い違わないかを確かめる」があるとよい。代表の状態文書と選択肢をクラスごとに書き出す道具（`build_corpus(..., unique_states=True)` を印で分けたもの）は、利用者の側でも書ける
-- この例でしたこと: 指摘された食い違いを、記述の境界とフィクスチャの両方で直した（README の「記述の意図と、直さなかったこと」）。本体が memory\_out を毎回書くことはテストで確かめるようにした。記述と代表の照合そのものは、検証役のレビューに頼っている
+- **N12 印を読む偽の分類器の下では、記述と代表の成果物の食い違いがどのテストにも出ない**: 解消。adopting.md 第15.1節に、限界（MarkerClassifier と台本の分類は記述を読まない）と手順（全変種を踏む実行の集まりのコーパスを、印を除いた状態文書 `unmarked(item.state)` と選択肢の記述だけで人がラベル付けし、`oracle_report(MarkerClassifier(), corpus, labels)` の混同行列で印との食い違いを探す）が書かれ、`unmarked` が公開された。手順を試した: markov と divergent の 400 回ずつ（種 20000、30000）を一つの置き場で走らせ、`build_corpus(..., unique_states=True)` のステージの 315 項目から (ステージ, 印) ごとに一つ、30 項目を選び、並びを混ぜて、印を除いた状態文書と選択肢の記述だけを読んで試しのラベルを付けた（人手のラベルではない。例のテストには入れていない）。`unmarked` の後に印は残らない（review.json の "marker" の鍵だけが空で残る）。κ は 0.915 で、食い違いが 2 件あった
+  - acceptance の requirement\_misread の代表: 「## 依頼との食い違い」は、依頼と intake.md が「購入者がレジの画面でコードを入力する」前提だとするが、その前提は precise\_pm の回答にしか無い。vague\_founder と terse\_engineer の intake.md と組むと、記述の上では食い違いの根拠が無く unknown になる（試しのラベルは unknown、印は requirement\_misread）
+  - plan\_tasks の design\_incomplete の代表: tasks.yaml と記憶は「design.md の構成に REQ-3 と REQ-4 を受け持つ箇所が無い」とするが、plan\_tasks は design が goal の後にしか走らず、goal の代表の design.md は REQ-3（parse\_code）と REQ-4（Cart.total）を受け持たせている。記述の上ではいつも unknown になる
+  - 選んだ 30 項目の外で、同じ見方から、analyze の goal の代表（requirements.md の REQ-1 の「nn は 1〜50」）も、vague\_founder の回答（「上限はまだ決めていない」）と組むと「どの要件も依頼か回答に根拠を持つ」を満たさない。ペルソナで intake.md が変わるのに、下流の代表は precise\_pm と terse\_engineer の回答を前提にしている
+  - 三つとも、この例の代表の誤りで、手引きの不足ではない。人間のレビューに回す（README の「記述と代表の整合（試しのラベル）」）。315 項目すべてに人がラベルを付けるのは重いので、(ステージ, 印) ごとに選ぶと手順は回る。ただし三つ目のように、上流の成果物（ペルソナの回答）との組み合わせで初めて食い違う代表は、印ごとに一つ選ぶだけでは見落としうる。選ぶ時は上流の違い（この例ではペルソナ）でも分けるとよい
 
 ## 往復 6 で使った手引きの変更
 

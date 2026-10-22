@@ -74,6 +74,14 @@ writes（repo/src/、repo/tests/）の外を変えるのは契約違反で、評
 - **release はパッケージの版を上げない。** release.json はリリースの記録で、repo/src/shopcart/\_\_init\_\_.py の \_\_version\_\_ の更新は範囲外（release の description に書いた）。版を上げていない状態は notes\_incomplete に含めず unknown のままにする。含めると、release の unknown の代表（版も変更の記録も欠けている）が notes\_incomplete の記述に当たり、代表と記述が食い違うため
 - **acceptance の tests\_pass は残す。** unit\_test の goal と construction のゲートが保証するので、goal 到達扱いで続行した後にしか落ちない。検証のステージが、自分の結果の前提（テストが通る）を測る指標として残した
 
+## 記述と代表の整合（試しのラベル）
+
+adopting.md 第15.1節の手順（印を除いた状態文書を記述だけで分類し、印と比べる）を、エージェントが試しのラベルで試した（人手のラベルではない。人間のレビューで付け直す）。markov と divergent の実行のコーパスから (ステージ, 印) ごとに一つ、30 項目で、κ は 0.915。記述と食い違う代表が見つかった（どれも直していない。人間のレビューで扱う）。
+
+- **acceptance の requirement\_misread:** 「## 依頼との食い違い」の前提（購入者がレジの画面でコードを入力する）は precise\_pm の回答にしか無い。ほかのペルソナの intake.md と組むと、記述の上では unknown。直し方の案: 食い違いを依頼そのものから言える点（たとえば、配るコードの書き方の揺れ）にするか、全ペルソナの回答に前提を入れる
+- **plan\_tasks の design\_incomplete:** design.md に REQ-3 と REQ-4 を受け持つ構成要素が無いとするが、plan\_tasks の前の design はいつも goal で、その design.md は両方を受け持たせている。記述の上ではいつも unknown。直し方の案: 代表を、goal の design.md でも本当に割り当てられない点（たとえば、構成の一つのファイルに二つの要件の相反する変更が要る）にする。クラスの分布を変えると分布テストの数値を取り直すことになる
+- **analyze の goal:** requirements.md の「nn は 1〜50」は、vague\_founder の回答（上限は決めていない）と組むと根拠を持たない。直し方の案: vague\_founder にも上限だけは答えさせるか、vague\_founder の時は analyze が needs\_unclear になる設計にする（後者は分布が変わる）
+
 分類体系の変更の提案（人間の承認を待つ。今の定義は変えていない）:
 
 - unit\_test のテストの不備（lint の違反、tests に無いファイル、要件に反する期待）は、tests\_insufficient の境界を広げて含めた。別案として、テストの不備の end\_state（たとえば tests\_defective）を足して unit\_test 自身に戻す方法がある。不足（テストが無い）と不備（テストが誤っている）を分けて数えたい時に採る
