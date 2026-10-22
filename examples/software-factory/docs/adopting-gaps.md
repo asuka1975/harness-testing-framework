@@ -1,18 +1,27 @@
 # adopting.md の不足の記録（software-factory）
 
-software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。最初の版（30 項目、A1〜F2）を受けてフレームワークの側が直したので往復 1 で確かめ直し、そこで見つけた N1〜N7 を往復 2 で、往復 2 で見つけた N8、N9 を往復 3 で確かめ直した。
+software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。最初の版（30 項目、A1〜F2）を受けてフレームワークの側が直したので往復 1 で確かめ直し、そこで見つけた N1〜N7 を往復 2 で、往復 2 で見つけた N8、N9 を往復 3 で、往復 3 で見つけた N10 を往復 4 で確かめ直した。
 
 読んだのは adopting.md、api.md、api-reference.md、examples/toy-minimal/、schema/workflow.schema.json、contract/ の文書と形式（contract.md、README.md、conformance/ の下のすべて、formats/ と trace と snapshot の schema）だけ。往復 2 と往復 3 では、これらの文書の変更を git の差分で見た（読んでよい文書に限る。往復 3 はコミット前の作業ツリーとの差分）。フレームワーク本体の実装（src/、tests/、scripts/、pyproject.toml、conftest.py の中身を含む）、plan.md、progress.md、decisions.md、reports/ は読んでいない。本体について知ったことは、公開の名前の signature と docstring、`scripts/check.sh` と本体のテスト（tests/test\_package.py だけ）を実行した時の出力、cProfile の出力（関数の名前と時間）からだけ。本体は直していない。回避策はこの例の中にだけ置いた。
 
 ## 未解消
 
-### N10. 公開の振る舞いの変化を、利用者が知る場所が無い
+### N11. 変更の記録に、このリポジトリの中に例を置く時の決まりの変化が一部載っていない（小さい）
 
-往復 3 で `compare_prediction` の比べる量にゲートの量（`gate:<フェーズ>=<結果>`）が増え、量の種類を固定の集合で確かめていたこの例のテスト（tests/test\_e2e.py の test\_estimated\_prediction\_matches\_measurement）が check.sh で落ちた。増えたこと自体は N8 の求めどおりで、直すのも一行で済んだ。ただ、それを知ったのは調整役からの連絡で、公開の文書（adopting.md、api.md、api-reference.md）は今の振る舞いだけを書き、何が変わったか（返す量が増えた、名前が足された）の記録は無い。pip で入れた利用者は、版を上げてテストが落ちてから気づくことになる。
+docs/changelog.md の「変えたもの」は、examples/<名前>/tests/fixtures/ を検査から外したことは載せているが、同じ adopting.md 第11節の次の二つの変化は載せていない。
 
-- 欲しいもの: 版ごとの変更の記録（公開の名前と振る舞いの追加、変更、互換性の注意）を、公開の文書の一つとして置くこと
+- 例の語と本体の語の重なりの検査が、本体の公開の名前と本体のワークフロー定義の例にある語を除き、重なりを一度にすべて一行ずつ報告するようになった（往復 1 の B2、往復 2 の N3）
+- テストの時間の目安が、一つの例で一分以内から、カバレッジの計測の下でおよそ二分以内になった（往復 2 の N7）
+
+どちらもパッケージを pip で入れた利用者には関わらず、この例も頼っていない（改名は戻していない。時間は新しい目安で見ている）。リポジトリの中に例を足す人には、フィクスチャの除外と同じ種類の変化なので、同じ所にあると分かりやすい。
+
+## 解消済み（往復 4）
+
+- **N10 公開の振る舞いの変化を知る場所が無い**: 解消（載っていない小さな変化は N11）。docs/changelog.md が公開 API の文書の一つになり、api.md の冒頭と文書の一覧から指されている（README は読んでよい文書に入らないので見ていない）。changelog.md だけを読んで確かめた: 「未公開（v0.1.0 の後）」の節の先頭の「互換性に注意する変更」に、`compare_prediction` の量の追加と、量の種類を固定の集合で確かめるテストは `gate` を足す必要があることがあり、往復 3 でこの例のテストが落ちた理由と直し方がそのまま分かる。この例が使う往復 1〜3 の変更はすべて載っている: api-reference.md、tests/fixtures/ の除外、シナリオの `{from: パス}`、`run_scenario` と `run_coverage` の `user`、`Prediction` の `evaluations`、`visit_outcomes`、`visits_variance`、`build_corpus(..., unique_states=True)`、`entries` と `entry_dependence`、`RandomGateClassifier`、`conformance_dir` と `conformance_scenarios`、足された型（`EndState`、`SCHEMA_FILES` など）、synthesize とトリアージが速くなったこと、契約 第10節の明記。v0.1.0 からの公開の文書の差分（contract/、schema、api.md）と突き合わせて、ほかに載っていない API の変化は見つからなかった
 
 ## 解消済み（往復 3）
+
+往復 3 の判定と確かめ方。ここで N10 とした残りは、上の往復 4 で確かめた。
 
 - **N8 compare\_prediction がゲートの評価の結果を比べない**: 解消。api-reference.md の compare\_prediction に比べる量（status、visits、outcome、gate）が書かれた。試した: assurance のゲートを揺らした実行（markov\_gated.yaml の 400 回）で、比べる量が 41 から 47 になり、`gate:assurance=goal` と `gate:assurance=changes_requested` を含むすべてが一致した。tests/test\_e2e.py でゲートの評価の回数を visit\_outcomes と訪問の区分ごとに手で比べていた部分を外し、ゲートの量が比べる量に入ることを確かめる形にした。ゲートの量は訪問の区分に分けないが、ステージの量も同じで、区分ごとの割合は markov\_gated.yaml の基準（訪問 1 と 2 以降）が確かめる。量の種類を固定の集合で確かめていたテストは、gate を足して直した（変化を知る場所は N10）
 - **N9 予測と実測が合っても、入り方による違いは隠れうる**: 解消。第14節に「予測と実測が合っても、仮定が成り立つとは限らない」と `entry_dependence`、`entries` が書かれた。試した: 往復 2 のスクラッチの carry で振る舞いが変わる本体（implement が自分自身から impl\_violations を受けた時だけ goal 0.5）で、`entry_dependence` は implement の訪問 2 以降を violated（p = 0.0005、入り方 5 通り）と判定した。markov、ゲートを揺らす実行、divergent の本体では violated が無く、implement は not\_detected（markov で p = 0.62）。一回 0.3〜0.4 秒。往復 2 で手で辿った十数行は要らない。例のテストに、markov とゲートを揺らす実行の両方で、入り方が二つ以上あるステージに violated が無いこと（test\_class\_distributions\_do\_not\_depend\_on\_the\_entry）を足した。気づいたこと: ゲートの不合格による戻りと、ステージの評価による戻りは、同じ辺なら同じ入り方（`rollback:review=changes_requested`）になる（docstring にそう書いてある）。持ち帰る記憶の中身で振る舞いを変える本体は、この二つを分けられない
