@@ -15,14 +15,19 @@
   だけで決まる（印のクラス、項目の id、出どころ、渡す順を変えても同じ文になる）。項目は通し番号で示し、番号と id の対応は
   コーパスの側（source の number と並び）に持つ。同じ実行の項目は続けて並べない
 - 材料は、読み方のファイル（00-guide.md）と、対象ごとのファイルに分ける（後の対象とゲートの状態文書は前の対象の goal の
-  成果物を含み、前の対象の印が推せるため。docs/review-findings.md の I-M2）。対象のファイルはワークフローの順で、ゲートは
-  そのフェーズの最終ステージの直後（手引き第15.1節の 2）。前のファイルは、後の対象が書いた成果物を含まない。各ファイルの冒頭に、前のファイルを
-  付け終えるまで開かないこと、付け終えたラベルを後で変えないこと、ほかの項目やファイルと見比べないことを書く
+  成果物を含み、前の対象の印が推せるため。docs/review-findings.md の I-M2）。ワークフローは goal か、運用者の goal 到達扱い
+  でだけ進み、材料で前のステージの goal でない成果物を含むのは、シナリオだけが写す代表の項目一つ（J-L6）。対象のファイルは
+  ワークフローの順で、ゲートはそのフェーズの最終ステージの直後（手引き第15.1節の 2）。前のファイルは、後の対象が書いた成果物を
+  含まない。各ファイルの冒頭に、前のファイルを付け終えるまで開かないこと、付け終えたラベルを後で変えないこと、ほかの項目や
+  ファイルと見比べないことを書く。同じ実行の項目を続けない入れ替えで SHA-256 の順から外れるファイルは、README の「並び」に
+  記録したもの（J-L5）
 - 見せ方: 選択肢の記述と、対象の項目の過半（二つ以上）で同じ区切りは、対象のファイルの頭に一度だけ示す。項目の状態文書は、
   共通の区切りを見出しだけ（「（共通）」）にした形で、共通の区切りを戻すと印を除いた状態文書（印だけの行を落とし、区切りの
   間の空行を一つにしたもの）に戻る
-- 読み方は事実と頼みだけ（人間の決定で、記述の読み方を決める二つの方針を外した。docs/review-findings.md の I）。材料に
-  現れる置き書きは、すべて読み方に挙げる
+- 読み方は事実と頼みだけ（計画の側の決定で、記述の読み方を決める二つの方針を外した。人間はラベルを付ける時に変えられる。
+  docs/review-findings.md の I）。材料に現れる置き書きは、すべて読み方に挙げ、どう読むか（空の節として数える、など）の決まりは
+  書かない（J-L1）。ゲートの項目の状態文書の記憶は、フェーズの最終ステージの memory_out だけ（契約 2.4。J-L2）。compare は印を
+  出すので、すべてのファイルを付け終えてから走らせ、途中は labels だけを走らせる（labels は印を出さない。J-L3）
 - 埋めた「ラベル:」から contract/formats/label.schema.json の形の JSON Lines を作り、`oracle_report(MarkerClassifier(), ...)`
   で印と比べられる。全角のコロンも読む。読めない行、選択肢に無い id、括弧の外の二つ以上の id、別のファイルにある項目は、
   項目の番号を添えた誤り（終了コード 2）。「ラベル:」の後が空で次の行に文がある時は警告する
@@ -199,6 +204,14 @@ def _target_files(files: dict[str, str]) -> list[str]:
 
 def _items_in(text: str) -> list[int]:
     return [n for n, _ in labeling.item_blocks(text)]
+
+
+def _readme_bullet(prefix: str) -> str:
+    """README の「記述と代表の整合」の、prefix で始まる箇条（一行）。"""
+    section = (ROOT / "README.md").read_text("utf-8").split("\n## 記述と代表の整合", 1)[1]
+    lines = [line for line in section.split("\n## ", 1)[0].split("\n") if line.startswith(prefix)]
+    assert len(lines) == 1, prefix
+    return lines[0]
 
 
 def test_material_is_regenerated_from_the_trial_runs(
@@ -393,6 +406,18 @@ def test_items_of_the_same_run_are_not_adjacent(committed: list[CorpusItem]) -> 
     order = list(labeling.ORDER)
     targets = [order.index((i.scope, i.target)) for i in committed]
     assert targets == sorted(targets)
+    # 入れ替えで、対象の中の並びが人に見せる文の SHA-256 の順から外れたファイル。外れ方から 2 項目のクラスが推せるが、直すと
+    # 番号が変わるので直さず、README の「並び」に記録する（docs/review-findings.md の J-L5）
+    names = labeling.file_names(committed)
+    moved = {
+        names[target]
+        for target, group in labeling.by_target(committed).items()
+        if group != sorted(group, key=labeling._order_key)
+    }
+    assert moved == {"02-analyze.md", "05-plan_tasks.md"}
+    bullet = _readme_bullet("- 並びは")
+    assert all(name.replace("_", "\\_") in bullet for name in moved)
+    assert "SHA-256 の順から外れ" in bullet and "番号が変わる" in bullet
 
 
 def _workflow_order(targets: set[tuple[str, str]]) -> list[tuple[str, str]]:
@@ -513,6 +538,25 @@ def test_earlier_files_do_not_contain_what_later_targets_write(committed: list[C
         ), gate
 
 
+def test_only_one_item_carries_an_earlier_artifact_that_is_not_goal(
+    committed: list[CorpusItem],
+) -> None:
+    """ワークフローは goal か、運用者の goal 到達扱いでだけ進む（手引き第15.1節の 2）。材料で、前のステージの goal でない
+    代表の成果物（ほかのステージの goal でない印）を含む項目は、運用者の goal 到達扱いの後のシナリオだけが写す代表の項目
+    一つだけ。README の「人に渡す形」は、例外の項目が一つあることを書く（どの項目かは書かない。docs/review-findings.md の
+    J-L6）。"""
+    mark = re.compile(r"\[\[class ([^=\]]+)=([^\]]*)\]\]")
+    found = [
+        item
+        for item in committed
+        if any(s != item.target and c != "goal" for s, c in mark.findall(item.state))
+    ]
+    assert [item.source.get("scenario") for item in found] == list(labeling.SCENARIO_ONLY)
+    bullet = _readme_bullet("- 分けた理由")
+    assert "goal 到達扱い" in bullet and "goal でだけ" not in bullet
+    assert "一つある" in bullet and f"項目 {found[0].source['number']}" not in bullet
+
+
 def test_options_and_common_sections_are_shown_once_per_target(
     committed: list[CorpusItem], rendered: dict[str, str]
 ) -> None:
@@ -568,10 +612,12 @@ def test_only_mark_lines_are_dropped_from_the_shown_state(committed: list[Corpus
 
 
 def test_reading_guide_states_facts_and_requests_only(rendered: dict[str, str]) -> None:
-    """読み方は、事実と頼み（付ける順、見比べない、迷ったら unknown と理由）。人間の決定で、記述の読み方を決める二つの方針
-    （記述が中身の条件を書いている時だけ中身を確かめる、記述の括弧の中の列挙は記述が書いた範囲として読む）は書かない。"""
+    """読み方は、事実と頼み（付ける順、見比べない、迷ったら unknown と理由）。計画の側の決定（人間はラベルを付ける時に
+    変えられる）で、記述の読み方を決める二つの方針（記述が中身の条件を書いている時だけ中身を確かめる、記述の括弧の中の
+    列挙は記述が書いた範囲として読む）は書かない。置き書きを空の節として数えることも、分類器に渡らない読み方の決まりなので
+    書かない（docs/review-findings.md の J-L1）。"""
     guide = _flat(rendered[labeling.GUIDE])
-    for phrase in ("中身の条件", "中身を確かめる", "括弧の中の列挙", "記述が書いた範囲"):
+    for phrase in ("中身の条件", "中身を確かめる", "括弧の中の列挙", "記述が書いた範囲", "空の節"):
         assert phrase not in guide, phrase
     for phrase in (
         "分類器と同じ立場",
@@ -580,7 +626,6 @@ def test_reading_guide_states_facts_and_requests_only(rendered: dict[str, str]) 
         "理由を一行添える",
         "見比べない",
         "「（なし）」",
-        "空の節として数える",
         "持ち帰った問いとその回答",
         "goal に優先する",
         "指標の値",
@@ -595,13 +640,17 @@ def test_reading_guide_states_facts_and_requests_only(rendered: dict[str, str]) 
     for name in _target_files(rendered):
         head = _flat(_head(rendered[name]))
         assert "迷ったら unknown" in head and "中身の条件" not in head, name
+    # 二つの方針を外したのは計画の側の決定（docs/review-findings.md の I の見出しと J-L4）
+    bullet = _readme_bullet("- 読み方（")
+    assert "計画の側の決定" in bullet and "人間の決定" not in bullet
 
 
 def test_placeholders_in_the_material_are_listed_in_the_guide(
     committed: list[CorpusItem], material: dict[str, str]
 ) -> None:
     """材料の状態文書に現れる置き書き（行の全体が括弧の中の文）は、すべて読み方の事実に挙げる（docs/review-findings.md の
-    I-L3）。挙げた置き書きは、どれも材料に現れる。"""
+    I-L3）。挙げた置き書きは、どれも材料に現れる。事実だけを書き、どう読むか（空の節として数える、など）の決まりは書かない。
+    どう読むかは選択肢の記述に従い、迷ったら unknown を選ぶ（J-L1）。"""
     found = {
         line.strip().removeprefix("- ")
         for text in material.values()
@@ -611,14 +660,81 @@ def test_placeholders_in_the_material_are_listed_in_the_guide(
     listed = labeling.placeholders(committed)
     assert set(listed) == found
     assert {"（なし）", "（判断できない）", "（実行できなかった）"} <= found
-    bullet = _flat(
-        next(
-            b
-            for b in re.split(r"\n(?=- )", _outside_fences(material[labeling.GUIDE]))
-            if "置き書き" in b
-        )
+    bullets = [
+        _flat(b)
+        for b in re.split(r"\n(?=- )", _outside_fences(material[labeling.GUIDE]))
+        if "置き書き" in _flat(b)
+    ]
+    assert len(bullets) == 1
+    bullet = bullets[0]
+    assert all(f"「{p}」" in bullet for p in listed)
+    for phrase in ("空の節", "数え", "とみな", "として読む", "空と"):
+        assert phrase not in bullet, phrase
+    assert "決めていない" in bullet and "記述" in bullet and "迷ったら unknown" in bullet
+
+
+def test_guide_states_that_the_gate_memory_is_the_final_stage_memory_out(
+    committed: list[CorpusItem], rendered: dict[str, str]
+) -> None:
+    """状態文書の記憶は、ステージの項目ではそのステージの memory_out、ゲートの項目ではフェーズの最終ステージの memory_out
+    だけ（契約 2.4。ほかのステージの memory_out は入らない）。読み方の事実もそう書く（docs/review-findings.md の J-L2）。"""
+    phases = WORKFLOW_DOC["workflow"]["phases"]
+    stages = {s["id"]: s for p in phases for s in p["stages"]}
+    last = {p["id"]: p["stages"][-1]["id"] for p in phases}
+    for item in committed:
+        stage = last[item.target] if item.scope == "phase" else item.target
+        memory = [
+            name.removeprefix("## 記憶 ")
+            for name, _ in labeling._parts(item)[1]
+            if name.startswith("## 記憶 ")
+        ]
+        assert memory == stages[stage]["artifacts"].get("memory_out", []), item.source["number"]
+    # 確かめが効く: 材料のゲートのフェーズに、最終ステージより前で memory_out を持つステージがある（architecture の design）
+    gates = {i.target for i in committed if i.scope == "phase"}
+    assert any(
+        s["artifacts"].get("memory_out")
+        for p in phases
+        if p["id"] in gates
+        for s in p["stages"][:-1]
     )
-    assert all(f"「{p}」" in bullet for p in listed) and "空の節として数える" in bullet
+    facts = rendered[labeling.GUIDE].split("\n事実:\n", 1)[1].split("\n## ", 1)[0]
+    bullets = [
+        _flat(b) for b in re.split(r"\n(?=- )", facts) if "ゲートの項目の状態文書" in _flat(b)
+    ]
+    assert len(bullets) == 1
+    assert "フェーズの最終ステージの memory\\_out" in bullets[0]
+    assert bullets[0].count("memory\\_out") == 1
+
+
+def test_compare_is_run_after_every_file_is_labeled(
+    committed: list[CorpusItem],
+    rendered: dict[str, str],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """compare は印を出すので、すべてのファイルを付け終えてから走らせる。途中で書き方を確かめるなら labels だけを走らせる
+    （docs/review-findings.md の J-L3）。labels は、付けたファイルの途中でも印を出さない（件数と、誤りと警告だけ）。"""
+    after = rendered[labeling.GUIDE].split("\n## 付けた後\n", 1)[1].split("\n## ", 1)[0]
+    bullets = [
+        _flat(b)
+        for b in re.split(r"\n(?=- )", after)
+        if "すべてのファイルを付け終えてから" in _flat(b)
+    ]
+    assert len(bullets) == 1
+    for phrase in ("compare", "labels だけ", "印を出さない"):
+        assert phrase in bullets[0], phrase
+    first = _target_files(rendered)[0]
+    numbers = set(_items_in(rendered[first]))
+    done = [i for i in committed if int(i.source["number"]) in numbers]
+    material = _write(tmp_path / "material", _filled(rendered, done))
+    labels = tmp_path / "human-labels.jsonl"
+    capsys.readouterr()
+    args = ["--material", str(material), "--out", str(labels)]
+    assert labeling.main(["labels", "--labeler", "人", *args]) == 0
+    out = capsys.readouterr().out.replace(str(labels), "")
+    assert "印" not in out and "kappa" not in out, out
+    assert not set(_ID_TOKEN.findall(out)) & _option_ids(committed), out
+    assert len(load_labels(labels)) == len(done)
 
 
 def test_guide_refers_to_the_handbook_only_after_labeling(rendered: dict[str, str]) -> None:

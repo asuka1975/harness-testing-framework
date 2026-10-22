@@ -12,7 +12,8 @@
 - test\_labeling.py: docs/human-labeling/ の下のファイルとそのコーパスが試しの実行（とシナリオ）から作り直したものと一致する
   こと、人に渡す形が印、比べる相手の答え、選んだ規則、組ごとの数、項目の id を地の文、並び、見せ方のどこからも漏らさない
   こと、材料が対象の順のファイルに分かれ（ゲートはフェーズの最終ステージの直後。手引き第15.1節の 2）、前のファイルが後の対象の成果物を含まない
-  こと、受け取ったラベルを印と比べる仕組み（examples/software-factory/ で `uv run python -m software_factory.labeling`）を
+  こと、読み方（00-guide.md）が事実と頼みだけを書くこと（置き書きは一覧だけで数え方を決めない、ゲートの記憶はフェーズの
+  最終ステージの memory\_out だけ、compare はすべてのファイルを付け終えてから）、受け取ったラベルを印と比べる仕組み（examples/software-factory/ で `uv run python -m software_factory.labeling`）を
   確かめる。ラベルのファイル docs/human-labels.jsonl は人がラベルを
   付けるまで無く、その間 compare は無いことを報告する
 
