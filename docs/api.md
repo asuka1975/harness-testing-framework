@@ -1,12 +1,13 @@
 # 公開 API
 
-ハーネスを作る人が使ってよい、フレームワークの名前と文書の一覧。ここに無いモジュールと名前は内部のもので、予告なく変わる。手順は [adopting.md](adopting.md) にある。各名前の引数、属性、戻り値と説明は [api-reference.md](api-reference.md) にある（本体から作る）。
+ハーネスを作る人が使ってよい、フレームワークの名前と文書の一覧。ここに無いモジュールと名前は内部のもので、予告なく変わる。手順は [adopting.md](adopting.md) にある。各名前の引数、属性、戻り値と説明は [api-reference.md](api-reference.md) にある（本体から作る）。版ごとの変更（互換性に注意する変更を含む）は [changelog.md](changelog.md) にある。
 
 ## 公開 API の文書
 
 言語に依存しない仕様で、ハーネスを作る人が読む。
 
 - docs/api-reference.md: 公開の名前ごとの引数、属性、戻り値と説明（Python の束縛）
+- docs/changelog.md: 版ごとの変更の記録
 - schema/workflow.schema.json: ワークフロー定義のスキーマ
 - contract/contract.md: ハーネス契約（三つの操作、遷移、スナップショット、実行記録、インターフェース、記録再生、契約適合テスト）
 - contract/snapshot.schema.json: スナップショットのマニフェストの形式

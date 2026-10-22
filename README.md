@@ -14,6 +14,7 @@
 
 - 手引き: [docs/adopting.md](docs/adopting.md)
 - 公開 API と、公開 API の文書の一覧: [docs/api.md](docs/api.md)
+- 版ごとの変更: [docs/changelog.md](docs/changelog.md)
 
 パッケージレジストリには公開していません。git の tag から入れてください（Python 3.12 以上）。
 

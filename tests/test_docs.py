@@ -74,7 +74,9 @@ def test_adopting_covers(topic: str) -> None:
     assert any(topic in h for h in headings), topic
 
 
-@pytest.mark.parametrize("doc", ["docs/adopting.md", "docs/api.md", "docs/api-reference.md"])
+@pytest.mark.parametrize(
+    "doc", ["docs/adopting.md", "docs/api.md", "docs/api-reference.md", "docs/changelog.md"]
+)
 def test_user_docs_do_not_point_to_internal_documents(doc: str) -> None:
     text = (ROOT / doc).read_text(encoding="utf-8")
     for forbidden in ["plan.md", "progress.md", "decisions.md", "src/harness_testing_framework"]:
@@ -177,3 +179,13 @@ def test_names_used_in_public_signatures_are_public() -> None:
         }
     )
     assert not missing, "\n".join(missing)
+
+
+def test_changelog_is_a_public_document_with_the_current_version() -> None:
+    """版ごとの変更の記録は公開 API の文書の一つで、今の版の節を持つ。"""
+    from harness_testing_framework import __version__
+
+    text = (ROOT / "docs/changelog.md").read_text(encoding="utf-8")
+    assert f"## v{__version__}" in text
+    assert "(changelog.md)" in API
+    assert "互換性に注意する変更" in text
