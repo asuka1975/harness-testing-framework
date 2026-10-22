@@ -1,23 +1,20 @@
 # adopting.md の不足の記録（software-factory）
 
-software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。最初の版（30 項目、A1〜F2）を受けてフレームワークの側が直したので往復 1 で確かめ直し、そこで見つけた N1〜N7 を往復 2 で、往復 2 で見つけた N8、N9 を往復 3 で、往復 3 で見つけた N10 を往復 4 で確かめ直した。
+software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。最初の版（30 項目、A1〜F2）を受けてフレームワークの側が直したので往復 1 で確かめ直し、そこで見つけた N1〜N7 を往復 2 で、往復 2 で見つけた N8、N9 を往復 3 で、往復 3 で見つけた N10 を往復 4 で、往復 4 で見つけた N11 を往復 5 で確かめ直した。
 
 読んだのは adopting.md、api.md、api-reference.md、examples/toy-minimal/、schema/workflow.schema.json、contract/ の文書と形式（contract.md、README.md、conformance/ の下のすべて、formats/ と trace と snapshot の schema）だけ。往復 2 と往復 3 では、これらの文書の変更を git の差分で見た（読んでよい文書に限る。往復 3 はコミット前の作業ツリーとの差分）。フレームワーク本体の実装（src/、tests/、scripts/、pyproject.toml、conftest.py の中身を含む）、plan.md、progress.md、decisions.md、reports/ は読んでいない。本体について知ったことは、公開の名前の signature と docstring、`scripts/check.sh` と本体のテスト（tests/test\_package.py だけ）を実行した時の出力、cProfile の出力（関数の名前と時間）からだけ。本体は直していない。回避策はこの例の中にだけ置いた。
 
 ## 未解消
 
-### N11. 変更の記録に、このリポジトリの中に例を置く時の決まりの変化が一部載っていない（小さい）
+無し。
 
-docs/changelog.md の「変えたもの」は、examples/<名前>/tests/fixtures/ を検査から外したことは載せているが、同じ adopting.md 第11節の次の二つの変化は載せていない。
+## 解消済み（往復 5）
 
-- 例の語と本体の語の重なりの検査が、本体の公開の名前と本体のワークフロー定義の例にある語を除き、重なりを一度にすべて一行ずつ報告するようになった（往復 1 の B2、往復 2 の N3）
-- テストの時間の目安が、一つの例で一分以内から、カバレッジの計測の下でおよそ二分以内になった（往復 2 の N7）
-
-どちらもパッケージを pip で入れた利用者には関わらず、この例も頼っていない（改名は戻していない。時間は新しい目安で見ている）。リポジトリの中に例を足す人には、フィクスチャの除外と同じ種類の変化なので、同じ所にあると分かりやすい。
+- **N11 変更の記録に、このリポジトリの中に例を置く時の決まりの変化が一部載っていない**: 解消。docs/changelog.md の「変えたもの」に「このリポジトリの中に例を作る場合（adopting.md 第11節）」がまとめられ、fixtures の除外に加えて、例の語の検査で本体の公開の名前と本体のワークフロー定義の例の語を除き、重なりを一度にすべて一行ずつ出すこと、時間の目安を一つの例で一分以内からおよそ二分以内（カバレッジの計測の下）に改めたことが載った。adopting.md 第11節の今の文と食い違いが無いことを読んで確かめた（往復 1 の B2、往復 2 の N3 と N7 で確かめた振る舞いとも合う）
 
 ## 解消済み（往復 4）
 
-- **N10 公開の振る舞いの変化を知る場所が無い**: 解消（載っていない小さな変化は N11）。docs/changelog.md が公開 API の文書の一つになり、api.md の冒頭と文書の一覧から指されている（README は読んでよい文書に入らないので見ていない）。changelog.md だけを読んで確かめた: 「未公開（v0.1.0 の後）」の節の先頭の「互換性に注意する変更」に、`compare_prediction` の量の追加と、量の種類を固定の集合で確かめるテストは `gate` を足す必要があることがあり、往復 3 でこの例のテストが落ちた理由と直し方がそのまま分かる。この例が使う往復 1〜3 の変更はすべて載っている: api-reference.md、tests/fixtures/ の除外、シナリオの `{from: パス}`、`run_scenario` と `run_coverage` の `user`、`Prediction` の `evaluations`、`visit_outcomes`、`visits_variance`、`build_corpus(..., unique_states=True)`、`entries` と `entry_dependence`、`RandomGateClassifier`、`conformance_dir` と `conformance_scenarios`、足された型（`EndState`、`SCHEMA_FILES` など）、synthesize とトリアージが速くなったこと、契約 第10節の明記。v0.1.0 からの公開の文書の差分（contract/、schema、api.md）と突き合わせて、ほかに載っていない API の変化は見つからなかった
+- **N10 公開の振る舞いの変化を知る場所が無い**: 解消（載っていない小さな変化は N11。往復 5 で解消）。docs/changelog.md が公開 API の文書の一つになり、api.md の冒頭と文書の一覧から指されている（README は読んでよい文書に入らないので見ていない）。changelog.md だけを読んで確かめた: 「未公開（v0.1.0 の後）」の節の先頭の「互換性に注意する変更」に、`compare_prediction` の量の追加と、量の種類を固定の集合で確かめるテストは `gate` を足す必要があることがあり、往復 3 でこの例のテストが落ちた理由と直し方がそのまま分かる。この例が使う往復 1〜3 の変更はすべて載っている: api-reference.md、tests/fixtures/ の除外、シナリオの `{from: パス}`、`run_scenario` と `run_coverage` の `user`、`Prediction` の `evaluations`、`visit_outcomes`、`visits_variance`、`build_corpus(..., unique_states=True)`、`entries` と `entry_dependence`、`RandomGateClassifier`、`conformance_dir` と `conformance_scenarios`、足された型（`EndState`、`SCHEMA_FILES` など）、synthesize とトリアージが速くなったこと、契約 第10節の明記。v0.1.0 からの公開の文書の差分（contract/、schema、api.md）と突き合わせて、ほかに載っていない API の変化は見つからなかった
 
 ## 解消済み（往復 3）
 
