@@ -170,7 +170,7 @@ lint はどの組でも違反無し。defective は三つの実装のどれと�
 
 ## 実行したコマンドと出力の要旨
 
-複製の場所: `/tmp/claude-1000/-home-asuka1975-work-ai-agent-harness-testing-framework/1293722b-efd1-4744-98e8-26921ed57296/scratchpad/f4u/`（以下 `$S`）。
+複製の場所: 検証役の scratchpad の `f4u/`（以下 `$S`）。
 
 | コマンド | 要旨 |
 | --- | --- |
