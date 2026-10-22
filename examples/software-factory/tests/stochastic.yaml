@@ -135,7 +135,9 @@ variants:
       memory: {review_findings: [（修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい], design_issues: []}
     changes:
       class: changes_requested
-      memory: {review_findings: [Cart.total が parse_code の ValueError をそのまま上げている], design_issues: []}
+      memory:
+        review_findings: ["repo/tests/test_discount.py: 無効なコード（PCT0、PCT51、XYZ、OFF）を Cart.total に渡した時に ValueError で拒むこと（REQ-3）を確かめるテストが無い（parse_code だけを確かめている）"]
+        design_issues: []
       metrics_fail: [blocking_findings]
     design_flaw:
       class: design_flaw
@@ -221,19 +223,23 @@ profiles:
 
   # 人がラベルを付ける材料（docs/human-labeling.md）を作る試しの実行の分布（adopting.md 第15.1節。software_factory/labeling.py）。
   # 分布テスト、独立性検証、マルコフ合成には使わない。往復 10 で変えた代表と、それが届く上流の組み合わせ（三つのペルソナ、
-  # goal の実装の三つの変種）を、少ない実行で踏むように分布を寄せる。分布テストの分布に無い unit_test の defective も置く。
-  # 材料が訪問 2 以降も見る対象（intake、analyze、design、plan_tasks と、discovery と architecture のゲート）は、markov の
-  # 訪問 2 以降に出るクラスをすべて置く（往復 12。design、plan_tasks、architecture の訪問 2 以降が、見出しのほかは訪問 1 と
-  # 同じ状態文書になることも、これで確かめる）。ほかの訪問 2 以降は goal に寄せて、実行を acceptance まで進める。
+  # 持ち帰った問いの回答の有無、goal の実装の三つの変種）を、少ない実行で踏むように分布を寄せる。分布テストの分布に無い
+  # unit_test の defective も置く。
+  # 材料が訪問 2 以降も見る対象（intake、analyze、design、plan_tasks、implement と、discovery と architecture のゲート）は、
+  # markov の訪問 2 以降に出るクラスをすべて置く（往復 12。design、plan_tasks、architecture、implement の訪問 2 以降が、
+  # 見出しのほかは訪問 1 と同じ状態文書になることも、これで確かめる）。ほかの訪問 2 以降は goal に寄せて、実行を
+  # acceptance まで進める。
   # 往復 13 で材料の対象に review を足したので、review の訪問 1 に四つのクラスを置いた（review は acceptance の訪問 1 の後
-  # なので、acceptance に届く実行は減らない）
+  # なので、acceptance に届く実行は減らない）。往復 14 で implement を対象に足したので implement に全クラスを置き、
+  # acceptance の上流の違いに持ち帰った問いの回答の有無を足したので、analyze の訪問 1 の needs_unclear を増やした（回数も
+  # 240 から 480 に。docs/progress.md の往復 14）
   labeling:
     intake:
       first: {ok: 0.9, unknown: 0.1}
-      again: {ok: 0.75, unknown: 0.25}
+      again: {ok: 0.8, unknown: 0.2}
     analyze:
-      first: {ok: 0.55, unclear: 0.35, unknown: 0.1}
-      again: {ok: 0.5, unclear: 0.3, unknown: 0.2}
+      first: {ok: 0.4, unclear: 0.5, unknown: 0.1}
+      again: {ok: 0.65, unclear: 0.2, unknown: 0.15}
     design:
       first: {ok: 0.65, gap: 0.25, unknown: 0.1}
       again: {ok: 0.6, gap: 0.25, unknown: 0.15}
@@ -241,8 +247,8 @@ profiles:
       first: {ok: 0.9, unknown: 0.1}
       again: {ok: 0.6, unknown: 0.4}
     implement:
-      first: {ok: 0.34, ok_b: 0.33, ok_fixed: 0.33}
-      again: {ok: 0.34, ok_b: 0.33, ok_fixed: 0.33}
+      first: {ok: 0.27, ok_b: 0.27, ok_fixed: 0.16, lint: 0.06, scope: 0.06, broken: 0.06, unclear: 0.07, unknown: 0.05}
+      again: {ok: 0.27, ok_b: 0.27, ok_fixed: 0.16, lint: 0.06, scope: 0.06, broken: 0.06, unclear: 0.07, unknown: 0.05}
     unit_test:
       first: {ok: 0.5, defective: 0.5}
       again: {ok: 1.0}

@@ -9,12 +9,13 @@
   assurance のゲートを実行の種で揺らす実行で通るはずのもの（bindings.gates にゲートの分布）、markov\_gated\_shifted.yaml は
   その実行ですべて落ちるはずのもの
 - conftest.py: 多数の実行の集まりと、設計値の MarkovModel の予測を、テストの間で共有する
-- test\_labeling.py: docs/human-labeling.md とそのコーパスが試しの実行から作り直したものと一致すること、受け取ったラベルを
-  印と比べる仕組み（`python -m software_factory.labeling`）を確かめる。ラベルのファイル docs/human-labels.jsonl は人がラベルを
+- test\_labeling.py: docs/human-labeling.md とそのコーパスが試しの実行（とシナリオ）から作り直したものと一致すること、人に渡す
+  形が印、選んだ規則、組ごとの数、項目の id を漏らさないこと、受け取ったラベルを印と比べる仕組み（examples/software-factory/
+  で `uv run python -m software_factory.labeling`）を確かめる。ラベルのファイル docs/human-labels.jsonl は人がラベルを
   付けるまで無く、その間 compare は無いことを報告する
 
 分布テスト、独立性検証、マルコフ合成の回数は、環境変数 `HTF_RUNS` で増やせる（減らせない）。人がラベルを付ける材料の試しの実行は
-240 回に固定する（材料の項目が回数で変わらないように。`HTF_RUNS` によらない）。
+480 回に固定する（材料の項目が回数で変わらないように。`HTF_RUNS` によらない）。
 
 独立性検証（`independence`）と入り方の検定（`entry_dependence`）は、正しい本体でも偶然に違いを示しうる。確かめ方は次のとおり。
 
