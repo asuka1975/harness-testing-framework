@@ -1,0 +1,24 @@
+# 設計値から外れた基準。どの基準も落ちなければならない（分布テストが誤った基準を落とすことの確認）。
+# 各基準の注記は、設計値が幅からどれだけ離れているか（markov.yaml と同じ E[n] での SE の倍数）。
+# release の from_visit 2 は、carry を受けても分布が変わらないとした場合の値（carry による変化を検出できること）
+expectations: software-factory-markov-shifted
+description: markov の設計値から外れた基準
+workflow: ../../workflow.yaml
+runs: 400
+seed: 20000
+bindings: {profile: markov}
+criteria:
+  - {kind: outcome_rate, target: intake, visit: 1, outcome: unknown, min: 0.08, max: 0.20}                     # 上へ 5.9 SE
+  - {kind: outcome_rate, target: analyze, visit: 1, outcome: needs_unclear, min: 0.36, max: 0.50}              # 上へ 5.0 SE
+  - {kind: outcome_rate, target: analyze, visit: 1, outcome: needs_unclear, min: 0.0, max: 0.17}               # すぐ外側（下）、3.6 SE
+  - {kind: outcome_rate, target: implement, visit: 1, outcome: goal, min: 0.84, max: 1.0}                      # 上へ 5.0 SE
+  - {kind: outcome_rate, target: implement, from_visit: 2, outcome: goal, min: 0.70, max: 0.83}                # 下へ 4.2 SE
+  - {kind: outcome_rate, target: unit_test, visit: 1, outcome: impl_defect, min: 0.03, max: 0.13}              # 下へ 3.9 SE
+  - {kind: outcome_rate, target: unit_test, visit: 1, outcome: tests_insufficient, min: 0.30, max: 0.45}       # 上へ 4.5 SE
+  - {kind: outcome_rate, target: acceptance, visit: 1, outcome: requirement_unmet, min: 0.18, max: 0.30}           # 上へ 4.7 SE
+  - {kind: outcome_rate, target: review, visit: 1, outcome: changes_requested, min: 0.0, max: 0.06}            # 下へ 4.0 SE
+  - {kind: outcome_rate, target: release, visit: 1, outcome: notes_incomplete, min: 0.0, max: 0.13}            # 下へ 4.0 SE
+  - {kind: outcome_rate, target: release, from_visit: 2, outcome: goal, min: 0.65, max: 0.85}                  # carry で変わらない場合の 0.75。下へ 5.7 SE
+  - {kind: status_rate, status: completed, min: 0.80, max: 1.0}                                                 # 上へ 4.8 SE
+  - {kind: mean_visits, target: implement, min: 1.95, max: 2.50}                                                # 上へ 4.9 SE
+  - {kind: mean_visits, target: implement, min: 1.0, max: 1.40}                                                 # 下へ 4.4 SE

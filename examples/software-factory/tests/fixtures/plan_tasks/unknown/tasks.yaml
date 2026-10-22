@@ -1,0 +1,7 @@
+# [[class plan_tasks=unknown]]
+tasks:
+  - id: T1
+    title: 全部やる
+    requirements: [REQ-1, REQ-2, REQ-3, REQ-4]
+    paths: [repo/src/shopcart/discount.py, repo/src/shopcart/cart.py]
+    tests: [repo/tests/test_discount.py]

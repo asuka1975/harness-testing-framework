@@ -1,0 +1,1 @@
+{"marker": "[[class review=goal]]", "findings": [{"path": "repo/src/shopcart/discount.py", "blocking": false, "comment": "parse_code の docstring にコードの形式の例があると読みやすい"}]}

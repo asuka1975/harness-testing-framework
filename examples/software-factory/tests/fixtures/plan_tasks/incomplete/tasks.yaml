@@ -1,0 +1,8 @@
+# [[class plan_tasks=design_incomplete]]
+# design.md の構成に、REQ-3 と REQ-4 を受け持つ箇所が無く、タスクに割り当てられない
+tasks:
+  - id: T1
+    title: 割引コードの読み取りと適用
+    requirements: [REQ-1, REQ-2]
+    paths: [repo/src/shopcart/discount.py]
+    tests: [repo/tests/test_discount.py]

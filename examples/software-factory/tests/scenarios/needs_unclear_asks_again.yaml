@@ -1,0 +1,164 @@
+scenario: needs_unclear_asks_again
+description: analyze が intake.md の回答から要件を決められず、問いを記憶 intake_questions に書いて intake に戻る。intake は持ち帰った問いを依頼者に尋ね、analyze
+  が要件を決める（rollback と carry、ユーザー回答待ちのステージへの戻り）
+workflow: ../../workflow.yaml
+seed: 11
+inputs: &id003
+  feature_request.md: |
+    # 依頼: 買い物かごに割引コードを入れたい
+
+    shopcart ライブラリの Cart に、割引コードを適用した支払額を出す機能を足してほしい。
+    来月のキャンペーンで「10% 引き」と「500 円引き」のコードを配る予定。
+  repo/src/shopcart/__init__.py: |
+    """小さな買い物かごのライブラリ。"""
+
+    __version__ = "0.1.0"
+  repo/src/shopcart/cart.py: |
+    """買い物かご。金額は円の整数。"""
+
+
+    class Cart:
+        def __init__(self) -> None:
+            self.items: dict[str, tuple[int, int]] = {}
+
+        def add(self, sku: str, price: int, qty: int = 1) -> None:
+            if qty <= 0:
+                raise ValueError("qty must be positive")
+            _, held = self.items.get(sku, (price, 0))
+            self.items[sku] = (price, held + qty)
+
+        def remove(self, sku: str) -> None:
+            self.items.pop(sku, None)
+
+        def subtotal(self) -> int:
+            return sum(price * qty for price, qty in self.items.values())
+  repo/tests/test_cart.py: |
+    import pytest
+    from shopcart.cart import Cart
+
+
+    def test_subtotal_sums_price_times_quantity() -> None:
+        cart = Cart()
+        cart.add("apple", 120, 2)
+        cart.add("pear", 200)
+        assert cart.subtotal() == 440
+
+
+    def test_remove_drops_the_item() -> None:
+        cart = Cart()
+        cart.add("apple", 120)
+        cart.add("apple", 120)
+        cart.remove("apple")
+        assert cart.subtotal() == 0
+
+
+    def test_add_rejects_nonpositive_quantity() -> None:
+        with pytest.raises(ValueError):
+            Cart().add("apple", 120, 0)
+visits:
+  intake#1:
+    fixture: intake/ok
+    classify: &id001
+      choice: goal
+      confidence: 0.9
+  analyze#1:
+    fixture: analyze/unclear
+    memory:
+      intake_questions: &id002
+      - 百分率の割引の上限は何 % ですか
+      - 定額の割引が小計を超えた時、支払額はどうなりますか
+    classify:
+      choice: needs_unclear
+      confidence: 0.9
+  intake#2:
+    fixture: intake/ok
+    classify: *id001
+    ask: *id002
+  analyze#2:
+    fixture: analyze/ok
+    classify: *id001
+  design#1:
+    fixture: design/ok
+    classify: *id001
+  plan_tasks#1:
+    fixture: plan_tasks/ok
+    classify: *id001
+  implement#1:
+    fixture: .code/implement/ok
+    classify: *id001
+  unit_test#1:
+    fixture: .code/unit_test/ok
+    classify: *id001
+  acceptance#1:
+    fixture: acceptance/ok
+    classify: *id001
+  review#1:
+    fixture: review/ok
+    classify: *id001
+  release#1:
+    fixture: release/ok
+    classify: *id001
+gates:
+  discovery#2: *id001
+  architecture#1: *id001
+  construction#1: *id001
+  assurance#1: *id001
+  delivery#1: *id001
+user:
+- answer: 50% まで
+- answer: 0 円にする。マイナスにはしない
+expect:
+  status: completed
+  trace:
+  - start intake#1
+  - eval stage intake = goal
+  - next intake -> analyze
+  - start analyze#1
+  - eval stage analyze = needs_unclear
+  - rollback analyze -> intake [needs_unclear 1]
+  - start intake#2
+  - eval stage intake = goal
+  - next intake -> analyze
+  - start analyze#2
+  - eval stage analyze = goal
+  - eval phase discovery = goal
+  - gate_pass analyze
+  - next analyze -> design
+  - start design#1
+  - eval stage design = goal
+  - next design -> plan_tasks
+  - start plan_tasks#1
+  - eval stage plan_tasks = goal
+  - eval phase architecture = goal
+  - gate_pass plan_tasks
+  - next plan_tasks -> implement
+  - start implement#1
+  - eval stage implement = goal
+  - next implement -> unit_test
+  - start unit_test#1
+  - eval stage unit_test = goal
+  - eval phase construction = goal
+  - gate_pass unit_test
+  - next unit_test -> acceptance
+  - start acceptance#1
+  - eval stage acceptance = goal
+  - next acceptance -> review
+  - start review#1
+  - eval stage review = goal
+  - eval phase assurance = goal
+  - gate_pass review
+  - next review -> release
+  - start release#1
+  - eval stage release = goal
+  - eval phase delivery = goal
+  - gate_pass release
+  - complete
+  - end completed
+  starts:
+    intake#2:
+      files: *id003
+      memory:
+        intake_questions: *id002
+      gates: []
+  memory:
+    intake_questions: *id002

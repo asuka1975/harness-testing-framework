@@ -1,0 +1,12 @@
+# [[class plan_tasks=goal]]
+tasks:
+  - id: T1
+    title: 割引コードの読み取りと適用
+    requirements: [REQ-1, REQ-2, REQ-3]
+    paths: [repo/src/shopcart/discount.py]
+    tests: [repo/tests/test_discount.py]
+  - id: T2
+    title: 割引を適用した支払額
+    requirements: [REQ-1, REQ-2, REQ-4]
+    paths: [repo/src/shopcart/cart.py]
+    tests: [repo/tests/test_discount.py]

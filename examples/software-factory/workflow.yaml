@@ -1,0 +1,474 @@
+workflow:
+  name: software-factory
+  description: >-
+    依頼（feature_request.md）から、小さなコードベース（repo/）に機能を足してリリースするまでのソフトウェア開発のワークフロー。
+    要求の取り込み、要件分析、設計、タスク分割、実装、単体テスト、検証、レビュー、リリースの 9 ステージを 5 フェーズに分ける。
+    取り込みは依頼者（ユーザー）の回答を待つ。実装と単体テストの指標は、repo/ に実際のビルド、テスト、カバレッジ、lint をかけて測る。
+  inputs: [feature_request.md, repo/]
+  phases:
+    - id: discovery
+      name: Discovery
+      description: 依頼者に尋ねて依頼を確かめ、受け入れ基準つきの要件にする
+      goal:
+        qualitative: >-
+          requirements.md の各要件が、feature_request.md の依頼か intake.md の回答に根拠を持ち、intake.md の回答（利用者、割引の種類と上限、
+          無効なコードの扱い）がすべて requirements.md の要件か受け入れ基準に反映されている。
+        quantitative:
+          files_nonempty:
+            description: intake.md と requirements.md がどちらも空でない
+            equals: true
+            args: {paths: [intake.md, requirements.md]}
+          requirements_with_criteria:
+            description: requirements.md の要件のうち、受け入れ基準を一つ以上持つものの割合
+            min: 1.0
+            args: {path: requirements.md}
+      stages:
+        - id: intake
+          name: Intake
+          description: >-
+            feature_request.md を読み、依頼者に、利用者、割引の種類と上限、無効なコードの扱いを尋ね、依頼の要約、質問と回答、制約を
+            intake.md に書く。持ち帰った問い（記憶 intake_questions）があれば、それも尋ねる。intake.md は「## 依頼」「## 質問と回答」
+            （「- Q: 質問」の次の行に「  A: 回答」）「## 制約」の節を持つ
+          awaits_user: true
+          artifacts:
+            reads: [feature_request.md]
+            writes: [intake.md]
+            memory_in: [intake_questions]
+          goal:
+            qualitative: >-
+              intake.md の「## 質問と回答」のすべての質問に回答があり、回答どうしも、回答と feature_request.md の依頼も矛盾せず、「## 依頼」が
+              feature_request.md の依頼を要約している。
+            quantitative:
+              unanswered_questions:
+                description: intake.md の「## 質問と回答」の質問のうち、回答の無いものの数
+                max: 0
+                args: {path: intake.md}
+          end_state:
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback: []
+        - id: analyze
+          name: Analyze requirements
+          description: >-
+            feature_request.md と intake.md から、番号つきの要件と受け入れ基準を requirements.md に書く。requirements.md は「## 要件」の節に
+            「- REQ-n: 要件」とその下の「  - 受け入れ基準: 基準」を並べ、「## 未決事項」の節に決められなかったことを書く。intake.md の
+            回答では要件を決められない時は、依頼者に尋ねるべき問いを記憶 intake_questions に書く（決められた時は空の一覧）。持ち帰った
+            要件の食い違い（記憶 requirement_gaps）があれば、それを直す
+          artifacts:
+            reads: [feature_request.md, intake.md]
+            writes: [requirements.md]
+            memory_in: [requirement_gaps]
+            memory_out: [intake_questions]
+          goal:
+            qualitative: >-
+              requirements.md の「## 要件」に三つ以上の要件があり、各要件に観測できる受け入れ基準が一つ以上あって、どの要件も
+              feature_request.md か intake.md の回答に根拠を持つ。「## 未決事項」に問いが無い。
+            quantitative:
+              requirement_count:
+                description: requirements.md の要件の数
+                min: 3
+                args: {path: requirements.md}
+              requirements_with_criteria:
+                description: requirements.md の要件のうち、受け入れ基準を一つ以上持つものの割合
+                min: 1.0
+                args: {path: requirements.md}
+          end_state:
+            - id: needs_unclear
+              description: >-
+                intake.md の回答だけでは要件を決められない（上限や境界の値が決まっていない、回答が曖昧）。決められない点が、依頼者に
+                尋ねるべき問いとして記憶 intake_questions に列挙され、requirements.md の「## 未決事項」にも同じ問いがある。
+                requirements.md に要件が三つ以上あっても、intake_questions に問いが列挙されていればこの状態とし、goal に優先する。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: needs_unclear
+              stage: intake
+              carry: [intake_questions]
+              max: 2
+    - id: architecture
+      name: Architecture
+      description: 要件を設計に落とし、変えてよいファイルを決めた実装のタスクに分ける
+      goal:
+        qualitative: >-
+          design.md の構成と tasks.yaml のタスクが対応し、requirements.md のすべての要件が、design.md の「## 対応」と、タスクの
+          requirements の両方で扱われている。
+        quantitative:
+          design_covers_requirements:
+            description: requirements.md の要件のうち、design.md の「## 対応」が挙げるものの割合
+            min: 1.0
+            args: {requirements: requirements.md, design: design.md}
+          tasks_cover_requirements:
+            description: requirements.md の要件のうち、tasks.yaml のどれかのタスクが扱うものの割合
+            min: 1.0
+            args: {requirements: requirements.md, tasks: tasks.yaml}
+      stages:
+        - id: design
+          name: Design
+          description: >-
+            requirements.md と repo/ の既存のコードから、変えるモジュールとインターフェースを design.md に書く。design.md は「## 構成」
+            （変えるファイルと役割）「## 対応」（要件ごとに、受け持つ構成要素）「## 要件への問い」の節を持つ。要件が曖昧か矛盾していて
+            設計できない時は、その要件と理由を記憶 requirement_gaps に書く。持ち帰った設計の問題（記憶 design_issues）があれば、
+            それを直す
+          artifacts:
+            reads: [requirements.md, repo/]
+            writes: [design.md]
+            memory_in: [design_issues]
+            memory_out: [requirement_gaps]
+          goal:
+            qualitative: >-
+              design.md の「## 対応」が requirements.md のすべての要件を「## 構成」にある構成要素に割り当てていて、構成要素が
+              repo/ の既存のコードと矛盾しない。「## 要件への問い」に問いが無い。
+            quantitative:
+              design_covers_requirements:
+                description: requirements.md の要件のうち、design.md の「## 対応」が挙げるものの割合
+                min: 1.0
+                args: {requirements: requirements.md, design: design.md}
+          end_state:
+            - id: requirements_gap
+              description: >-
+                requirements.md の要件に、曖昧なもの、互いに矛盾するもの、repo/ の既存のコードでは実現の仕方が決まらないものがあり、
+                design.md の「## 対応」がその要件を割り当てていない。その要件と、決めるのに要ることが、記憶 requirement_gaps と
+                design.md の「## 要件への問い」に列挙されている。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: requirements_gap
+              stage: analyze
+              carry: [requirement_gaps]
+              max: 1
+        - id: plan_tasks
+          name: Plan tasks
+          description: >-
+            requirements.md と design.md から、実装のタスクを tasks.yaml に書く。各タスクは id、title、requirements（扱う要件の
+            id）、paths（変えてよい repo/src/ の下のファイル）、tests（書いてよい repo/tests/ の下のファイル）を持つ。design.md に、
+            タスクに割り当てられない要件や、変えるファイルを決められない構成要素がある時は、その問題を記憶 design_issues に書く
+            （無ければ空の一覧）。持ち帰った問い（記憶 task_questions）があれば、それに答えるようにタスクを書き直す
+          artifacts:
+            reads: [requirements.md, design.md, repo/]
+            writes: [tasks.yaml]
+            memory_in: [task_questions]
+            memory_out: [design_issues]
+          goal:
+            qualitative: >-
+              tasks.yaml のタスクが requirements.md のすべての要件を扱い、各タスクの paths と tests が design.md の「## 構成」の
+              ファイルに収まり、タスクどうしで paths が重ならない。
+            quantitative:
+              tasks_cover_requirements:
+                description: requirements.md の要件のうち、tasks.yaml のどれかのタスクが扱うものの割合
+                min: 1.0
+                args: {requirements: requirements.md, tasks: tasks.yaml}
+              task_paths_valid:
+                description: 各タスクが repo/src/ の下の paths と repo/tests/ の下の tests を一つ以上持つ
+                equals: true
+                args: {tasks: tasks.yaml}
+          end_state:
+            - id: design_incomplete
+              description: >-
+                design.md の「## 構成」に、要件を受け持つ構成要素か、変えるファイルが欠けていて、tasks.yaml のタスクにすべての要件を
+                割り当てられない。欠けている点が記憶 design_issues に列挙されている（tasks.yaml の先頭の注記にもある）。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: design_incomplete
+              stage: design
+              carry: [design_issues]
+              max: 2
+    - id: construction
+      name: Construction
+      description: タスクの範囲の中で repo/src/ を実装し、repo/tests/ に単体テストを書く
+      goal:
+        qualitative: >-
+          repo/ の変更全体が tasks.yaml のタスクの範囲に収まり、repo/tests/ のテストがすべて通って requirements.md の受け入れ基準を
+          確かめ、impl_notes.md と test_report.md に未解決の違反、問い、失敗、未網羅が無い。
+        quantitative:
+          build_passes:
+            description: repo/src/ の下のすべての .py を byte-compile でき、すべてのモジュールを import できる
+            equals: true
+            args: {root: repo, src: src}
+          tests_pass:
+            description: repo/tests/ のテストが一件以上あり、pytest で全部通る
+            equals: true
+            args: {root: repo, src: src, tests: tests}
+          line_coverage:
+            description: repo/tests/ のテストによる repo/src/ の行カバレッジ（百分率）
+            min: 80
+            args: {root: repo, src: src, tests: tests}
+          lint_errors:
+            description: repo/src/ と repo/tests/ の lint（ruff の E、F、W）の違反の数
+            max: 0
+            args: {root: repo, paths: [src, tests]}
+          out_of_scope_changes:
+            description: フェーズの開始から変わった repo/ の下のパスのうち、tasks.yaml のタスクの paths と tests に無いものの数
+            max: 0
+            args: {prefix: repo/, tasks: tasks.yaml, fields: [paths, tests]}
+      stages:
+        - id: implement
+          name: Implement
+          description: >-
+            tasks.yaml のタスクの順に、タスクの paths のファイルだけを変えて repo/src/ を実装し、タスクごとの変更、品質の違反、問いを
+            impl_notes.md（「## 変更」「## 違反」「## 問い」の節）に書く。ビルド、lint、変更の範囲の違反に気づいたら、その違反を記憶
+            impl_violations に書く。タスクの記述が曖昧で実装を決められない時は、その問いを記憶 task_questions に書いて実装しない。
+            持ち帰った失敗したテスト（failing_tests）、満たされていない要件（unmet_requirements）、レビューの指摘
+            （review_findings）、違反（impl_violations）があれば、それを直す
+          artifacts:
+            reads: [requirements.md, design.md, tasks.yaml, repo/]
+            writes: [repo/src/, impl_notes.md]
+            memory_in: [failing_tests, unmet_requirements, review_findings, impl_violations]
+            memory_out: [task_questions, impl_violations]
+          goal:
+            qualitative: >-
+              impl_notes.md の「## 変更」が tasks.yaml のすべてのタスクについて repo/src/ の変更を述べ、「## 違反」と「## 問い」が
+              空で、repo/src/ の変更が design.md の構成どおりである。
+            quantitative:
+              build_passes:
+                description: repo/src/ の下のすべての .py を byte-compile でき、すべてのモジュールを import できる
+                equals: true
+                args: {root: repo, src: src}
+              tests_pass:
+                description: repo/tests/ の既存のテストが pytest で全部通る（実装が既存の振る舞いを壊していない）
+                equals: true
+                args: {root: repo, src: src, tests: tests}
+              lint_errors:
+                description: repo/src/ の lint（ruff の E、F、W）の違反の数
+                max: 0
+                args: {root: repo, paths: [src]}
+              out_of_scope_changes:
+                description: ステージの開始から変わった repo/ の下のパスのうち、tasks.yaml のタスクの paths に無いものの数
+                max: 0
+                args: {prefix: repo/, tasks: tasks.yaml, fields: [paths]}
+          end_state:
+            - id: task_unclear
+              description: >-
+                tasks.yaml のタスクの記述が曖昧で、repo/src/ をどう変えるかを決められない。決められない点が、タスクの id とともに
+                記憶 task_questions と impl_notes.md の「## 問い」に列挙されている。repo/src/ の変更の有無や指標の結果によらず、
+                task_questions に問いが列挙されていればこの状態とし、goal と quality_violation に優先する。
+            - id: quality_violation
+              description: >-
+                repo/src/ が、byte-compile か import に失敗する、lint（ruff の E、F、W）の違反がある、または tasks.yaml のタスクの
+                paths に無いファイルを変えている。違反の内容が記憶 impl_violations と impl_notes.md の「## 違反」に列挙されている。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: task_unclear
+              stage: plan_tasks
+              carry: [task_questions]
+              max: 1
+            - state: quality_violation
+              stage: implement
+              carry: [impl_violations]
+              max: 2
+        - id: unit_test
+          name: Unit test
+          description: >-
+            requirements.md の受け入れ基準と tasks.yaml のタスクの tests に従って repo/tests/ に単体テストを書き、テストの内容、失敗、
+            未網羅を test_report.md（「## テスト」「## 失敗」「## 未網羅」の節）に書く。テストが repo/src/ の欠陥を示した時は、
+            失敗したテストとその欠陥を記憶 failing_tests に、受け入れ基準を確かめるテストが足りない時は、その箇所を記憶
+            coverage_gaps に書く（無ければ、どちらも空の一覧）。持ち帰った未網羅（coverage_gaps）があれば、それを埋める
+          artifacts:
+            reads: [requirements.md, tasks.yaml, repo/, impl_notes.md]
+            writes: [repo/tests/, test_report.md]
+            memory_in: [coverage_gaps]
+            memory_out: [failing_tests, coverage_gaps]
+          goal:
+            qualitative: >-
+              repo/tests/ のテストが requirements.md のすべての受け入れ基準を確かめ、すべて通り、test_report.md の「## 失敗」と
+              「## 未網羅」が空である。
+            quantitative:
+              tests_pass:
+                description: repo/tests/ のテストが一件以上あり、pytest で全部通る
+                equals: true
+                args: {root: repo, src: src, tests: tests}
+              line_coverage:
+                description: repo/tests/ のテストによる repo/src/ の行カバレッジ（百分率）
+                min: 80
+                args: {root: repo, src: src, tests: tests}
+              lint_errors:
+                description: repo/tests/ の lint（ruff の E、F、W）の違反の数
+                max: 0
+                args: {root: repo, paths: [tests]}
+              out_of_scope_changes:
+                description: ステージの開始から変わった repo/ の下のパスのうち、tasks.yaml のタスクの tests に無いものの数
+                max: 0
+                args: {prefix: repo/, tasks: tasks.yaml, fields: [tests]}
+          end_state:
+            - id: impl_defect
+              description: >-
+                repo/tests/ のテストの一部が失敗し、その期待が requirements.md の受け入れ基準か要件の記述に従っている（テストではなく
+                repo/src/ が誤っている）。失敗したテストと、それが示す repo/src/ の欠陥が、記憶 failing_tests と test_report.md の
+                「## 失敗」に列挙されている。tests_insufficient に優先する。
+            - id: tests_insufficient
+              description: >-
+                repo/tests/ のテストはすべて通るが、requirements.md の受け入れ基準のうちテストの無いものがあるか、repo/src/ の行
+                カバレッジが 80% に届かない。テストの無い基準と、実行されない箇所が、記憶 coverage_gaps と test_report.md の
+                「## 未網羅」に列挙されている。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: impl_defect
+              stage: implement
+              carry: [failing_tests]
+              max: 2
+            - state: tests_insufficient
+              stage: unit_test
+              carry: [coverage_gaps]
+              max: 2
+    - id: assurance
+      name: Assurance
+      description: 要件ごとに受け入れ基準を確かめ、変更をレビューする
+      goal:
+        qualitative: >-
+          verification.md ですべての要件が合格し、review.json の指摘（修正を要しないものを含む）を合わせても、repo/ をこのまま
+          リリースしてよい。
+        quantitative:
+          verified_requirements:
+            description: requirements.md の要件のうち、verification.md の表で合格のものの割合
+            min: 1.0
+            args: {requirements: requirements.md, verification: verification.md}
+          blocking_findings:
+            description: review.json の指摘のうち修正を要するものの数
+            max: 0
+            args: {path: review.json}
+      stages:
+        - id: acceptance
+          name: Verify
+          description: >-
+            feature_request.md、intake.md、requirements.md と repo/ から、要件ごとに受け入れ基準を満たすかを確かめ、要件、確かめたテスト、
+            結果（合格か不合格）の表を verification.md（「## 要件ごとの結果」「## 不合格の内容」「## 依頼との食い違い」の節）に
+            書く。受け入れ基準に反する振る舞いは記憶 unmet_requirements に、requirements.md と依頼の食い違いは記憶
+            requirement_gaps に書く（無ければ、どちらも空の一覧）
+          artifacts:
+            reads: [feature_request.md, intake.md, requirements.md, tasks.yaml, repo/, test_report.md]
+            writes: [verification.md]
+            memory_out: [unmet_requirements, requirement_gaps]
+          goal:
+            qualitative: >-
+              verification.md の表が requirements.md のすべての要件を挙げてすべて合格で、「## 依頼との食い違い」が空である。
+            quantitative:
+              verified_requirements:
+                description: requirements.md の要件のうち、verification.md の表で合格のものの割合
+                min: 1.0
+                args: {requirements: requirements.md, verification: verification.md}
+              tests_pass:
+                description: repo/tests/ のテストが一件以上あり、pytest で全部通る
+                equals: true
+                args: {root: repo, src: src, tests: tests}
+          end_state:
+            - id: requirement_misread
+              description: >-
+                verification.md の「## 依頼との食い違い」に、requirements.md の要件（またはその欠落）が feature_request.md の依頼か
+                intake.md の回答と食い違う点があり、その点が記憶 requirement_gaps に列挙されている。表の結果によらず、
+                requirement_gaps に食い違いが列挙されていればこの状態とし、goal と requirement_unmet に優先する。
+            - id: requirement_unmet
+              description: >-
+                verification.md の表で一つ以上の要件が不合格で、その要件と、受け入れ基準に反する repo/ の振る舞いが、記憶
+                unmet_requirements と verification.md の「## 不合格の内容」に列挙されている。requirements.md の要件そのものは
+                依頼と食い違っていない。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: requirement_misread
+              stage: analyze
+              carry: [requirement_gaps]
+              max: 1
+            - state: requirement_unmet
+              stage: implement
+              carry: [unmet_requirements]
+              max: 2
+        - id: review
+          name: Review
+          description: >-
+            design.md、tasks.yaml、verification.md に照らして repo/ の変更をレビューし、指摘を review.json に書く。review.json は
+            {"findings": [{"path": パス, "blocking": 修正を要するか, "comment": 指摘}]} の形。repo/src/ の修正で解消する指摘
+            （修正を要しないものを含む）は記憶 review_findings に、design.md の設計を直さなければ解消しない指摘は記憶
+            design_issues に書く（無ければ、どちらも空の一覧）
+          artifacts:
+            reads: [design.md, tasks.yaml, repo/, verification.md]
+            writes: [review.json]
+            memory_out: [review_findings, design_issues]
+          goal:
+            qualitative: >-
+              review.json に、tasks.yaml のタスクの paths と tests の変更を見た結果があり、修正を要する指摘が一つも無い。
+            quantitative:
+              blocking_findings:
+                description: review.json の指摘のうち修正を要するものの数
+                max: 0
+                args: {path: review.json}
+          end_state:
+            - id: design_flaw
+              description: >-
+                review.json に修正を要する指摘があり、そのうち一つ以上が、design.md の構成かインターフェースを変えなければ解消しない。
+                その指摘が記憶 design_issues に列挙されている。changes_requested に優先する。
+            - id: changes_requested
+              description: >-
+                review.json の修正を要する指摘が、すべて repo/src/ の修正で解消する（design.md は変えなくてよい）。その指摘が記憶
+                review_findings に列挙されている。フェーズ assurance の評価では、修正を要しない指摘でも、verification.md の結果と
+                合わせると repo/src/ を直してからリリースすべきで、その指摘が review_findings に列挙されている場合も、この状態とする。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: design_flaw
+              stage: design
+              carry: [design_issues]
+              max: 1
+            - state: changes_requested
+              stage: implement
+              carry: [review_findings]
+              max: 2
+    - id: delivery
+      name: Delivery
+      description: 変更の記録と版を書き、リリースする
+      goal:
+        qualitative: >-
+          CHANGELOG.md と release.json が、verification.md で合格した要件と review.json の結果に合い、repo/tests/ のテストが通る
+          状態の repo/ をリリースする。
+        quantitative:
+          changelog_covers_requirements:
+            description: requirements.md の要件のうち、CHANGELOG.md が挙げるものの割合
+            min: 1.0
+            args: {requirements: requirements.md, changelog: CHANGELOG.md}
+          version_bumped:
+            description: release.json の版が、repo/src/shopcart/__init__.py の __version__ より新しい
+            equals: true
+            args: {release: release.json, package: repo/src/shopcart/__init__.py}
+          tests_pass:
+            description: repo/tests/ のテストが一件以上あり、pytest で全部通る
+            equals: true
+            args: {root: repo, src: src, tests: tests}
+      stages:
+        - id: release
+          name: Release
+          description: >-
+            requirements.md、verification.md、review.json と repo/ から、リリースの記録を CHANGELOG.md（版の見出しの下に、要件の
+            id を添えた変更の一覧）と release.json（{"version": 版, "requirements": [要件の id]}）に書く。版は
+            repo/src/shopcart/__init__.py の __version__ より新しくする。載せられなかった要件の id は記憶 missing_notes に書く
+            （無ければ空の一覧）。持ち帰った記憶 missing_notes があれば、その要件を載せる
+          artifacts:
+            reads: [requirements.md, verification.md, review.json, repo/]
+            writes: [CHANGELOG.md, release.json]
+            memory_in: [missing_notes]
+            memory_out: [missing_notes]
+          goal:
+            qualitative: >-
+              CHANGELOG.md が verification.md で合格したすべての要件を要件の id を添えて述べ、release.json の requirements と一致し、
+              release.json の版が repo/ のパッケージの版より新しい。
+            quantitative:
+              changelog_covers_requirements:
+                description: requirements.md の要件のうち、CHANGELOG.md が挙げるものの割合
+                min: 1.0
+                args: {requirements: requirements.md, changelog: CHANGELOG.md}
+              version_bumped:
+                description: release.json の版が、repo/src/shopcart/__init__.py の __version__ より新しい
+                equals: true
+                args: {release: release.json, package: repo/src/shopcart/__init__.py}
+          end_state:
+            - id: notes_incomplete
+              description: >-
+                CHANGELOG.md か release.json に、verification.md で合格した要件のうち載っていないものがあり、その要件の id が記憶
+                missing_notes に列挙されている。
+            - id: unknown
+              description: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+          rollback:
+            - state: notes_incomplete
+              stage: release
+              carry: [missing_notes]
+              max: 1

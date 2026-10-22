@@ -1,0 +1,228 @@
+scenario: design_gap_crosses_phase
+description: design が要件の曖昧さを見つけ、記憶 requirement_gaps を持ってフェーズ境界を越えて analyze に戻る。discovery のゲートは未通過に戻り、analyze
+  が再び goal に達した時に評価し直す（フェーズ境界越え、ゲートの再評価）
+workflow: ../../workflow.yaml
+seed: 11
+inputs:
+  feature_request.md: |
+    # 依頼: 買い物かごに割引コードを入れたい
+
+    shopcart ライブラリの Cart に、割引コードを適用した支払額を出す機能を足してほしい。
+    来月のキャンペーンで「10% 引き」と「500 円引き」のコードを配る予定。
+  repo/src/shopcart/__init__.py: |
+    """小さな買い物かごのライブラリ。"""
+
+    __version__ = "0.1.0"
+  repo/src/shopcart/cart.py: |
+    """買い物かご。金額は円の整数。"""
+
+
+    class Cart:
+        def __init__(self) -> None:
+            self.items: dict[str, tuple[int, int]] = {}
+
+        def add(self, sku: str, price: int, qty: int = 1) -> None:
+            if qty <= 0:
+                raise ValueError("qty must be positive")
+            _, held = self.items.get(sku, (price, 0))
+            self.items[sku] = (price, held + qty)
+
+        def remove(self, sku: str) -> None:
+            self.items.pop(sku, None)
+
+        def subtotal(self) -> int:
+            return sum(price * qty for price, qty in self.items.values())
+  repo/tests/test_cart.py: |
+    import pytest
+    from shopcart.cart import Cart
+
+
+    def test_subtotal_sums_price_times_quantity() -> None:
+        cart = Cart()
+        cart.add("apple", 120, 2)
+        cart.add("pear", 200)
+        assert cart.subtotal() == 440
+
+
+    def test_remove_drops_the_item() -> None:
+        cart = Cart()
+        cart.add("apple", 120)
+        cart.add("apple", 120)
+        cart.remove("apple")
+        assert cart.subtotal() == 0
+
+
+    def test_add_rejects_nonpositive_quantity() -> None:
+        with pytest.raises(ValueError):
+            Cart().add("apple", 120, 0)
+visits:
+  intake#1:
+    fixture: intake/ok
+    classify: &id001
+      choice: goal
+      confidence: 0.9
+  analyze#1: &id002
+    fixture: analyze/ok
+    classify: *id001
+  design#1:
+    fixture: design/gap
+    memory:
+      requirement_gaps: &id003
+      - 'REQ-3 と REQ-4: コードを Cart のどの操作で受け取るかが決まっていない'
+    classify:
+      choice: requirements_gap
+      confidence: 0.9
+  analyze#2: *id002
+  design#2:
+    fixture: design/ok
+    classify: *id001
+  plan_tasks#1:
+    fixture: plan_tasks/ok
+    classify: *id001
+  implement#1:
+    fixture: .code/implement/ok
+    classify: *id001
+  unit_test#1:
+    fixture: .code/unit_test/ok
+    classify: *id001
+  acceptance#1:
+    fixture: acceptance/ok
+    classify: *id001
+  review#1:
+    fixture: review/ok
+    classify: *id001
+  release#1:
+    fixture: release/ok
+    classify: *id001
+gates:
+  discovery#1: *id001
+  discovery#2: *id001
+  architecture#1: *id001
+  construction#1: *id001
+  assurance#1: *id001
+  delivery#1: *id001
+expect:
+  status: completed
+  trace:
+  - start intake#1
+  - eval stage intake = goal
+  - next intake -> analyze
+  - start analyze#1
+  - eval stage analyze = goal
+  - eval phase discovery = goal
+  - gate_pass analyze
+  - next analyze -> design
+  - start design#1
+  - eval stage design = requirements_gap
+  - rollback design -> analyze [requirements_gap 1] crossing
+  - start analyze#2
+  - eval stage analyze = goal
+  - eval phase discovery = goal
+  - gate_pass analyze
+  - next analyze -> design
+  - start design#2
+  - eval stage design = goal
+  - next design -> plan_tasks
+  - start plan_tasks#1
+  - eval stage plan_tasks = goal
+  - eval phase architecture = goal
+  - gate_pass plan_tasks
+  - next plan_tasks -> implement
+  - start implement#1
+  - eval stage implement = goal
+  - next implement -> unit_test
+  - start unit_test#1
+  - eval stage unit_test = goal
+  - eval phase construction = goal
+  - gate_pass unit_test
+  - next unit_test -> acceptance
+  - start acceptance#1
+  - eval stage acceptance = goal
+  - next acceptance -> review
+  - start review#1
+  - eval stage review = goal
+  - eval phase assurance = goal
+  - gate_pass review
+  - next review -> release
+  - start release#1
+  - eval stage release = goal
+  - eval phase delivery = goal
+  - gate_pass release
+  - complete
+  - end completed
+  starts:
+    analyze#2:
+      files:
+        feature_request.md: |
+          # 依頼: 買い物かごに割引コードを入れたい
+
+          shopcart ライブラリの Cart に、割引コードを適用した支払額を出す機能を足してほしい。
+          来月のキャンペーンで「10% 引き」と「500 円引き」のコードを配る予定。
+        repo/src/shopcart/__init__.py: |
+          """小さな買い物かごのライブラリ。"""
+
+          __version__ = "0.1.0"
+        repo/src/shopcart/cart.py: |
+          """買い物かご。金額は円の整数。"""
+
+
+          class Cart:
+              def __init__(self) -> None:
+                  self.items: dict[str, tuple[int, int]] = {}
+
+              def add(self, sku: str, price: int, qty: int = 1) -> None:
+                  if qty <= 0:
+                      raise ValueError("qty must be positive")
+                  _, held = self.items.get(sku, (price, 0))
+                  self.items[sku] = (price, held + qty)
+
+              def remove(self, sku: str) -> None:
+                  self.items.pop(sku, None)
+
+              def subtotal(self) -> int:
+                  return sum(price * qty for price, qty in self.items.values())
+        repo/tests/test_cart.py: |
+          import pytest
+          from shopcart.cart import Cart
+
+
+          def test_subtotal_sums_price_times_quantity() -> None:
+              cart = Cart()
+              cart.add("apple", 120, 2)
+              cart.add("pear", 200)
+              assert cart.subtotal() == 440
+
+
+          def test_remove_drops_the_item() -> None:
+              cart = Cart()
+              cart.add("apple", 120)
+              cart.add("apple", 120)
+              cart.remove("apple")
+              assert cart.subtotal() == 0
+
+
+          def test_add_rejects_nonpositive_quantity() -> None:
+              with pytest.raises(ValueError):
+                  Cart().add("apple", 120, 0)
+        intake.md: |
+          [[class intake=goal]]
+          # 取り込み
+
+          ## 依頼
+          shopcart の Cart に、割引コードを適用した支払額を出す機能を足す（feature_request.md）。
+
+          ## 質問と回答
+          - Q: この機能を使うのは誰ですか
+            A: ネットショップの購入者。レジの画面でコードを入力する
+          - Q: 配る割引コードの種類と上限は何ですか
+            A: PCT10 のような百分率のコードと、OFF500 のような定額のコード。百分率は 50% まで
+          - Q: 使えないコードが入力された時はどうしますか
+            A: エラーにして、割引しない
+
+          ## 制約
+          - 金額は円の整数で扱う
+      memory:
+        requirement_gaps: *id003
+      gates: []
+  memory:
+    requirement_gaps: *id003

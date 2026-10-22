@@ -1,0 +1,201 @@
+# software-factory の確率的な偽ステージ本体の設計値。
+#
+# 本体は訪問ごとに、文脈の種（context.seed）だけを乱数の源にして変種を一つ選び、フィクスチャ
+# （tests/fixtures/<ステージ>/<変種>/、実装と単体テストは tests/fixtures/.code/<ステージ>/<変種>/）を作業領域に写し、
+# 変種の記憶を書く。成果物の先頭の印 [[class <ステージ>=<クラス>]] を MarkerClassifier が読む。
+#
+# 分布の鍵（condition）:
+# - first / again: 訪問 1 / 訪問 2 以降の分布
+# - release だけは訪問の回数ではなく、carry を受けたか（記憶 missing_notes が空でない一覧か）で分布を選ぶ
+#   （without_carry / with_carry）。release に戻る辺は自分自身への notes_incomplete だけで、release は最後のステージなので、
+#   運用者が中止で答える実行では「訪問 2 以降」と「carry を受けた」が一致する（test_stochastic.py が確かめる）
+#
+# metrics_fail は、その変種の成果物（上流は goal の変種）に実在の指標をかけた時に落ちる、ステージの goal の指標
+# （test_metrics.py が確かめる）。goal の変種は全部通る。
+#
+# 分布テスト（expectations）、独立性検証、マルコフ合成の期待は、この表から導く。
+
+families:
+  # 単体テストの変種 defect のクラスは、repo/src/shopcart/discount.py がどの実装の変種かで決まる。
+  # ok と ok_b は REQ-1 の割引額の切り捨てを誤る（支払額を切り捨てる）。ok_fixed は正しい
+  ok: rounds_total
+  ok_b: rounds_total
+  ok_fixed: correct
+
+variants:
+  intake:
+    ok: {class: goal}
+    unknown: {class: unknown}
+  analyze:
+    ok: {class: goal, memory: {intake_questions: []}}
+    unclear:
+      class: needs_unclear
+      memory:
+        intake_questions: [百分率の割引の上限は何 % ですか, 定額の割引が小計を超えた時、支払額はどうなりますか]
+    unknown:
+      class: unknown
+      memory: {intake_questions: []}
+      metrics_fail: [requirement_count, requirements_with_criteria]
+  design:
+    ok: {class: goal, memory: {requirement_gaps: []}}
+    gap:
+      class: requirements_gap
+      memory: {requirement_gaps: ["REQ-3 と REQ-4: コードを Cart のどの操作で受け取るかが決まっていない"]}
+      metrics_fail: [design_covers_requirements]
+    unknown: {class: unknown, memory: {requirement_gaps: []}, metrics_fail: [design_covers_requirements]}
+  plan_tasks:
+    ok: {class: goal, memory: {design_issues: []}}
+    incomplete:
+      class: design_incomplete
+      memory: {design_issues: [REQ-3 と REQ-4 を受け持つ構成要素が design.md の構成に無い]}
+      metrics_fail: [tasks_cover_requirements]
+    unknown: {class: unknown, memory: {design_issues: []}}
+  implement:
+    ok: {class: goal, memory: {task_questions: [], impl_violations: []}}
+    ok_b: {class: goal, memory: {task_questions: [], impl_violations: []}}
+    ok_fixed: {class: goal, memory: {task_questions: [], impl_violations: []}}
+    lint:
+      class: quality_violation
+      memory: {task_questions: [], impl_violations: ["lint: discount.py に使っていない import と長すぎる行がある"]}
+      metrics_fail: [lint_errors]
+    scope:
+      class: quality_violation
+      memory: {task_questions: [], impl_violations: ["範囲: repo/src/shopcart/utils.py はどのタスクの paths にも無い"]}
+      metrics_fail: [out_of_scope_changes]
+    broken:
+      class: quality_violation
+      memory: {task_questions: [], impl_violations: ["ビルド: discount.py の parse_code の定義に構文の誤りがある"]}
+      metrics_fail: [build_passes, tests_pass, lint_errors]
+    unclear:
+      class: task_unclear
+      memory:
+        task_questions: ["T2: 割引を小計に適用するのか、商品ごとに適用するのかが tasks.yaml から決められない"]
+        impl_violations: []
+    unknown: {class: unknown, memory: {task_questions: [], impl_violations: []}}
+  unit_test:
+    ok: {class: goal, memory: {failing_tests: [], coverage_gaps: []}}
+    thin:
+      class: tests_insufficient
+      memory: {failing_tests: [], coverage_gaps: [REQ-1、REQ-2、REQ-3 の受け入れ基準にテストが無い]}
+      metrics_fail: [line_coverage]
+    defect:
+      # 実装の系統（families）ごとに、写すフィクスチャとクラスが分かれる
+      by_family:
+        rounds_total:
+          fixture: defect_found
+          class: impl_defect
+          memory:
+            failing_tests: ["test_percent_discount_rounds_the_discount_down: 333 円の PCT10 が 299 円になる（期待 300 円）"]
+            coverage_gaps: []
+          metrics_fail: [tests_pass]
+        correct:
+          fixture: defect_passed
+          class: goal
+          memory: {failing_tests: [], coverage_gaps: []}
+    unknown: {class: unknown, memory: {failing_tests: [], coverage_gaps: []}}
+  acceptance:
+    ok: {class: goal, memory: {unmet_requirements: [], requirement_gaps: []}}
+    unmet:
+      class: requirement_unmet
+      memory:
+        unmet_requirements: ["REQ-2: 小計 1200 円に OFF500 を二回続けて適用すると、二回目も割り引かれる"]
+        requirement_gaps: []
+      metrics_fail: [verified_requirements]
+    misread:
+      class: requirement_misread
+      memory:
+        unmet_requirements: []
+        requirement_gaps: [requirements.md にコードの大文字と小文字の扱いが無く、入力された pct10 を拒む]
+    unknown:
+      class: unknown
+      memory: {unmet_requirements: [], requirement_gaps: []}
+      metrics_fail: [verified_requirements]
+  review:
+    ok:
+      class: goal
+      memory: {review_findings: [（修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい], design_issues: []}
+    changes:
+      class: changes_requested
+      memory: {review_findings: [Cart.total が parse_code の ValueError をそのまま上げている], design_issues: []}
+      metrics_fail: [blocking_findings]
+    design_flaw:
+      class: design_flaw
+      memory: {review_findings: [], design_issues: [割引の種類を Discount の分岐で表しており、種類を足すたびに apply を直すことになる]}
+      metrics_fail: [blocking_findings]
+    unknown: {class: unknown, memory: {review_findings: [], design_issues: []}}
+  release:
+    ok: {class: goal, memory: {missing_notes: []}}
+    incomplete:
+      class: notes_incomplete
+      memory: {missing_notes: [REQ-3]}
+      metrics_fail: [changelog_covers_requirements]
+    unknown:
+      class: unknown
+      memory: {missing_notes: []}
+      metrics_fail: [changelog_covers_requirements, version_bumped]
+
+profiles:
+  # 各ステージのクラスの分布が (ステージ, 訪問) だけで決まる（release は carry の有無で、それは訪問の区分と一致する）。
+  # goal の実装の二つの変種 ok と ok_b は同じ系統なので、単体テストのクラスの分布は実装の変種によらない。
+  # 独立性検証は違反を出さず、マルコフ合成の予測は実測と一致するはず
+  markov:
+    intake:
+      first: {ok: 0.97, unknown: 0.03}
+      again: {ok: 0.98, unknown: 0.02}
+    analyze:
+      first: {ok: 0.72, unclear: 0.25, unknown: 0.03}
+      again: {ok: 0.90, unclear: 0.08, unknown: 0.02}
+    design:
+      first: {ok: 0.85, gap: 0.12, unknown: 0.03}
+      again: {ok: 0.95, gap: 0.03, unknown: 0.02}
+    plan_tasks:
+      first: {ok: 0.82, incomplete: 0.15, unknown: 0.03}
+      again: {ok: 0.93, incomplete: 0.05, unknown: 0.02}
+    implement:
+      first: {ok: 0.36, ok_b: 0.36, lint: 0.08, scope: 0.07, broken: 0.05, unclear: 0.05, unknown: 0.03}
+      again: {ok: 0.45, ok_b: 0.45, lint: 0.03, scope: 0.02, broken: 0.02, unclear: 0.01, unknown: 0.02}
+    unit_test:
+      first: {ok: 0.55, thin: 0.20, defect: 0.22, unknown: 0.03}
+      again: {ok: 0.80, thin: 0.08, defect: 0.10, unknown: 0.02}
+    acceptance:
+      first: {ok: 0.82, unmet: 0.10, misread: 0.05, unknown: 0.03}
+      again: {ok: 0.93, unmet: 0.04, misread: 0.01, unknown: 0.02}
+    review:
+      first: {ok: 0.78, changes: 0.14, design_flaw: 0.05, unknown: 0.03}
+      again: {ok: 0.92, changes: 0.05, design_flaw: 0.01, unknown: 0.02}
+    release:
+      without_carry: {ok: 0.75, incomplete: 0.23, unknown: 0.02}
+      with_carry: {ok: 0.97, incomplete: 0.02, unknown: 0.01}
+
+  # markov と同じ分布で、goal の実装の二つ目の変種だけを ok_b（REQ-1 を誤る）から ok_fixed（正しい）に替える。
+  # 単体テストの変種 defect は、ok の後では impl_defect、ok_fixed の後では goal になる（実在の pytest の結果も
+  # そのとおり）。implement の goal というクラスの中で、下流（unit_test）の分布が代表によって分かれるので、
+  # 独立性検証は stage:implement=goal で違反を検出するはず
+  divergent:
+    intake:
+      first: {ok: 0.97, unknown: 0.03}
+      again: {ok: 0.98, unknown: 0.02}
+    analyze:
+      first: {ok: 0.72, unclear: 0.25, unknown: 0.03}
+      again: {ok: 0.90, unclear: 0.08, unknown: 0.02}
+    design:
+      first: {ok: 0.85, gap: 0.12, unknown: 0.03}
+      again: {ok: 0.95, gap: 0.03, unknown: 0.02}
+    plan_tasks:
+      first: {ok: 0.82, incomplete: 0.15, unknown: 0.03}
+      again: {ok: 0.93, incomplete: 0.05, unknown: 0.02}
+    implement:
+      first: {ok: 0.36, ok_fixed: 0.36, lint: 0.08, scope: 0.07, broken: 0.05, unclear: 0.05, unknown: 0.03}
+      again: {ok: 0.45, ok_fixed: 0.45, lint: 0.03, scope: 0.02, broken: 0.02, unclear: 0.01, unknown: 0.02}
+    unit_test:
+      first: {ok: 0.55, thin: 0.20, defect: 0.22, unknown: 0.03}
+      again: {ok: 0.80, thin: 0.08, defect: 0.10, unknown: 0.02}
+    acceptance:
+      first: {ok: 0.82, unmet: 0.10, misread: 0.05, unknown: 0.03}
+      again: {ok: 0.93, unmet: 0.04, misread: 0.01, unknown: 0.02}
+    review:
+      first: {ok: 0.78, changes: 0.14, design_flaw: 0.05, unknown: 0.03}
+      again: {ok: 0.92, changes: 0.05, design_flaw: 0.01, unknown: 0.02}
+    release:
+      without_carry: {ok: 0.75, incomplete: 0.23, unknown: 0.02}
+      with_carry: {ok: 0.97, incomplete: 0.02, unknown: 0.01}
