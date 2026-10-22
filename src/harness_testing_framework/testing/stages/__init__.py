@@ -10,9 +10,13 @@ from harness_testing_framework.testing.stages.expectations import (
     wilson_interval,
 )
 from harness_testing_framework.testing.stages.independence import (
+    Entry,
+    EntryDependenceResult,
     IndependenceResult,
     Transition,
     chi_square,
+    entries,
+    entry_dependence,
     independence,
     transition_counts,
     transition_matrix,
@@ -30,6 +34,8 @@ from harness_testing_framework.testing.stages.runs import (
 
 __all__ = [
     "CriterionResult",
+    "Entry",
+    "EntryDependenceResult",
     "Event",
     "ExpectationReport",
     "Expectations",
@@ -39,6 +45,8 @@ __all__ = [
     "RunSet",
     "Transition",
     "chi_square",
+    "entries",
+    "entry_dependence",
     "evaluate_expectations",
     "independence",
     "load_expectations",

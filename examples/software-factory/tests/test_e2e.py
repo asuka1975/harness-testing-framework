@@ -2,15 +2,16 @@
 
 - カバレッジ計画が全 (ステージ, クラス) を踏む。誘発（その状態を表す成果物を書かせる。実在の指標がその成果物を測る）と、
   注入（分類の結果だけを変える）の両方を使う
-- ゲートを実行の種で揺らす実行（RandomGateClassifier）でも、ゲートの分布を足した設計値のモデルの予測が実測と一致し、
-  ゲートの評価の結果ごとの回数（訪問の区分ごと）も予測と合う
-- 推定したモデルの予測と、設計値のモデルの予測が、別の種の実行の実測と一致する
+- 推定したモデルの予測と、設計値のモデルの予測が、別の種の実行の実測と一致する（最後の状態、訪問の回数、ステージと
+  ゲートの評価の結果ごとの回数）
+- ゲートを実行の種で揺らす実行（RandomGateClassifier）でも、ゲートの分布を足した設計値のモデルの予測が実測と一致する
+- 合成の仮定（クラスの分布が (ステージ, 訪問の区分) だけで決まる）が、入り方が複数あるステージで崩れていない
+  （entry_dependence。予測と実測が合っていても、集計した量では入り方による違いが隠れうるため）
 
 markov の本体は、クラスの分布が (ステージ, 訪問) だけで決まるように作ってある（release は carry の有無で決まり、
 それは訪問の区分と一致する）。予測と実測の一致は合成の仕組みの確認で、マルコフ性という方法そのものの検証ではない。
 """
 
-import math
 from pathlib import Path
 from typing import Any
 
@@ -30,7 +31,11 @@ from harness_testing_framework.testing.e2e import (
     run_coverage,
     synthesize,
 )
-from harness_testing_framework.testing.stages import RunSet, runs_from_environment
+from harness_testing_framework.testing.stages import (
+    RunSet,
+    entry_dependence,
+    runs_from_environment,
+)
 
 
 def _script(stage: str, variant: str, family: str = "rounds_total") -> dict[str, Any]:
@@ -94,11 +99,12 @@ def measurement(markov_runs: tuple[RunSet, BlobStore]) -> RunSet:
 
 
 def test_estimated_prediction_matches_measurement(measurement: RunSet, tmp_path: Path) -> None:
-    """推定したモデルの予測が、別の種の実行の実測と一致する（状態、訪問の回数、評価の結果ごとの回数）。"""
+    """推定したモデルの予測が、別の種の実行の実測と一致する（状態、訪問の回数、ステージとゲートの評価の結果ごとの回数）。"""
     estimation, _ = run_set("markov", RUNS, 40000, tmp_path)
     prediction = synthesize(estimate_model(estimation, cap=2), WORKFLOW_MODEL)
     comparisons = compare_prediction(prediction, measurement)
-    assert {c.quantity.split(":")[0] for c in comparisons} == {"status", "visits", "outcome"}
+    kinds = {c.quantity.split(":")[0] for c in comparisons}
+    assert kinds == {"status", "visits", "outcome", "gate"}
     assert all(c.within for c in comparisons), [c.line() for c in comparisons if not c.within]
 
 
@@ -113,23 +119,23 @@ def test_design_prediction_matches_measurement(
 def test_gate_distribution_prediction_matches_measurement(
     gated_prediction: Prediction, gated_runs: tuple[RunSet, BlobStore]
 ) -> None:
-    """assurance のゲートの分布を足した設計値のモデルの予測と、ゲートを実行の種で揺らした実行の実測が一致する。"""
-    runs = gated_runs[0]
-    comparisons = compare_prediction(gated_prediction, runs)
+    """assurance のゲートの分布を足した設計値のモデルの予測と、ゲートを実行の種で揺らした実行の実測が一致する。
+    ゲートの評価の結果ごとの回数も比べる量に入る（訪問の区分ごとの割合は markov_gated.yaml の基準が確かめる）。"""
+    comparisons = compare_prediction(gated_prediction, gated_runs[0])
+    gate = {c.quantity for c in comparisons if c.quantity.startswith("gate:assurance=")}
+    assert gate == {"gate:assurance=goal", "gate:assurance=changes_requested"}
     assert all(c.within for c in comparisons), [c.line() for c in comparisons if not c.within]
-    # compare_prediction はステージの評価を比べるので、ゲートの評価の回数は visit_outcomes と直に比べる
-    n = len(runs.runs)
-    for (scope, target, bucket, outcome), expected in gated_prediction.visit_outcomes.items():
-        if scope != "phase" or target != "assurance":
-            continue
-        measured = sum(
-            1
-            for run in runs.runs
-            for e in run.evaluations()
-            if e["scope"] == "phase"
-            and e["phase"] == "assurance"
-            and min(int(str(e["visit"])), 2) == bucket
-            and e["outcome"] == outcome
-        )
-        se = math.sqrt(expected * n) + 1e-9
-        assert abs(measured - expected * n) <= 4 * se, (bucket, outcome, measured, expected * n)
+
+
+@pytest.mark.parametrize("name", ["markov", "gated"])
+def test_class_distributions_do_not_depend_on_the_entry(
+    name: str, markov_runs: tuple[RunSet, BlobStore], gated_runs: tuple[RunSet, BlobStore]
+) -> None:
+    """訪問 2 以降の評価の結果が、入り方（どの辺から戻ったか、next で入り直したか）で違わない。入り方が五通りある
+    implement を含め、入り方が二つ以上あるステージはどれも not_detected（release は入り方が自分自身からの一本だけ）。"""
+    runs = (markov_runs if name == "markov" else gated_runs)[0]
+    results = {r.stage: r for r in entry_dependence(runs)}
+    assert "violated" not in {r.verdict for r in results.values()}
+    assert results["implement"].verdict == "not_detected"
+    assert len(results["implement"].groups) == 5, results["implement"].groups
+    assert set(results["release"].groups) == {"rollback:release=notes_incomplete"}

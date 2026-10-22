@@ -1,17 +1,32 @@
 """遷移行列の推定と独立性検証（plan.md 第2節「組み合わせテストはしない」、第6節 F3）。合成の実行で確かめる。"""
 
+import random
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+from harness_testing_framework.contract import StageContext
+from harness_testing_framework.runtime import BlobStore, Runtime, load_workflow
+from harness_testing_framework.testing.harness import (
+    AbortOperator,
+    ConformanceRegistry,
+    MarkerClassifier,
+)
 from harness_testing_framework.testing.stages import (
     RunRecord,
     RunSet,
     chi_square,
+    entries,
+    entry_dependence,
     independence,
+    record_run,
+    run_many,
     transition_matrix,
     transitions,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _run(steps: list[tuple[Any, ...]], status: str = "completed") -> RunRecord:
@@ -166,3 +181,69 @@ def test_strata_include_the_next_stage_visit() -> None:
     results = [r for r in independence(RunSet(runs)) if r.state == "stage:a=goal"]
     assert sorted((r.visit, r.next_visit) for r in results) == [(1, 1), (1, 2)]
     assert all(r.verdict == "undetermined" for r in results)
+
+
+def _workflow_runs(tmp_path: Path, carry_matters: bool) -> RunSet:
+    """s2 の結果が、s3 から e3_back で戻った（記憶 m32 を受けた）かで変わる本体（carry_matters）と、変わらない本体。
+
+    s2 の訪問 2 以降には、s1 からの next（s2 の e2_back の後）と、s3 からの rollback の二つの入り方がある。
+    """
+    workflow = load_workflow(
+        ROOT / "contract/conformance/workflows/basic.yaml", ConformanceRegistry().names()
+    )
+
+    def body(context: StageContext) -> None:
+        rng = random.Random(context.seed)
+        n = context.stage_id[-1]
+        (context.workspace / f"s{n}.flag").write_text("true")
+        if n == "1":
+            (context.workspace / "s1.txt").write_text("[[class s1=goal]]")
+        elif n == "2":
+            carried = context.read_memory("m32") is not None
+            p_goal = 0.9 if carried and carry_matters else 0.5
+            cls = "goal" if rng.random() < p_goal else "e2_back"
+            (context.workspace / "s2.txt").write_text(f"[[class s2={cls}]]")
+            (context.workspace / "gate1.flag").write_text("true")
+            context.write_memory("m21", "直すところ")
+        else:
+            cls = "e3_back" if context.visit == 1 and rng.random() < 0.5 else "goal"
+            (context.workspace / "s3.txt").write_text(f"[[class s3={cls}]]")
+            (context.workspace / "gate2.num").write_text("0")
+            context.write_memory("m32", "直すところ")
+
+    runtime = Runtime(
+        workflow,
+        {s.id: body for s in workflow.stages},
+        registry=ConformanceRegistry(),
+        classifier=MarkerClassifier(),
+        operator=AbortOperator(),
+        store=BlobStore(tmp_path / "store"),
+        workdir=tmp_path,
+    )
+    return run_many(400, 0, lambda seed: record_run(runtime, seed, {"in.txt": b"x"}))
+
+
+@pytest.fixture(scope="module")
+def carry_runs(tmp_path_factory: pytest.TempPathFactory) -> dict[bool, RunSet]:
+    return {m: _workflow_runs(tmp_path_factory.mktemp(f"carry-{m}"), m) for m in (True, False)}
+
+
+def test_entries_name_how_each_visit_was_entered(carry_runs: dict[bool, RunSet]) -> None:
+    runs = carry_runs[False]
+    seen = {(e.stage, e.entry) for e in entries(runs)}
+    assert ("s1", "start") in seen
+    assert ("s2", "next:s1") in seen
+    assert ("s2", "rollback:s3=e3_back") in seen
+    assert ("s1", "rollback:s2=e2_back") in seen
+    assert all(e.visit >= 1 for e in entries(runs))
+
+
+def test_entry_dependence_detects_carry_dependent_bodies(carry_runs: dict[bool, RunSet]) -> None:
+    """訪問 2 以降の結果が入り方で違うかの検定。carry で振る舞いが変わる本体を検出し、変わらない本体では
+    違反を出さない。"""
+    dependent = {(r.stage, r.visit): r for r in entry_dependence(carry_runs[True])}
+    plain = {(r.stage, r.visit): r for r in entry_dependence(carry_runs[False])}
+    assert dependent[("s2", 2)].verdict == "violated"
+    assert set(dependent[("s2", 2)].groups) == {"next:s1", "rollback:s3=e3_back"}
+    assert plain[("s2", 2)].verdict == "not_detected"
+    assert all(r.visit >= 2 for r in plain.values())

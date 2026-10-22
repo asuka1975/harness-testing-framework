@@ -220,7 +220,11 @@ def _compare(
 
 
 def compare_prediction(prediction: Prediction, runs: RunSet, k: float = 4.0) -> list[Comparison]:
-    """予測と実測を比べる。差が標準誤差の k 倍以内なら一致とする。"""
+    """予測と実測を比べる。差が標準誤差の k 倍以内なら一致とする。
+
+    比べる量は、最後の状態の割合（status:）、ステージごとの訪問の回数（visits:）、ステージの評価の結果ごとの
+    回数（outcome:<ステージ>=<結果>）、ゲートの評価の結果ごとの回数（gate:<フェーズ>=<結果>）。
+    """
     out: list[Comparison] = []
     for status, p in sorted(prediction.status.items()):
         values = [1.0 if r.status == status else 0.0 for r in runs.runs]
@@ -240,4 +244,20 @@ def compare_prediction(prediction: Prediction, runs: RunSet, k: float = 4.0) -> 
             for r in runs.runs
         ]
         out.append(_compare(f"outcome:{stage}={outcome}", mean, values, k, binomial=False))
+    gates: dict[tuple[str, str], float] = defaultdict(float)
+    for (scope, phase, _, outcome), v in prediction.visit_outcomes.items():
+        if scope == "phase":
+            gates[(phase, outcome)] += v
+    for (phase, outcome), mean in sorted(gates.items()):
+        values = [
+            float(
+                sum(
+                    1
+                    for e in r.evaluations()
+                    if e["scope"] == "phase" and e["phase"] == phase and e["outcome"] == outcome
+                )
+            )
+            for r in runs.runs
+        ]
+        out.append(_compare(f"gate:{phase}={outcome}", mean, values, k, binomial=False))
     return out

@@ -1,27 +1,25 @@
 # adopting.md の不足の記録（software-factory）
 
-software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。最初の版（30 項目、A1〜F2）を受けてフレームワークの側が直したので往復 1 で確かめ直し、そこで見つけた N1〜N7 を直したと言うので往復 2 で確かめ直した。
+software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。最初の版（30 項目、A1〜F2）を受けてフレームワークの側が直したので往復 1 で確かめ直し、そこで見つけた N1〜N7 を往復 2 で、往復 2 で見つけた N8、N9 を往復 3 で確かめ直した。
 
-読んだのは adopting.md、api.md、api-reference.md、examples/toy-minimal/、schema/workflow.schema.json、contract/ の文書と形式（contract.md、README.md、conformance/ の下のすべて、formats/ と trace と snapshot の schema）だけ。往復 2 では、これらの文書の変更を git の差分で見た（読んでよい文書に限る）。フレームワーク本体の実装（src/、tests/、scripts/、pyproject.toml、conftest.py の中身を含む）、plan.md、progress.md、decisions.md、reports/ は読んでいない。本体について知ったことは、公開の名前の signature と docstring、`scripts/check.sh` と本体のテスト（tests/test\_package.py だけ）を実行した時の出力、cProfile の出力（関数の名前と時間）からだけ。本体は直していない。回避策はこの例の中にだけ置いた。
+読んだのは adopting.md、api.md、api-reference.md、examples/toy-minimal/、schema/workflow.schema.json、contract/ の文書と形式（contract.md、README.md、conformance/ の下のすべて、formats/ と trace と snapshot の schema）だけ。往復 2 と往復 3 では、これらの文書の変更を git の差分で見た（読んでよい文書に限る。往復 3 はコミット前の作業ツリーとの差分）。フレームワーク本体の実装（src/、tests/、scripts/、pyproject.toml、conftest.py の中身を含む）、plan.md、progress.md、decisions.md、reports/ は読んでいない。本体について知ったことは、公開の名前の signature と docstring、`scripts/check.sh` と本体のテスト（tests/test\_package.py だけ）を実行した時の出力、cProfile の出力（関数の名前と時間）からだけ。本体は直していない。回避策はこの例の中にだけ置いた。
 
 ## 未解消
 
-### N8. compare\_prediction がゲートの評価の結果を比べない
+### N10. 公開の振る舞いの変化を、利用者が知る場所が無い
 
-`RandomGateClassifier` でゲートの分布を持つ実行を作れるようになり（下の N5）、`Prediction.visit_outcomes` にもゲートの (phase, フェーズ, 区分, 結果) の期待値がある。一方 `compare_prediction` が比べるのは、最後の状態、訪問の回数、ステージの評価の結果ごとの回数の 41 の量だけで、ゲートの評価の結果は入らない（assurance のゲートを揺らした実行でも、比べた量に assurance は無かった）。
+往復 3 で `compare_prediction` の比べる量にゲートの量（`gate:<フェーズ>=<結果>`）が増え、量の種類を固定の集合で確かめていたこの例のテスト（tests/test\_e2e.py の test\_estimated\_prediction\_matches\_measurement）が check.sh で落ちた。増えたこと自体は N8 の求めどおりで、直すのも一行で済んだ。ただ、それを知ったのは調整役からの連絡で、公開の文書（adopting.md、api.md、api-reference.md）は今の振る舞いだけを書き、何が変わったか（返す量が増えた、名前が足された）の記録は無い。pip で入れた利用者は、版を上げてテストが落ちてから気づくことになる。
 
-- どうしたか: tests/test\_e2e.py の test\_gate\_distribution\_prediction\_matches\_measurement で、assurance のゲートの評価の結果ごとの回数を、訪問の区分ごとに visit\_outcomes と手で比べた（差が回数の平方根の 4 倍以内）
-- 欲しいもの: `compare_prediction` がゲートの評価の結果も比べること。または、比べない量があると docstring に書くこと
+- 欲しいもの: 版ごとの変更の記録（公開の名前と振る舞いの追加、変更、互換性の注意）を、公開の文書の一つとして置くこと
 
-### N9. 予測と実測が合っても、入り方による違いは隠れうる（N6 の説明の残り）
+## 解消済み（往復 3）
 
-第14節の「実ハーネスでの合成の読み方」は、予測と実測が合わない時の調べ方（そのステージの訪問 2 以降を、直前にどの辺から入ったかで分けて比べる）を書く。試したところ、carry で振る舞いが変わる本体でも、推定したモデルの予測は実測と合った。推定が入り方の混ざりを平均するので、実測の混ざりが推定と同じなら合う。
-
-- 試したこと（スクラッチで。この例には入れていない）: implement が自分自身から impl\_violations を受けた時だけ goal を 0.5 に下げる本体（ほかの入り方では 0.90）で、推定 400 回、実測 400 回。推定したモデルの予測は、比べた量すべてで実測と一致した（k = 4）。implement の訪問 2 以降の評価を直前の transition（kind、from、edge の state）で分けると、自分自身からの戻りの後の goal は 0.55（75/136）、ほかの入り方は 0.81〜0.90 で、分割表のカイ二乗統計量は 39.6（自由度 4）。carry で変わらない markov の本体では 2.4
-- 判断: 第14節の最後の「このようなステージを含む量は、合成の予測ではなく実測（分布テスト）で確かめる」に従えば困らない。ただし「合わない時は」と書かれているので、合えばよいと読まれうる。入り方が複数あるステージは、合っていても入り方で分けて確かめる、と書くとよい
-- 足りないもの: 入り方で分ける道具が無く、実行記録の transition を手で辿った（十数行）。`independence` のように、(ステージ, 訪問の区分, 直前の辺) ごとに結果の分布を比べる関数があるとよい
+- **N8 compare\_prediction がゲートの評価の結果を比べない**: 解消。api-reference.md の compare\_prediction に比べる量（status、visits、outcome、gate）が書かれた。試した: assurance のゲートを揺らした実行（markov\_gated.yaml の 400 回）で、比べる量が 41 から 47 になり、`gate:assurance=goal` と `gate:assurance=changes_requested` を含むすべてが一致した。tests/test\_e2e.py でゲートの評価の回数を visit\_outcomes と訪問の区分ごとに手で比べていた部分を外し、ゲートの量が比べる量に入ることを確かめる形にした。ゲートの量は訪問の区分に分けないが、ステージの量も同じで、区分ごとの割合は markov\_gated.yaml の基準（訪問 1 と 2 以降）が確かめる。量の種類を固定の集合で確かめていたテストは、gate を足して直した（変化を知る場所は N10）
+- **N9 予測と実測が合っても、入り方による違いは隠れうる**: 解消。第14節に「予測と実測が合っても、仮定が成り立つとは限らない」と `entry_dependence`、`entries` が書かれた。試した: 往復 2 のスクラッチの carry で振る舞いが変わる本体（implement が自分自身から impl\_violations を受けた時だけ goal 0.5）で、`entry_dependence` は implement の訪問 2 以降を violated（p = 0.0005、入り方 5 通り）と判定した。markov、ゲートを揺らす実行、divergent の本体では violated が無く、implement は not\_detected（markov で p = 0.62）。一回 0.3〜0.4 秒。往復 2 で手で辿った十数行は要らない。例のテストに、markov とゲートを揺らす実行の両方で、入り方が二つ以上あるステージに violated が無いこと（test\_class\_distributions\_do\_not\_depend\_on\_the\_entry）を足した。気づいたこと: ゲートの不合格による戻りと、ステージの評価による戻りは、同じ辺なら同じ入り方（`rollback:review=changes_requested`）になる（docstring にそう書いてある）。持ち帰る記憶の中身で振る舞いを変える本体は、この二つを分けられない
 
 ## 解消済み（往復 2）
+
+往復 2 の判定と確かめ方。ここで N8、N9 とした残りは、上の往復 3 で確かめた。
 
 - **N1 signature に出てくる型が書かれていない**: 解消。api.md と api-reference.md に `Criterion`、`EndState`、`Goal`、`Phase`、`Rollback`、`Event`、`Key`、`Dist`、`writes_hash`、`SCHEMA_FILES` があり、どれも import できることを試した。tests/test\_oracle.py が使う `EndState.id` も書かれた。小さなこと: `Event` は runtime（`dict[str, JSONValue]`）と testing.stages（`Mapping[str, Any]`）で定義が違う。api-reference.md の `SCHEMA_FILES` の値は末尾が `…` で切れる（import すれば 8 つの名前が見える）。どちらも使う上では困らない
 - **N2 契約に決定の番号が残る**: 解消。contract.md 第1節と self\_rollback.yaml の description から消えた。contract/、schema/workflow.schema.json、api.md、api-reference.md、adopting.md を「決定」、plan.md、decisions.md で検索して、残りが無い
@@ -89,6 +87,8 @@ adopting.md 第14節に「モデルの区分は (ステージ, 訪問の区分) 
 判断（往復 1）: この例にとっては十分。前に自分で選んだ置き方（release に戻る辺は自分自身への一本だけで、訪問 2 以降と carry を受けたことが一致する）が、そのまま文書の勧めになっている。制限として明示されたので、合成が合わない時の第一の疑いにできる。実際のハーネスでの扱いが足りないことは N6 に書いた。
 
 判断（往復 2）: 第14節に「実ハーネスでの合成の読み方」が足され、モデルに carry を入れないままでの扱い（どの量が近似になるか、どう見分けるか、そういう量は実測で確かめる）が分かるようになった。直さないことの説明として十分。合っている時にも隠れうることは N9 に書いた。
+
+判断（往復 3）: 第14節に、合っていても `entry_dependence` で確かめることが足され、この例でも markov とゲートを揺らす実行で確かめるようにした（上の N9）。モデルに carry を入れないことの説明と、その下での確かめ方がそろった。
 
 ### D4. MarkerClassifier の下でのゲートの分布
 

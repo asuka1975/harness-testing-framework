@@ -106,6 +106,25 @@ def _table(
     return [[counts[(g, c)] for c in columns] for g in groups]
 
 
+def _permutation_test(
+    kept: Sequence[tuple[str, str]], groups: Sequence[str], permutations: int, seed: int
+) -> tuple[float, float]:
+    """群の札を入れ替える並べ替え検定。カイ二乗統計量と p 値。"""
+    columns = sorted({value for _, value in kept})
+    observed = chi_square(_table(kept, groups, columns))
+    rng = random.Random(seed)
+    labels = [g for g, _ in kept]
+    values = [v for _, v in kept]
+    exceed = 0
+    for _ in range(permutations):
+        rng.shuffle(labels)
+        if chi_square(_table(list(zip(labels, values, strict=True)), groups, columns)) >= (
+            observed - 1e-12
+        ):
+            exceed += 1
+    return observed, (1 + exceed) / (1 + permutations)
+
+
 @dataclass(frozen=True)
 class IndependenceResult:
     state: str
@@ -151,20 +170,7 @@ def independence(
             )
             continue
         kept = [(rep, nxt) for rep, nxt in samples if rep in groups]
-        columns = sorted({nxt for _, nxt in kept})
-        observed = chi_square(_table(kept, groups, columns))
-        rng = random.Random(seed)
-        labels = [rep for rep, _ in kept]
-        nexts = [nxt for _, nxt in kept]
-        exceed = 0
-        for _ in range(permutations):
-            rng.shuffle(labels)
-            if (
-                chi_square(_table(list(zip(labels, nexts, strict=True)), groups, columns))
-                >= observed - 1e-12
-            ):
-                exceed += 1
-        p_value = (1 + exceed) / (1 + permutations)
+        observed, p_value = _permutation_test(kept, groups, permutations, seed)
         verdict = "violated" if p_value < alpha else "not_detected"
         results.append(
             IndependenceResult(
@@ -175,6 +181,114 @@ def independence(
                 observed,
                 p_value,
                 verdict,
+            )
+        )
+    return results
+
+
+@dataclass(frozen=True)
+class Entry:
+    """ステージの一回の訪問と、その入り方と評価の結果。
+
+    entry は `start`（実行の最初）、`next:<前のステージ>`、`rollback:<元ステージ>=<end_state>`（ゲートの不合格を
+    含む）、`operator_rollback:<escalate したステージ>`、`rerun`（運用者の再実行）。outcome はその訪問のステージの
+    評価の結果（評価の前に終わった訪問は None）。
+    """
+
+    run: int
+    stage: str
+    visit: int
+    entry: str
+    outcome: str | None
+
+
+def entries(runs: RunSet) -> list[Entry]:
+    """全実行の、ステージの訪問ごとの入り方と評価の結果。中断からの再開は同じ訪問の続きで、入り方を変えない。"""
+    out: list[Entry] = []
+    for run in runs.runs:
+        entry = "start"
+        found: dict[tuple[str, int], int] = {}
+        visits: list[Entry] = []
+        for e in run.events:
+            kind = e["event"]
+            if kind == "transition" and e["kind"] == "next":
+                entry = f"next:{e['from']}"
+            elif kind == "transition" and e["kind"] == "rollback":
+                edge = e["edge"]
+                entry = (
+                    f"rollback:{edge['stage']}={edge['state']}"
+                    if isinstance(edge, dict)
+                    else f"operator_rollback:{e['from']}"
+                )
+            elif kind == "escalation" and isinstance(e["decision"], dict):
+                if e["decision"]["kind"] == "rerun":
+                    entry = "rerun"
+            elif kind == "stage_start":
+                key = (str(e["stage"]), int(e["visit"]))
+                if key not in found:
+                    found[key] = len(visits)
+                    visits.append(Entry(run.seed, key[0], key[1], entry, None))
+            elif kind == "evaluation" and e["scope"] == "stage":
+                key = (str(e["stage"]), int(e["visit"]))
+                if key in found:
+                    index = found[key]
+                    visits[index] = Entry(
+                        run.seed, key[0], key[1], visits[index].entry, str(e["outcome"])
+                    )
+        out += visits
+    return out
+
+
+@dataclass(frozen=True)
+class EntryDependenceResult:
+    stage: str
+    visit: int
+    """訪問の区分（min(訪問, cap)）。"""
+    groups: dict[str, int]
+    statistic: float | None
+    p_value: float | None
+    verdict: str
+    note: str = ""
+
+
+def entry_dependence(
+    runs: RunSet,
+    *,
+    from_visit: int = 2,
+    alpha: float = 0.01,
+    permutations: int = 2000,
+    seed: int = 0,
+    min_group: int = 10,
+    cap: int = 2,
+) -> list[EntryDependenceResult]:
+    """ステージの from_visit 回目以降の訪問の評価の結果が、入り方（Entry.entry）で違うかを検定する。
+
+    マルコフ合成は、クラスの分布が (ステージ, 訪問の区分) だけで決まると仮定する。入り方（どの辺から戻ったか、
+    carry を受けたか）で結果が違えば、その仮定は崩れている。予測と実測が合っていても、集計した量では違いが
+    打ち消し合うことがあるので、入り方が複数あるステージはこれで確かめる。ステージと訪問の区分（cap 以上は一つ）の
+    組ごとに、入り方の札を入れ替える並べ替え検定で判定する。判定の意味は independence と同じ。
+    """
+    by_key: dict[tuple[str, int], list[tuple[str, str]]] = defaultdict(list)
+    for e in entries(runs):
+        if e.visit >= from_visit and e.outcome is not None:
+            by_key[(e.stage, min(e.visit, cap))].append((e.entry, e.outcome))
+    results: list[EntryDependenceResult] = []
+    for stage, bucket in sorted(by_key):
+        samples = by_key[(stage, bucket)]
+        sizes = Counter(entry for entry, _ in samples)
+        groups = sorted(entry for entry, n in sizes.items() if n >= min_group)
+        if len(groups) < 2:
+            note = f"{min_group} 件以上の入り方が二つ未満（入り方ごとの件数 {dict(sizes)}）"
+            results.append(
+                EntryDependenceResult(stage, bucket, dict(sizes), None, None, "undetermined", note)
+            )
+            continue
+        kept = [(entry, outcome) for entry, outcome in samples if entry in groups]
+        observed, p_value = _permutation_test(kept, groups, permutations, seed)
+        verdict = "violated" if p_value < alpha else "not_detected"
+        results.append(
+            EntryDependenceResult(
+                stage, bucket, {g: sizes[g] for g in groups}, observed, p_value, verdict
             )
         )
     return results

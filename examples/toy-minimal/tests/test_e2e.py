@@ -66,14 +66,19 @@ RUNS = runs_from_environment(400)
 
 
 def test_markov_prediction_matches_measurement(tmp_path: Path) -> None:
-    """推定したモデルの予測が、別の種の実行の実測と一致する（状態、訪問の回数、評価の結果ごとの回数）。"""
+    """推定したモデルの予測が、別の種の実行の実測と一致する（状態、訪問の回数、ステージとゲートの評価の結果ごとの回数）。"""
     built = runtime("markov", tmp_path / "a")
     estimation = run_many(RUNS, 30000, lambda seed: record_run(built, seed, INPUTS))
     prediction = synthesize(estimate_model(estimation, cap=2), built.workflow)
     other = runtime("markov", tmp_path / "b")
     measurement = run_many(RUNS, 40000, lambda seed: record_run(other, seed, INPUTS))
     comparisons = compare_prediction(prediction, measurement)
-    assert {c.quantity.split(":")[0] for c in comparisons} == {"status", "visits", "outcome"}
+    assert {c.quantity.split(":")[0] for c in comparisons} == {
+        "status",
+        "visits",
+        "outcome",
+        "gate",
+    }
     assert all(c.within for c in comparisons), [c.line() for c in comparisons if not c.within]
 
 

@@ -167,6 +167,10 @@
 | `independence` | 同じクラスの代表どうしで、次の状態の分布が違うかの検定（カイ二乗統計量の並べ替え検定。状態と訪問の区分ごと） |
 | `IndependenceResult` | 検定の結果（状態、訪問の区分、次のステージの訪問の区分、代表ごとの件数、統計量、p 値、not\_detected / violated / undetermined） |
 | `chi_square` | 分割表のカイ二乗統計量 |
+| `entries` | ステージの訪問ごとの入り方（start、next、rollback、運用者による戻り、再実行）と評価の結果 |
+| `Entry` | 一つの訪問の入り方と結果 |
+| `entry_dependence` | 訪問 2 以降の評価の結果が入り方で違うかの検定（マルコフ合成の仮定の確かめ。ステージと訪問の区分ごと） |
+| `EntryDependenceResult` | 検定の結果（ステージ、訪問の区分、入り方ごとの件数、統計量、p 値、判定） |
 
 ## `harness_testing_framework.testing.e2e`
 
@@ -186,7 +190,7 @@ E2E のカバレッジ計画（誘発と注入）とマルコフ合成。
 | `synthesize` | モデルとワークフローから、最後の状態の分布、訪問の回数の期待値、評価の結果ごとの回数の期待値（訪問の区分ごとにも）を厳密に計算する（escalate の後は中止） |
 | `Prediction` | 合成の結果。`evaluations[(scope, 対象, 訪問の区分)]` は visit や from\_visit で絞った基準の分母の期待値 E[n]。`visits_variance` は一回の実行の中での訪問の回数の分散 |
 | `ModelIncomplete` | 到達しうる (ステージ, 訪問) の分布がモデルに無い |
-| `compare_prediction` | 予測と実測を比べる（差が標準誤差の k 倍以内なら一致） |
+| `compare_prediction` | 予測と実測を比べる（最後の状態、訪問の回数、ステージとゲートの評価の結果ごとの回数。差が標準誤差の k 倍以内なら一致） |
 | `Comparison` | 一つの量の比較 |
 
 ## `harness_testing_framework.testing.oracle`

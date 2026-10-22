@@ -8,9 +8,9 @@ harness-testing-framework（v0.1.0）の利用者として、adopting.md だけ�
 
 ## 状態（2026-10-22）
 
-往復 2 まで完了。`scripts/check.sh` が通る（ruff check、ruff format、mypy strict、pytest 609 件で 133.9 秒、全体で約 2 分 15 秒）。この例のテストは 155 件（カバレッジの計測の下で約 107 秒）。変更は examples/software-factory/ の中だけ。
+往復 3 まで完了。`scripts/check.sh` が通る（ruff check、ruff format、mypy strict、pytest 614 件で 144.5 秒、全体で約 2 分 25 秒）。この例のテストは 157 件（カバレッジの計測の下で約 107 秒。往復 3 で足したテストは一つ 1 秒に満たない）。変更は examples/software-factory/ の中だけ。
 
-最初の版（下の「経過」）の後、フレームワークの側が adopting-gaps.md の 30 項目を受けて直したので、往復 1 で各項目を確かめ、要らなくなった回避策を外した（下の「往復 1」）。往復 1 で見つけた N1〜N7 も直ったので、往復 2 で確かめた（下の「往復 2」）。今の未解消は adopting-gaps.md の先頭にある。
+最初の版（下の「経過」）の後、フレームワークの側が adopting-gaps.md の 30 項目を受けて直したので、往復 1 で各項目を確かめ、要らなくなった回避策を外した（下の「往復 1」）。往復 1 で見つけた N1〜N7 も直ったので往復 2 で、往復 2 で見つけた N8、N9 も直ったので往復 3 で確かめた（下の「往復 2」「往復 3」）。今の未解消は adopting-gaps.md の先頭にある。
 
 | 求められたこと | どこで満たしたか |
 | --- | --- |
@@ -31,7 +31,7 @@ harness-testing-framework（v0.1.0）の利用者として、adopting.md だけ�
 - 遷移の決定論テスト: 14 シナリオ。遷移の六種、escalate の四択、越境の 6 通り（運用者による越境を含む）を通す。実在の指標の値で goal が選択肢から外れることを expect.options で確かめる。記録再生で同一のスナップショットの列。inputs と開始時スナップショットのファイルはフィクスチャを `{from: パス}` で参照する。三つのペルソナを台本の user の代わりに束縛しても期待どおり（持ち帰った問いを尋ねる、最初の質問で保留して再開する）
 - 分布テスト: markov.yaml の 12 基準がすべて通り（400 回、種 20000）、markov\_shifted.yaml の 14 基準はすべて落ちる。release の訪問 2 以降の goal は 0.969（62/64）で、「carry で変わらない」とした基準（0.65〜0.85）は落ちる。assurance のゲートを RandomGateClassifier で揺らす markov\_gated.yaml の 4 基準もすべて通る（400 回、種 50000。ゲートの訪問 1 の changes\_requested 0.211（45/213）、訪問 2 以降 0.156（17/109）、完了 0.620、implement の訪問の回数の平均 1.995）。各基準が設計値の両側に標準誤差の 3 倍以上あることを、synthesize の evaluations（厳密な E[n]）と visits\_variance から確かめる
 - 独立性検証: divergent は stage:implement=goal（訪問 1 → 1）で violated（p = 0.0005、代表 136 と 126）。markov はどこにも violated が無く、同じ状態は not\_detected（p = 0.24）。intake の goal のペルソナごとの三つの代表は、どちらの分布でも not\_detected。ゲートを揺らす実行にも violated が無い
-- E2E: カバレッジ計画が全 (ステージ, クラス) の 30 を踏む（誘発と注入の両方。intake の質問にはペルソナが答える）。推定したモデルと設計値のモデルの予測が、どちらも 41 の量すべてで実測と一致（k = 4）。ゲートの分布を足した設計値のモデルの予測も、ゲートを揺らした実行の 41 の量と一致し、assurance のゲートの評価の結果ごとの回数（訪問の区分ごと）も予測と合う
+- E2E: カバレッジ計画が全 (ステージ, クラス) の 30 を踏む（誘発と注入の両方。intake の質問にはペルソナが答える）。推定したモデルと設計値のモデルの予測が、どちらもゲートの評価の結果を含むすべての量で実測と一致（k = 4）。ゲートの分布を足した設計値のモデルの予測も、ゲートを揺らした実行の 47 の量（assurance のゲートの goal と changes\_requested を含む）と一致する。入り方が二つ以上あるステージの訪問 2 以降の結果は、markov とゲートを揺らす実行のどちらでも入り方によらない（entry\_dependence で violated 無し。implement は入り方 5 通りで not\_detected）
 - オラクル: `build_corpus(..., unique_states=True)` でステージの 127 項目（手で重複を除いた前の版と同じ項目と順）。印を読む分類器は κ 1、ECE 0.1。既知の混同行列の分類器は κ 0.623、ECE 0.269、答え無し 7（選択肢に無いクラス）で、独立に計算した値と一致。揺れる分類器の再実行の一致率は 0.748
 - トリアージ: 確信度 0.6 の印を読む分類器で 24 回実行し、全評価（unknown を含む 361 項目）を確信度 0.7 未満として待ち行列に足し、五種類の判定（label、classifier\_error、new\_class\_proposal、description\_revision\_proposal、not\_a\_problem）を付けて未判定を無くした。ワークフロー定義は変わらない。ラベルを付けた項目をコーパスに足してオラクルのレポートを出した（κ 1、ECE 0.4）
 
@@ -101,8 +101,19 @@ harness-testing-framework（v0.1.0）の利用者として、adopting.md だけ�
 
 外した回避策: 訪問の回数の標準偏差のための標本 design.simulate（N4）。足したもの: ゲートを揺らす実行の集まり（N5。往復 1 では「確率的な実行のゲートはいつも goal」が残っていた）。
 
+## 往復 3（2026-10-22）
+
+フレームワークの側が往復 2 の N8、N9 を直したと言うので（コミット前の作業ツリー）、読んでよい文書の差分と実際の振る舞いで確かめた。判定と確かめ方は adopting-gaps.md の「解消済み（往復 3）」にある。
+
+1. N8: compare\_prediction の比べる量にゲートの量（gate:<フェーズ>=<結果>）が入り、ゲートを揺らした実行で 41 から 47 になって全部一致することを試した。tests/test\_e2e.py の test\_estimated\_prediction\_matches\_measurement が量の種類を {status, visits, outcome} の固定の集合で確かめていて落ちていたので、gate を足した。test\_gate\_distribution\_prediction\_matches\_measurement の、ゲートの評価の回数を visit\_outcomes と訪問の区分ごとに手で比べていた部分を外し、ゲートの量が比べる量に入ることを確かめる形にした（区分ごとの割合は markov\_gated.yaml の基準が確かめる）
+2. N9: entry\_dependence を、往復 2 のスクラッチの carry で振る舞いが変わる本体と、markov、ゲートを揺らす実行、divergent にかけた。前者だけ implement の訪問 2 以降が violated（p = 0.0005）。例のテストに test\_class\_distributions\_do\_not\_depend\_on\_the\_entry（markov とゲートを揺らす実行で violated が無く、implement は入り方 5 通りで not\_detected、release の入り方は自分自身からの一本だけ）を足した
+3. 量が増えたことを公開の文書から知る手段が無いことを、gaps N10 に書いた
+4. check.sh が通る（614 件、144.5 秒）
+
+外した回避策: ゲートの評価の回数の手での比較（N8）。往復 2 で手で辿った入り方の分け方（N9）はスクラッチだけだったので、例の側で外すものは無い。
+
 ## 残っていること
 
 - markov.yaml の実行のゲートはいつも goal（前の数値を保つため）。ゲートの分布は markov\_gated.yaml の実行の集まりで確かめる
-- release 以外で carry によって分布が変わる本体は、マルコフ合成と合わないので例には置いていない（gaps D2、N9）
+- release 以外で carry によって分布が変わる本体は、マルコフ合成と合わないので例には置いていない（gaps D2）。entry\_dependence がそれを見分けることはスクラッチで確かめた（gaps N9）
 - 分類器の検証の閾値は、偽の分類器なので決めていない（第15節の「人間が閾値を決める」は実際の分類器の時の手順）

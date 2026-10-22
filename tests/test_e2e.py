@@ -11,6 +11,7 @@ from harness_testing_framework.runtime import BlobStore, Runtime, load_workflow
 from harness_testing_framework.testing.e2e import (
     MarkovModel,
     ModelIncomplete,
+    Prediction,
     Target,
     compare_prediction,
     coverage_targets,
@@ -465,3 +466,29 @@ def test_random_gate_classifier_shakes_gates_independently_of_artifacts(tmp_path
         c.line() for c in compare_prediction(prediction, runs) if not c.within
     ]
     assert "violated" not in {r.verdict for r in independence(runs)}
+
+
+def test_comparison_includes_gate_outcomes() -> None:
+    """compare_prediction は、ステージの評価の結果と同じく、ゲートの評価の結果ごとの回数も比べる。"""
+    prediction = Prediction(
+        status={"completed": 1.0, "aborted": 0.0},
+        mean_visits={"s2": 1.5},
+        visit_outcomes={
+            ("phase", "p1", 1, "goal"): 0.5,
+            ("phase", "p1", 1, "e2_back"): 0.5,
+            ("phase", "p1", 2, "goal"): 0.5,
+        },
+    )
+    runs = RunSet(
+        [
+            _run([("phase", "s2", "p1", 1, "goal")], "completed"),
+            _run(
+                [("phase", "s2", "p1", 1, "e2_back"), ("phase", "s2", "p1", 2, "goal")], "completed"
+            ),
+        ]
+    )
+    comparisons = {c.quantity: c for c in compare_prediction(prediction, runs)}
+    assert comparisons["gate:p1=goal"].predicted == pytest.approx(1.0)
+    assert comparisons["gate:p1=goal"].measured == pytest.approx(1.0)
+    assert comparisons["gate:p1=e2_back"].measured == pytest.approx(0.5)
+    assert comparisons["gate:p1=e2_back"].within

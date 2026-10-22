@@ -507,6 +507,29 @@ user を与えると、シナリオの user の台本の代わりにそれ（ユ
 
 - `line() -> str`
 
+### `entries(runs: RunSet) -> list[Entry]`
+
+全実行の、ステージの訪問ごとの入り方と評価の結果。中断からの再開は同じ訪問の続きで、入り方を変えない。
+
+### `Entry(run: int, stage: str, visit: int, entry: str, outcome: str | None)`
+
+ステージの一回の訪問と、その入り方と評価の結果。
+
+entry は `start`（実行の最初）、`next:<前のステージ>`、`rollback:<元ステージ>=<end_state>`（ゲートの不合格を
+含む）、`operator_rollback:<escalate したステージ>`、`rerun`（運用者の再実行）。outcome はその訪問のステージの
+評価の結果（評価の前に終わった訪問は None）。
+
+### `entry_dependence(runs: RunSet, *, from_visit: int = 2, alpha: float = 0.01, permutations: int = 2000, seed: int = 0, min_group: int = 10, cap: int = 2) -> list[EntryDependenceResult]`
+
+ステージの from_visit 回目以降の訪問の評価の結果が、入り方（Entry.entry）で違うかを検定する。
+
+マルコフ合成は、クラスの分布が (ステージ, 訪問の区分) だけで決まると仮定する。入り方（どの辺から戻ったか、
+carry を受けたか）で結果が違えば、その仮定は崩れている。予測と実測が合っていても、集計した量では違いが
+打ち消し合うことがあるので、入り方が複数あるステージはこれで確かめる。ステージと訪問の区分（cap 以上は一つ）の
+組ごとに、入り方の札を入れ替える並べ替え検定で判定する。判定の意味は independence と同じ。
+
+### `EntryDependenceResult(stage: str, visit: int, groups: dict[str, int], statistic: float | None, p_value: float | None, verdict: str, note: str = '')`
+
 ### `evaluate_expectations(expectations: Expectations, runs: RunSet) -> ExpectationReport`
 
 各基準を判定する。
@@ -598,6 +621,9 @@ representatives は、ステージの評価の seq から、その評価の直�
 ### `compare_prediction(prediction: Prediction, runs: RunSet, k: float = 4.0) -> list[Comparison]`
 
 予測と実測を比べる。差が標準誤差の k 倍以内なら一致とする。
+
+比べる量は、最後の状態の割合（status:）、ステージごとの訪問の回数（visits:）、ステージの評価の結果ごとの
+回数（outcome:<ステージ>=<結果>）、ゲートの評価の結果ごとの回数（gate:<フェーズ>=<結果>）。
 
 ### `Comparison(quantity: str, predicted: float, measured: float, se: float, within: bool)`
 
