@@ -5,15 +5,19 @@
 - release の分布は carry を受けたかで変わり、それは訪問の区分と一致する
 - 本体は契約を守る（多数の実行で、契約違反、本体の例外、範囲外のファイルの警告が一度も無い）
 - 正しい expectations が通り、ずらした expectations の基準はすべて落ちる
+- 正しい expectations の各基準は、設計値を中に含み、幅が設計値の両側に標準誤差の 3 倍以上ある（0 と 1 で切る側を除く）。
+  標準誤差の分母 E[n] は、設計値の MarkovModel の synthesize の evaluations から厳密に出す
 """
 
 import math
 from pathlib import Path
 
 import pytest
+from software_factory.design import expected_count, simulate
 from software_factory.stages.probabilistic import TABLE, choose_variant, run_set, runtime
 
 from harness_testing_framework.runtime import BlobStore
+from harness_testing_framework.testing.e2e import Prediction
 from harness_testing_framework.testing.stages import (
     RunSet,
     evaluate_expectations,
@@ -70,6 +74,29 @@ def markov(markov_runs: tuple[RunSet, BlobStore]) -> tuple[RunSet, BlobStore]:
 def test_correct_expectations_pass(markov: tuple[RunSet, BlobStore]) -> None:
     report = evaluate_expectations(load_expectations(EXPECTATIONS / "markov.yaml"), markov[0])
     assert report.passed, report.lines()
+
+
+def test_correct_expectations_follow_the_design(design_prediction: Prediction) -> None:
+    expectations = load_expectations(EXPECTATIONS / "markov.yaml")
+    runs = expectations.runs
+    checked: set[str] = set()
+    for c in expectations.criteria:
+        if c["kind"] == "outcome_rate":
+            window = {"visit": c.get("visit", 0), "from_visit": c.get("from_visit", 0)}
+            n = expected_count(design_prediction, c["target"], **window)
+            p = expected_count(design_prediction, c["target"], c["outcome"], **window) / n
+            se = math.sqrt(p * (1 - p) / (runs * n))
+        elif c["kind"] == "status_rate":
+            p = design_prediction.status[c["status"]]
+            se = math.sqrt(p * (1 - p) / runs)
+        else:
+            p = design_prediction.mean_visits[c["target"]]
+            se = simulate("markov", 50_000, 2).visit_sd(c["target"]) / math.sqrt(runs)
+        assert c["min"] <= p <= c["max"], c
+        assert c["min"] == 0.0 or p - c["min"] >= 3 * se, (c, p, se)
+        assert (c["kind"] == "outcome_rate" and c["max"] == 1.0) or c["max"] - p >= 3 * se, c
+        checked.add(c["kind"])
+    assert checked == {"outcome_rate", "status_rate", "mean_visits"}
 
 
 def test_every_shifted_criterion_fails(markov: tuple[RunSet, BlobStore]) -> None:

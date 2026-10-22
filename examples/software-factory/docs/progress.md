@@ -2,13 +2,15 @@
 
 harness-testing-framework（v0.1.0）の利用者として、adopting.md だけを手引きに、ソフトウェア開発のワークフロー型ハーネスを作る。
 
-- 読取の制限: docs/adopting.md、examples/toy-minimal/、公開 API の文書（api.md が挙げるもの）だけ。本体の実装（src/、tests/、scripts/、pyproject.toml）、docs/plan.md、docs/progress.md、docs/decisions.md は読まない。本体は直さない
+- 読取の制限: docs/adopting.md、docs/api.md、docs/api-reference.md、examples/toy-minimal/、公開 API の文書（api.md が挙げるもの）だけ。本体の実装（src/、tests/、scripts/、pyproject.toml、conftest.py の中身）、docs/plan.md、docs/progress.md、docs/decisions.md、reports/ は読まない。本体は直さない
 - 分からなかったこと、足りなかったこと、回避したくなったことは docs/adopting-gaps.md に書く
 - コミットはしていない（依頼に無いため）
 
 ## 状態（2026-10-22）
 
-完了。`scripts/check.sh` が通る（ruff check、ruff format、mypy strict、pytest 576 件、約 2 分 20 秒）。この例のテストは 147 件。変更は examples/software-factory/ の中だけ。
+往復 1 まで完了。`scripts/check.sh` が通る（ruff check、ruff format、mypy strict、pytest 602 件で 105.3 秒、全体で約 1 分 46 秒）。この例のテストは 152 件（カバレッジの計測の下で約 82 秒）。変更は examples/software-factory/ の中だけ。
+
+最初の版（下の「経過」）の後、フレームワークの側が adopting-gaps.md の 30 項目を受けて直したので、往復 1 で各項目を確かめ、要らなくなった回避策を外した（下の「往復 1」）。今の未解消は adopting-gaps.md の先頭にある。
 
 | 求められたこと | どこで満たしたか |
 | --- | --- |
@@ -19,19 +21,19 @@ harness-testing-framework（v0.1.0）の利用者として、adopting.md だけ�
 | carry を受けた再進入で分布が変わるもの | release（missing\_notes を受けると goal 0.75 → 0.97）。訪問 2 以降と carry の有無が一致することを全実行で確かめる |
 | クラス内で下流の分布が分かれるもの | divergent の implement の goal（ok は REQ-1 の切り捨てを誤り、ok\_fixed は正しい）。unit\_test の defect のテストは実在の pytest で前者だけ落ちる |
 | 実装と単体テストに本物の指標 | build\_passes、tests\_pass、line\_coverage、lint\_errors、out\_of\_scope\_changes。フィクスチャの repo/ に compileall、pytest、coverage、ruff を実際にかける |
-| 要求の取り込みにペルソナ 3 つ以上 | software\_factory/personas.py（precise\_pm、vague\_founder、terse\_engineer）。種からペルソナを選ぶ |
+| 要求の取り込みにペルソナ 3 つ以上 | software\_factory/personas.py（precise\_pm、vague\_founder、terse\_engineer）。確率的な実行では種からペルソナを選ぶ。決定論テストと E2E のカバレッジにも束縛する |
 | 全ランナー | 下の「結果」 |
 
 ## 結果
 
 - 整合性検査: 誤り 0、警告 0
-- 契約適合テスト: contract/conformance/scenarios/ の 24 シナリオすべてが参照ランタイムで期待どおり（tests/test\_conformance.py）。ハーネスの本体は、400 回の実行で契約違反、本体の例外、範囲外のファイルの警告が一度も無い
-- 遷移の決定論テスト: 14 シナリオ。遷移の六種、escalate の四択、越境の 6 通り（運用者による越境を含む）を通す。実在の指標の値で goal が選択肢から外れることを expect.options で確かめる。記録再生で同一のスナップショットの列
-- 分布テスト: markov.yaml の 12 基準がすべて通り（400 回、種 20000）、markov\_shifted.yaml の 14 基準はすべて落ちる。release の訪問 2 以降の goal は 0.969（62/64）で、「carry で変わらない」とした基準（0.65〜0.85）は落ちる
+- 契約適合テスト: パッケージに同梱した 25 シナリオ（`conformance_scenarios()`）すべてが参照ランタイムで期待どおり（tests/test\_conformance.py。参照ランタイムを使うので必須ではなく、版の確認として残す）。ハーネスの本体は、400 回の実行で契約違反、本体の例外、範囲外のファイルの警告が一度も無い
+- 遷移の決定論テスト: 14 シナリオ。遷移の六種、escalate の四択、越境の 6 通り（運用者による越境を含む）を通す。実在の指標の値で goal が選択肢から外れることを expect.options で確かめる。記録再生で同一のスナップショットの列。inputs と開始時スナップショットのファイルはフィクスチャを `{from: パス}` で参照する。三つのペルソナを台本の user の代わりに束縛しても期待どおり（持ち帰った問いを尋ねる、最初の質問で保留して再開する）
+- 分布テスト: markov.yaml の 12 基準がすべて通り（400 回、種 20000）、markov\_shifted.yaml の 14 基準はすべて落ちる。release の訪問 2 以降の goal は 0.969（62/64）で、「carry で変わらない」とした基準（0.65〜0.85）は落ちる。各基準が設計値の両側に標準誤差の 3 倍以上あることを、synthesize の evaluations（厳密な E[n]）から確かめる
 - 独立性検証: divergent は stage:implement=goal（訪問 1 → 1）で violated（p = 0.0005、代表 136 と 126）。markov はどこにも violated が無く、同じ状態は not\_detected（p = 0.24）。intake の goal のペルソナごとの三つの代表は、どちらの分布でも not\_detected
-- E2E: カバレッジ計画が全 (ステージ, クラス) の 30 を踏む（誘発と注入の両方）。推定したモデルと設計値のモデルの予測が、どちらも 41 の量すべてで実測と一致（k = 4）。設計値の標本（design.simulate）と synthesize の厳密な値が一致
-- オラクル: 状態文書ごとに重複を除いたステージの 127 項目で、印を読む分類器は κ 1、ECE 0.1。既知の混同行列の分類器は κ 0.623、ECE 0.269、答え無し 7（選択肢に無いクラス）で、独立に計算した値と一致。揺れる分類器の再実行の一致率は 0.748
-- トリアージ: 24 回の実行の unknown と確信度 0.7 未満の評価を待ち行列に足し、五種類の判定（label、classifier\_error、new\_class\_proposal、description\_revision\_proposal、not\_a\_problem）を付けて未判定を無くした。ワークフロー定義は変わらない。ラベルを付けた項目をコーパスに足してオラクルのレポートを出した（κ 1、ECE 0.4）
+- E2E: カバレッジ計画が全 (ステージ, クラス) の 30 を踏む（誘発と注入の両方。intake の質問にはペルソナが答える）。推定したモデルと設計値のモデルの予測が、どちらも 41 の量すべてで実測と一致（k = 4）。設計値の標本（design.simulate。訪問の回数の標準偏差のためだけに残す）の最後の状態と訪問の回数の平均が synthesize の厳密な値と一致
+- オラクル: `build_corpus(..., unique_states=True)` でステージの 127 項目（手で重複を除いた前の版と同じ項目と順）。印を読む分類器は κ 1、ECE 0.1。既知の混同行列の分類器は κ 0.623、ECE 0.269、答え無し 7（選択肢に無いクラス）で、独立に計算した値と一致。揺れる分類器の再実行の一致率は 0.748
+- トリアージ: 確信度 0.6 の印を読む分類器で 24 回実行し、全評価（unknown を含む 361 項目）を確信度 0.7 未満として待ち行列に足し、五種類の判定（label、classifier\_error、new\_class\_proposal、description\_revision\_proposal、not\_a\_problem）を付けて未判定を無くした。ワークフロー定義は変わらない。ラベルを付けた項目をコーパスに足してオラクルのレポートを出した（κ 1、ECE 0.4）
 
 ## 経過（2026-10-22）
 
@@ -60,8 +62,30 @@ harness-testing-framework（v0.1.0）の利用者として、adopting.md だけ�
 
 種は基準を書く前に決め、基準が通るように選び直してはいない。回数は環境変数 `HTF_RUNS` で増やせる。
 
+## 往復 1（2026-10-22）
+
+フレームワークの側が adopting-gaps.md の 30 項目を直したと言うので、利用者として、読んでよい文書（adopting.md、api.md、api-reference.md、契約と形式、契約適合テスト一式）と実際の振る舞いで確かめた。項目ごとの判定と確かめ方は adopting-gaps.md の「解消済み（往復 1）」にある。
+
+1. 前の状態で check.sh を実行（598 件、116 秒）。例のテストは 148 件、カバレッジの計測の下で約 91 秒
+2. 文書を読んで、A1〜A7、B3〜B5、C1、C2、D1、D5、D6、E2、E4 を確かめた。契約に「決定 A2」が二か所残る（gaps N2）。signature の中の型の一部が書かれていない（gaps N1）
+3. B1: tests/fixtures/.code/ を普通のディレクトリに移した（implement/、unit\_test/ は他のステージと同じ並びに、変更前のコードベースは inputs/repo/ に）。tests/fixtures/ruff.toml、tests/fixtures/.ruff\_cache/、tests/conftest.py の collect\_ignore を外した。fixture\_dir の .code の分岐と、inputs() の二か所からの寄せ集めが要らなくなった
+4. F1: software\_factory/scenarios.py が inputs と expect.starts の files をフィクスチャへの参照で書くようにし、14 のシナリオを作り直した。読み込んだシナリオが前と同じことを全項目で比べた。シナリオの inputs のテストは load\_scenario の結果で比べる
+5. F2: シナリオの実行（deterministic.run）に user を通し、三つのペルソナを二つのシナリオに束縛するテストを足した。E2E のカバレッジで intake の goal の台本に質問を足し、ペルソナを束縛した
+6. D3: synthesize の evaluations と visit\_outcomes から E[n] を出すようにした（design.expected\_count）。markov.yaml の注記を厳密な値に直し、基準の幅を確かめるテストを足した。design.simulate は訪問の回数の標準偏差のためだけに残した（gaps N4）
+7. E1: tests/test\_oracle.py の手書きの重複除きを unique\_states=True に替えた
+8. E3: tests/test\_triage.py の Hesitant を外し、確信度 0.6 の MarkerClassifier で全評価を待ち行列に入れる形にした
+9. B7: tests/test\_conformance.py を conformance\_scenarios() に、形式の schema を load\_contract\_schema に替えた
+10. B2: workflow.yaml を一時的に前の名前（verify、request.md、open\_questions）に戻し、tests/test\_package.py が通ることを確かめて元に戻した。改名は戻していない（種が変わり数値を取り直すことになるため）。重なる語の報告は一度に出るが、pytest の既定の出力では切れうる（gaps N3）
+11. D4: 実行ごとの乱数でゲートを揺らす偽の分類器で、ゲートの分布を持つマルコフ合成が実測と合うことをスクラッチで確かめた（gaps N5。例には入れていない）
+12. B6: synthesize は約 2.5 秒（計測の下）になった。指標の tasks.yaml の読み込みを内容ごとに覚えた。例のテストは約 82 秒で、第11節の目安（一分）を超える（gaps N7）
+13. README.md の構成の表に残っていた open\_questions を intake\_questions に直した。README、tests/README.md、tests/fixtures/README.md、stochastic.yaml の注記を新しい置き場に合わせた
+14. check.sh が通る（602 件、105.3 秒）
+
+外した回避策: tests/fixtures/.code/ と ruff.toml と collect\_ignore（B1）、シナリオにフィクスチャの内容を写すこと（F1）、標本による E[n] の見積もり（D3）、コーパスの手書きの重複除き（E1）、確信度を下げる評価を絞る偽の分類器（E3）、リポジトリのパスでの契約適合テストと形式の読み込み（B7）。残した回避策: 指標の結果を覚えること（B4。文書が勧める形になった）、改名した名前（B2）、訪問の回数の標準偏差のための標本（N4）。
+
 ## 残っていること
 
-- 確率的な実行のゲートはいつも goal（gaps D4）。ゲートの分布を持つマルコフ合成は確かめていない
-- release 以外で carry によって分布が変わる本体は、マルコフ合成と合わないので置いていない（gaps D2）
+- 確率的な実行のゲートはいつも goal（gaps D4）。ゲートの分布を持つマルコフ合成は、スクラッチで確かめたが例のテストには入れていない（gaps N5）
+- release 以外で carry によって分布が変わる本体は、マルコフ合成と合わないので置いていない（gaps D2、N6）
 - 分類器の検証の閾値は、偽の分類器なので決めていない（第15節の「人間が閾値を決める」は実際の分類器の時の手順）
+- 例のテストが第11節の時間の目安を超える（gaps N7）

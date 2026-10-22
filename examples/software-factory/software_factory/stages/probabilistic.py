@@ -34,13 +34,12 @@ from software_factory.stages.deterministic import FIXTURES, ROOT, WORKFLOW, inpu
 
 TABLE: dict[str, Any] = yaml.safe_load((ROOT / "tests" / "stochastic.yaml").read_text("utf-8"))
 INPUTS = inputs()
-CODE_STAGES = ("implement", "unit_test")
 DISCOUNT = "repo/src/shopcart/discount.py"
 
 
 def fixture_dir(stage: str, name: str) -> Path:
-    """変種のフィクスチャのディレクトリ。コードを含むものは .code/ の下。"""
-    return (FIXTURES / ".code" if stage in CODE_STAGES else FIXTURES) / stage / name
+    """変種のフィクスチャのディレクトリ。"""
+    return FIXTURES / stage / name
 
 
 def condition(stage: str, visit: int, carried: bool) -> str:

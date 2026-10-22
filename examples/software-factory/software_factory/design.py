@@ -1,22 +1,25 @@
 """tests/stochastic.yaml の設計値から、分布テストの基準の根拠になる量を計算する。
 
 - design_model: (ステージ, 訪問の区分) ごとのクラスの分布の、設計どおりの MarkovModel（ゲートは常に goal）
-- simulate: 設計値とワークフロー定義の辺（戻り先と max）から、運用者が escalate に中止で答える実行を多数標本し、
-  訪問ごとの評価の回数の期待値を見積もる。synthesize はステージごとの全訪問の合計しか出さないので、visit や
-  from_visit で絞った基準の分母の期待値 E[n] はこちらで出す（adopting-gaps.md）。status と訪問の回数の平均は
-  synthesize の厳密な値と一致するはずで、test_e2e.py が確かめる
+- expected_count: その MarkovModel に synthesize をかけた予測から、一回の実行あたりの、条件（visit か from_visit、結果）に
+  合うステージの評価の回数の期待値。基準の分母の期待値 E[n] と、その中の結果の割合の根拠
+- simulate: 訪問の回数の、一回の実行の中での標準偏差を見積もる標本。synthesize は訪問の回数の期待値しか出さないので、
+  mean_visits の基準の幅のためだけに、設計値とワークフロー定義の辺（戻り先と max）を辿って運用者が escalate に中止で
+  答える実行を標本する（adopting-gaps.md）。標本の最後の状態と訪問の回数の平均が synthesize の厳密な値と一致することを
+  test_e2e.py が確かめる
 
 確率的な偽の本体のクラスの分布は (ステージ, 訪問の区分) だけで決まる（release の carry の有無は訪問の区分と一致する）ので、
 この標本は遷移規則を辿るだけでよい。
 """
 
+import math
 import random
 from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
 from harness_testing_framework.schema import load_workflow_document
-from harness_testing_framework.testing.e2e import MarkovModel
+from harness_testing_framework.testing.e2e import MarkovModel, Prediction
 from software_factory.stages.deterministic import WORKFLOW
 from software_factory.stages.probabilistic import TABLE
 
@@ -59,25 +62,48 @@ def design_model(profile: str = "markov") -> MarkovModel:
     return MarkovModel(stage, gate, cap=2)
 
 
+def expected_count(
+    prediction: Prediction,
+    stage: str,
+    outcome: str | None = None,
+    *,
+    visit: int = 0,
+    from_visit: int = 0,
+) -> float:
+    """一回の実行あたりの、ステージ stage の評価（visit ならその訪問、from_visit ならその訪問以降）の回数の期待値。
+    outcome を与えると、そのうち結果が outcome のもの。訪問の区分は design_model の cap（2）で頭打ちにしてある。"""
+    if (visit > 0) == (from_visit > 0):
+        raise ValueError("visit か from_visit のどちらか一つを与える")
+
+    def matches(bucket: int) -> bool:
+        return bucket == visit if visit > 0 else bucket >= from_visit
+
+    if outcome is None:
+        return sum(
+            n
+            for (scope, target, bucket), n in prediction.evaluations.items()
+            if scope == "stage" and target == stage and matches(bucket)
+        )
+    return sum(
+        n
+        for (scope, target, bucket, result), n in prediction.visit_outcomes.items()
+        if scope == "stage" and target == stage and result == outcome and matches(bucket)
+    )
+
+
 @dataclass(frozen=True)
 class Simulated:
-    """標本の数と、(ステージ, 訪問, クラス) ごとの評価の回数、最後の状態の回数、ステージごとの訪問の回数。"""
+    """標本の数と、最後の状態の回数、ステージごとの訪問の回数の和と二乗の和。"""
 
     samples: int
-    evaluations: Counter[tuple[str, int, str]]
     status: Counter[str]
     visits: Counter[str]
+    squares: Counter[str]
 
-    def per_run(self, stage: str, outcome: str | None = None, *, visit: int = 0) -> float:
-        """一回の実行あたりの、条件に合う評価の回数の期待値。visit が負なら -visit 以降。"""
-        total = sum(
-            n
-            for (s, v, o), n in self.evaluations.items()
-            if s == stage
-            and (outcome is None or o == outcome)
-            and (visit == 0 or (v == visit if visit > 0 else v >= -visit))
-        )
-        return total / self.samples
+    def visit_sd(self, stage: str) -> float:
+        """一回の実行の中での、ステージの訪問の回数の標準偏差。"""
+        mean = self.visits[stage] / self.samples
+        return math.sqrt(self.squares[stage] / self.samples - mean * mean)
 
 
 def simulate(profile: str = "markov", samples: int = 200_000, seed: int = 0) -> Simulated:
@@ -85,19 +111,17 @@ def simulate(profile: str = "markov", samples: int = 200_000, seed: int = 0) -> 
     dists = {
         (s, b): sorted(class_distribution(profile, s, b).items()) for s in ORDER for b in (1, 2)
     }
-    evaluations: Counter[tuple[str, int, str]] = Counter()
     status: Counter[str] = Counter()
     visits: Counter[str] = Counter()
+    squares: Counter[str] = Counter()
     for _ in range(samples):
         seen: Counter[str] = Counter()
         counts: Counter[tuple[str, str]] = Counter()
         stage = ORDER[0]
         while True:
             seen[stage] += 1
-            visits[stage] += 1
             classes, weights = zip(*dists[(stage, min(seen[stage], 2))], strict=True)
             outcome = rng.choices(classes, weights=weights)[0]
-            evaluations[(stage, seen[stage], outcome)] += 1
             if outcome == "goal":
                 i = ORDER.index(stage) + 1
                 if i == len(ORDER):
@@ -111,4 +135,7 @@ def simulate(profile: str = "markov", samples: int = 200_000, seed: int = 0) -> 
                 break
             counts[(stage, outcome)] += 1
             stage = edge[0]
-    return Simulated(samples, evaluations, status, visits)
+        for name, n in seen.items():
+            visits[name] += n
+            squares[name] += n * n
+    return Simulated(samples, status, visits, squares)

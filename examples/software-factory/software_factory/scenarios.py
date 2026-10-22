@@ -1,7 +1,9 @@
 """tests/scenarios/ のシナリオの YAML を作る。
 
 各シナリオの期待する実行記録の要約（trace）は、下の Run の呼び出しで遷移を一つずつ手で並べる（実装より先に書く）。
-inputs と expect.starts のファイルの内容はフィクスチャから取るので、フィクスチャを変えたら作り直す。
+inputs と expect.starts のファイルは、フィクスチャへの参照（`{from: パス}`。ディレクトリは鍵と from を / で終える）で
+書く。内容は load_scenario が読む時にフィクスチャから取るので、フィクスチャの中身を変えても作り直さなくてよい
+（ok のフィクスチャのファイルを足したり消したりした時は作り直す）。
 
     python -m software_factory.scenarios   # tests/scenarios/*.yaml を書き直す
 
@@ -31,20 +33,23 @@ def _str(dumper: yaml.SafeDumper, data: str) -> yaml.ScalarNode:
 Dumper.add_representer(str, _str)
 
 
-def text(rel: str) -> str:
-    return (FX / rel).read_text("utf-8")
+def ref(rel: str) -> dict[str, str]:
+    """フィクスチャのファイルかディレクトリ（/ で終える）への参照。シナリオのファイルからの相対パス。"""
+    return {"from": f"../{FX.name}/{rel}"}
 
 
-def tree(rel: str) -> dict[str, str]:
+def refs(rel: str) -> dict[str, Any]:
+    """フィクスチャのディレクトリの下の各ファイルを、作業領域の同じ相対パスに置く参照。"""
     root = FX / rel
     return {
-        str(p.relative_to(root)): p.read_text("utf-8")
+        str(p.relative_to(root)): ref(f"{rel}/{p.relative_to(root)}")
         for p in sorted(root.rglob("*"))
         if p.is_file()
     }
 
 
-INPUTS = {"feature_request.md": text("inputs/feature_request.md")} | tree(".code/baseline")
+# ワークフローの inputs: 依頼と、変更前のコードベース（ディレクトリごと）
+INPUTS = {"feature_request.md": ref("inputs/feature_request.md"), "repo/": ref("inputs/repo/")}
 GOAL = {"choice": "goal", "confidence": 0.9}
 
 
@@ -63,7 +68,7 @@ ORDER = [
     "review",
     "release",
 ]
-FIX = {s: (f".code/{s}/ok" if s in ("implement", "unit_test") else f"{s}/ok") for s in ORDER}
+FIX = {s: f"{s}/ok" for s in ORDER}
 OK_VISIT = {s: {"fixture": f, "classify": GOAL} for s, f in FIX.items()}
 PHASE_OF = {
     "intake": "discovery",
@@ -79,11 +84,13 @@ PHASE_OF = {
 LAST = {"analyze", "plan_tasks", "unit_test", "review", "release"}
 
 
-def ok_files(*stages: str) -> dict[str, str]:
-    """inputs に、各ステージの ok のフィクスチャを重ねた範囲内のファイル。"""
-    out = dict(INPUTS)
+def ok_files(*stages: str) -> dict[str, Any]:
+    """inputs に、各ステージの ok のフィクスチャを重ねた範囲内のファイル（repo/ は変更前のまま）。"""
+    out: dict[str, Any] = dict(INPUTS)
     for s in stages:
-        out |= tree(FIX[s])
+        added = refs(FIX[s])
+        assert not any(k.startswith("repo/") for k in added), s
+        out |= added
     return out
 
 
@@ -279,7 +286,7 @@ r.through("intake", "plan_tasks")
 r.start(
     "implement",
     {
-        "fixture": ".code/implement/lint",
+        "fixture": "implement/lint",
         "memory": {"impl_violations": VIOL},
         "classify": cls("quality_violation"),
     },
@@ -290,7 +297,7 @@ r.goal("implement")
 r.start(
     "unit_test",
     {
-        "fixture": ".code/unit_test/thin",
+        "fixture": "unit_test/thin",
         "memory": {"coverage_gaps": GAPS_T, "failing_tests": []},
         "classify": cls("tests_insufficient"),
     },
@@ -300,15 +307,15 @@ r.line("rollback unit_test -> unit_test [tests_insufficient 1]")
 r.start(
     "unit_test",
     {
-        "fixture": ".code/unit_test/defect_found",
+        "fixture": "unit_test/defect_found",
         "memory": {"failing_tests": FAILING, "coverage_gaps": []},
         "classify": cls("impl_defect"),
     },
 )
 r.eval("unit_test", "impl_defect")
 r.line("rollback unit_test -> implement [impl_defect 1]")
-r.goal("implement", {"fixture": ".code/implement/ok_fixed", "classify": GOAL})
-r.start("unit_test", {"fixture": ".code/unit_test/defect_passed", "classify": GOAL})
+r.goal("implement", {"fixture": "implement/ok_fixed", "classify": GOAL})
+r.start("unit_test", {"fixture": "unit_test/defect_passed", "classify": GOAL})
 r.eval("unit_test", "goal")
 r.advance("unit_test")
 r.through("acceptance")
@@ -453,7 +460,7 @@ r.through("intake", "plan_tasks")
 r.start(
     "implement",
     {
-        "fixture": ".code/implement/unclear",
+        "fixture": "implement/unclear",
         "memory": {"task_questions": TASK_Q},
         "classify": cls("task_unclear"),
     },
@@ -516,7 +523,7 @@ r.through("intake", "plan_tasks")
 r.start(
     "implement",
     {
-        "fixture": ".code/implement/ok",
+        "fixture": "implement/ok",
         "files": {"requirements.md": "書き換えた要件\n"},
         "classify": GOAL,
     },

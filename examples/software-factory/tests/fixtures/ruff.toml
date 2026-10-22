@@ -1,3 +1,0 @@
-# .code/ の下は、ステージ本体が写すコードベースのフィクスチャ（意図的に lint に反するものや、構文の誤りを含む）。
-# リポジトリ全体の ruff check と ruff format から外す。指標の lint は、この設定によらず --isolated で測る
-exclude = [".code"]

@@ -4,57 +4,10 @@ description: review が設計を直さなければ解消しない指摘を見つ
 workflow: ../../workflow.yaml
 seed: 11
 inputs:
-  feature_request.md: |
-    # 依頼: 買い物かごに割引コードを入れたい
-
-    shopcart ライブラリの Cart に、割引コードを適用した支払額を出す機能を足してほしい。
-    来月のキャンペーンで「10% 引き」と「500 円引き」のコードを配る予定。
-  repo/src/shopcart/__init__.py: |
-    """小さな買い物かごのライブラリ。"""
-
-    __version__ = "0.1.0"
-  repo/src/shopcart/cart.py: |
-    """買い物かご。金額は円の整数。"""
-
-
-    class Cart:
-        def __init__(self) -> None:
-            self.items: dict[str, tuple[int, int]] = {}
-
-        def add(self, sku: str, price: int, qty: int = 1) -> None:
-            if qty <= 0:
-                raise ValueError("qty must be positive")
-            _, held = self.items.get(sku, (price, 0))
-            self.items[sku] = (price, held + qty)
-
-        def remove(self, sku: str) -> None:
-            self.items.pop(sku, None)
-
-        def subtotal(self) -> int:
-            return sum(price * qty for price, qty in self.items.values())
-  repo/tests/test_cart.py: |
-    import pytest
-    from shopcart.cart import Cart
-
-
-    def test_subtotal_sums_price_times_quantity() -> None:
-        cart = Cart()
-        cart.add("apple", 120, 2)
-        cart.add("pear", 200)
-        assert cart.subtotal() == 440
-
-
-    def test_remove_drops_the_item() -> None:
-        cart = Cart()
-        cart.add("apple", 120)
-        cart.add("apple", 120)
-        cart.remove("apple")
-        assert cart.subtotal() == 0
-
-
-    def test_add_rejects_nonpositive_quantity() -> None:
-        with pytest.raises(ValueError):
-            Cart().add("apple", 120, 0)
+  feature_request.md: &id007
+    from: ../fixtures/inputs/feature_request.md
+  repo/: &id008
+    from: ../fixtures/inputs/repo/
 visits:
   intake#1:
     fixture: intake/ok
@@ -71,10 +24,10 @@ visits:
     fixture: plan_tasks/ok
     classify: *id001
   implement#1: &id004
-    fixture: .code/implement/ok
+    fixture: implement/ok
     classify: *id001
   unit_test#1: &id005
-    fixture: .code/unit_test/ok
+    fixture: unit_test/ok
     classify: *id001
   acceptance#1: &id006
     fixture: acceptance/ok
@@ -82,7 +35,7 @@ visits:
   review#1:
     fixture: review/design_flaw
     memory:
-      design_issues: &id007
+      design_issues: &id009
       - 割引の種類を Discount の分岐で表しており、種類を足すたびに apply を直すことになる
       review_findings: []
     classify:
@@ -173,94 +126,15 @@ expect:
   starts:
     design#2:
       files:
-        feature_request.md: |
-          # 依頼: 買い物かごに割引コードを入れたい
-
-          shopcart ライブラリの Cart に、割引コードを適用した支払額を出す機能を足してほしい。
-          来月のキャンペーンで「10% 引き」と「500 円引き」のコードを配る予定。
-        repo/src/shopcart/__init__.py: |
-          """小さな買い物かごのライブラリ。"""
-
-          __version__ = "0.1.0"
-        repo/src/shopcart/cart.py: |
-          """買い物かご。金額は円の整数。"""
-
-
-          class Cart:
-              def __init__(self) -> None:
-                  self.items: dict[str, tuple[int, int]] = {}
-
-              def add(self, sku: str, price: int, qty: int = 1) -> None:
-                  if qty <= 0:
-                      raise ValueError("qty must be positive")
-                  _, held = self.items.get(sku, (price, 0))
-                  self.items[sku] = (price, held + qty)
-
-              def remove(self, sku: str) -> None:
-                  self.items.pop(sku, None)
-
-              def subtotal(self) -> int:
-                  return sum(price * qty for price, qty in self.items.values())
-        repo/tests/test_cart.py: |
-          import pytest
-          from shopcart.cart import Cart
-
-
-          def test_subtotal_sums_price_times_quantity() -> None:
-              cart = Cart()
-              cart.add("apple", 120, 2)
-              cart.add("pear", 200)
-              assert cart.subtotal() == 440
-
-
-          def test_remove_drops_the_item() -> None:
-              cart = Cart()
-              cart.add("apple", 120)
-              cart.add("apple", 120)
-              cart.remove("apple")
-              assert cart.subtotal() == 0
-
-
-          def test_add_rejects_nonpositive_quantity() -> None:
-              with pytest.raises(ValueError):
-                  Cart().add("apple", 120, 0)
-        intake.md: |
-          [[class intake=goal]]
-          # 取り込み
-
-          ## 依頼
-          shopcart の Cart に、割引コードを適用した支払額を出す機能を足す（feature_request.md）。
-
-          ## 質問と回答
-          - Q: この機能を使うのは誰ですか
-            A: ネットショップの購入者。レジの画面でコードを入力する
-          - Q: 配る割引コードの種類と上限は何ですか
-            A: PCT10 のような百分率のコードと、OFF500 のような定額のコード。百分率は 50% まで
-          - Q: 使えないコードが入力された時はどうしますか
-            A: エラーにして、割引しない
-
-          ## 制約
-          - 金額は円の整数で扱う
-        requirements.md: |
-          [[class analyze=goal]]
-          # 要件
-
-          ## 要件
-          - REQ-1: 百分率の割引コード PCTnn（nn は 1〜50）で、小計から nn% を引く。割引額の 1 円未満は切り捨てる
-            - 受け入れ基準: 小計 1000 円に PCT10 で 900 円
-          - REQ-2: 定額の割引コード OFFnnn（nnn は円）で、小計から nnn 円を引く。支払額は 0 円を下回らない
-            - 受け入れ基準: 小計 1000 円に OFF500 で 500 円
-            - 受け入れ基準: 小計 300 円に OFF500 で 0 円
-          - REQ-3: 形式に合わないコードと、範囲外の百分率は ValueError で拒む
-            - 受け入れ基準: PCT0、PCT51、XYZ、OFF は ValueError
-          - REQ-4: コードを渡さなければ、支払額は小計に等しい
-            - 受け入れ基準: 小計 440 円でコード無しなら 440 円
-
-          ## 未決事項
-          （なし）
+        feature_request.md: *id007
+        repo/: *id008
+        intake.md:
+          from: ../fixtures/intake/ok/intake.md
+        requirements.md:
+          from: ../fixtures/analyze/ok/requirements.md
       memory:
-        design_issues: *id007
+        design_issues: *id009
       gates:
       - discovery
   memory:
-    design_issues: *id007
+    design_issues: *id009

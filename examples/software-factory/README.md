@@ -8,8 +8,8 @@ harness-testing-framework の利用者として、docs/adopting.md だけを手�
 - software\_factory/metrics.py: 指標レジストリ（実在のツールで測るものを含む）
 - software\_factory/personas.py: 要求の取り込みに束縛するユーザーシミュレータ（ペルソナ 3 つ）
 - software\_factory/stages/: 偽のステージ本体（deterministic はシナリオ、probabilistic は確率的なもの）
-- software\_factory/design.py: 設計値から、分布テストの基準の根拠（評価の数の期待値）と MarkovModel を作る
-- software\_factory/scenarios.py: tests/scenarios/ のシナリオの YAML を作る（`python -m software_factory.scenarios`）
+- software\_factory/design.py: 設計値の MarkovModel を作り、synthesize の予測から分布テストの基準の根拠（評価の数の期待値 E[n]）を出す
+- software\_factory/scenarios.py: tests/scenarios/ のシナリオの YAML を作る（`python -m software_factory.scenarios`）。遷移の列を手で並べ、ファイルはフィクスチャを `{from: パス}` で参照する
 - tests/: テスト、フィクスチャ、シナリオ、expectations（tests/README.md）
 - docs/progress.md: 作業ログ
 - docs/adopting-gaps.md: adopting.md だけでは判断できなかったこと、足りなかったこと、回避したくなったこと
@@ -19,7 +19,7 @@ harness-testing-framework の利用者として、docs/adopting.md だけを手�
 | フェーズ | ステージ | 読む | 書く | end\_state → 戻り先（carry、max） |
 | --- | --- | --- | --- | --- |
 | discovery | intake（ユーザー待ち） | feature_request.md | intake.md | （unknown のみ） |
-| discovery | analyze | feature_request.md, intake.md | requirements.md | needs\_unclear → intake（open\_questions、2） |
+| discovery | analyze | feature_request.md, intake.md | requirements.md | needs\_unclear → intake（intake\_questions、2） |
 | architecture | design | requirements.md, repo/ | design.md | requirements\_gap → analyze（requirement\_gaps、1）。フェーズ境界越え |
 | architecture | plan\_tasks | requirements.md, design.md, repo/ | tasks.yaml | design\_incomplete → design（design\_issues、2） |
 | construction | implement | requirements.md, design.md, tasks.yaml, repo/ | repo/src/, impl\_notes.md | task\_unclear → plan\_tasks（task\_questions、1）。フェーズ境界越え<br>quality\_violation → implement（impl\_violations、2） |
@@ -55,11 +55,11 @@ writes（repo/src/、repo/tests/）の外を変えるのは契約違反で、評
 | ランナー | テスト |
 | --- | --- |
 | 整合性検査 | tests/test\_definition.py |
-| 契約適合テスト（contract/conformance/scenarios/ の全シナリオ） | tests/test\_conformance.py |
-| 遷移の決定論テスト（14 シナリオ、遷移の六種、escalate の四択、記録再生） | tests/test\_scenarios.py |
+| 契約適合テスト（パッケージに同梱した全シナリオ。参照ランタイムを使うので必須ではなく、版の確認として） | tests/test\_conformance.py |
+| 遷移の決定論テスト（14 シナリオ、遷移の六種、escalate の四択、記録再生、ペルソナの束縛） | tests/test\_scenarios.py |
 | 分布テスト（expectations） | tests/test\_stochastic.py |
 | 独立性検証 | tests/test\_independence.py |
-| E2E のカバレッジとマルコフ合成 | tests/test\_e2e.py |
+| E2E のカバレッジ（ペルソナを束縛）とマルコフ合成 | tests/test\_e2e.py |
 | 偽の分類器によるオラクル検証 | tests/test\_oracle.py |
 | トリアージの一周 | tests/test\_triage.py |
 | 指標とフィクスチャの整合、ユーザーシミュレータ | tests/test\_metrics.py、tests/test\_personas.py |

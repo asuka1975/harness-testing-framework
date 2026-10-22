@@ -1,8 +1,9 @@
 """software-factory の分類器の検証（オラクル）。
 
 実行記録から分類器が見た状態文書のコーパスを作り（状態文書は置き場から読む）、成果物の印を人手のラベルの代わりにする。
-偽の本体はフィクスチャを写すので、違う実行が同じ状態文書を生む。コーパスは状態文書ごとに一項目にする（同じ文書を二度
-分類すると、FlakyClassifier はそれを再実行として扱い、一回目の答えから揺らす。adopting-gaps.md）。
+偽の本体はフィクスチャを写すので、違う実行が同じ状態文書を生む。コーパスは build_corpus の unique_states で状態文書ごとに
+一項目にする（同じ文書を二度分類すると、FlakyClassifier はそれを再実行として扱い、一回目の答えから揺らす）。ゲートの
+状態文書には印が無いので、ステージの項目に絞る。
 
 - 印を読む偽の分類器（確信度 0.9）は全問正解（κ = 1）で、ECE は 0.1、再実行の一致率は 1
 - 既知の混同行列を持つ偽の分類器（ConfusionClassifier）のレポートが、混同行列から独立に計算した κ、混同行列、ECE、
@@ -18,9 +19,9 @@ from pathlib import Path
 
 import jsonschema
 import pytest
-from software_factory.stages.deterministic import ROOT
 from software_factory.stages.probabilistic import WORKFLOW_MODEL
 
+from harness_testing_framework.contract import load_contract_schema
 from harness_testing_framework.runtime import BlobStore
 from harness_testing_framework.testing.harness import MarkerClassifier, marked_class
 from harness_testing_framework.testing.oracle import (
@@ -37,7 +38,6 @@ from harness_testing_framework.testing.oracle import (
 )
 from harness_testing_framework.testing.stages import RunSet
 
-FORMATS = ROOT.parents[1] / "contract" / "formats"
 # 真のクラス → (選ぶクラス, 確信度) の列。真のクラスごとに、初めて見た状態文書の順に巡って割り当てられる
 ROWS: dict[str, list[tuple[str | None, float]]] = {
     "goal": [("goal", 0.93), ("goal", 0.83), ("goal", 0.73), ("unknown", 0.63)],
@@ -54,12 +54,9 @@ for state in sorted(END_STATES - set(ROWS)):
 def labeled(markov_runs: tuple[RunSet, BlobStore]) -> tuple[list[CorpusItem], list[Label]]:
     """分布テストと同じ実行の集まり（tests/conftest.py で共有）の、最初の 60 回からコーパスを作る。"""
     runs, store = RunSet(markov_runs[0].runs[:60]), markov_runs[1]
-    corpus: list[CorpusItem] = []
-    seen: set[str] = set()
-    for item in build_corpus(runs, store, WORKFLOW_MODEL):
-        if item.scope == "stage" and item.state not in seen:
-            seen.add(item.state)
-            corpus.append(item)
+    unique = build_corpus(runs, store, WORKFLOW_MODEL, unique_states=True)
+    corpus = [item for item in unique if item.scope == "stage"]
+    assert len({item.state for item in corpus}) == len(corpus)
     labels = []
     for item in corpus:
         label = marked_class(item.state)
@@ -164,8 +161,7 @@ def test_corpus_and_labels_round_trip_in_the_contract_formats(
     save_corpus(corpus, tmp_path / "corpus.jsonl")
     save_labels(labels, tmp_path / "labels.jsonl")
     for name, schema in (("corpus", "corpus_item"), ("labels", "label")):
-        document = json.loads((FORMATS / f"{schema}.schema.json").read_text("utf-8"))
-        validator = jsonschema.Draft202012Validator(document)
+        validator = jsonschema.Draft202012Validator(load_contract_schema(f"{schema}.schema.json"))
         for line in (tmp_path / f"{name}.jsonl").read_text("utf-8").splitlines():
             validator.validate(json.loads(line))
     assert load_corpus(tmp_path / "corpus.jsonl") == corpus

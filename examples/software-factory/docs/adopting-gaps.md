@@ -1,184 +1,107 @@
 # adopting.md の不足の記録（software-factory）
 
-software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。
+software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。最初の版（30 項目、A1〜F2）を受けてフレームワークの側が直したので、往復 1 として各項目を利用者の立場で確かめ直した。
 
-読んだのは adopting.md、api.md、examples/toy-minimal/、schema/workflow.schema.json、contract/ の文書と形式（contract.md、conformance/README.md、各 schema）だけ。フレームワーク本体の実装（src/、tests/、scripts/、pyproject.toml を含む）、plan.md、progress.md、decisions.md は読んでいない。本体について知ったことは、公開の名前の signature と docstring、`scripts/check.sh` を実行した時の出力、本体のテストが落ちた時の出力、cProfile の出力（関数の名前と時間）からだけ。本体は直していない。回避策はこの例の中にだけ置いた。
+読んだのは adopting.md、api.md、api-reference.md、examples/toy-minimal/、schema/workflow.schema.json、contract/ の文書と形式（contract.md、README.md、conformance/ の下のすべて、formats/ と trace と snapshot の schema）だけ。フレームワーク本体の実装（src/、tests/、scripts/、pyproject.toml、conftest.py の中身を含む）、plan.md、progress.md、decisions.md、reports/ は読んでいない。本体について知ったことは、公開の名前の signature と docstring、`scripts/check.sh` と本体のテスト（tests/test\_package.py だけ）を実行した時の出力、cProfile の出力（関数の名前と時間）からだけ。本体は直していない。回避策はこの例の中にだけ置いた。
 
-各項目は「何が分からなかったか・足りなかったか」「どうしたか」「回避したくなったか」の順に書く。重みの目安として、作業を止めたもの（check.sh が落ちた、テストが組めなかった）には【止まった】を付けた。
+## 未解消
 
-## A. 文書と API の参照
+### N1. 公開の名前の signature に出てくる型の一部が、どこにも書かれていない
 
-### A1. api.md に引数と属性が無い
+api-reference.md の signature が、api.md に無い名前を使う: `Dist`（MarkovModel）、`Key`（Recorder.call）、`Event`（RunResult、RunRecord）、`Goal`、`EndState`、`Phase`、`Rollback`（Stage、Workflow.phase）、`writes_hash`（record\_run の representative の既定）、`SCHEMA_FILES`（load\_contract\_schema）。
 
-api.md は名前と一行の説明だけで、引数、属性、戻り値の形が無い。adopting.md 第7節は `Runtime` の引数を表にしているが、ほかの名前（`Question`、`record_run`、`ConfusionClassifier`、`FlakyClassifier`、`enqueue`、`decide`、`plan_coverage`、`MarkovModel`、`OracleReport` など）には無い。
+- 困ったところ: この例は `Stage.end_states` の各項目の `.id` を使う（tests/test\_oracle.py）が、`EndState` の属性は書かれていない。`load_contract_schema` が受け取る名前（`triage_item.schema.json` など）は試して分かった。MarkovModel に渡す分布は `dict[str, float]` で動いたが、`Dist` の定義は見ていない
+- 欲しいもの: これらの型の属性か定義を api-reference.md に。`load_contract_schema` には受け取る名前の一覧を
 
-- どうしたか: 公開の名前に限って `inspect.signature` と docstring を見た（実装のソースは読んでいない）。`Question(text, choices=())`、`ConfusionClassifier(rows)` の rows の形（真のクラス → (選ぶクラス, 確信度) の列を、真のクラスごとに初めて見た状態文書の順に巡回）、`MarkerClassifier` が印の無いゲートでは goal を返すこと、`record_run` が中断した実行をそのまま記録すること、`FlakyClassifier` が「二回目以降に見た同じ状態文書」を揺らすこと（E1）は、docstring で初めて分かった
-- 回避したくなったか: `StageContext` を `dir()` すると公開でない名前（written、violations など）が見え、使いたくなるが、使っていない
+### N2. 契約に、読めない文書の決定の番号が二つ残っている（A3 の残り）
 
-### A2. StageContext の属性の一覧が二か所で食い違う
+contract/contract.md 第1節の「辺」の定義の末尾「（決定 A2）」と、contract/conformance/scenarios/self\_rollback.yaml の description の「（A2）」。ほかの参照（plan.md、decisions.md、決定 #n）は契約、形式、docstring から消えている。戻り先を自分自身にできる理由は adopting.md 第2.3節（carry を持ってやり直せる）から読み取れるので、判断には困らない。
 
-adopting.md 第5節の `context` が提供するものに `stage_id` と `visit` が無い。契約 7.1 には「ステージの id と、この実行での訪問の回数」とあり、toy-minimal の確率的な本体は `context.stage_id` と `context.visit` を使う。名前は toy-minimal から知った。
+### N3. 例と本体の語の重なりの報告が、pytest の既定の出力で切れる（B2 の残り）
 
-### A3. 契約の文書が、読めない文書を根拠として指す
+重なった語は一度にすべて検査の値に入るようになった（下の B2）。ただし pytest の既定の出力は長い一覧を `...` で切るので、重なりが多いと一部の語が見えない（`-vv` を付ければ全部見える）。check.sh の出力で同じことが起きるかは、check.sh を読んでいないので分からない。試した時は語が二つで、どちらも見えた。
 
-contract.md と formats の schema は「plan.md 第2節」「決定 #4」などを根拠として何度も参照するが、利用者は plan.md と decisions.md を読まない前提になっている。分からなかったところは無かったが、根拠を確かめられない。
+### N4. synthesize は訪問の回数の分散を出さない（D3 の残り）
 
-### A4. 記憶がまだ無い時の read_memory
+visit や from\_visit で絞った基準の E[n] は `synthesize` で厳密に出るようになった（下の D3）。一方、`mean_visits` の基準の幅には、一回の実行の中での訪問の回数の標準偏差が要るが、`Prediction` は期待値（`mean_visits`）しか持たない。
 
-`read_memory(name)` が、宣言した記憶がまだ無い時に何を返すか（None か、例外か）が書かれていない。試して None と分かった。carry を受けたかで振る舞いを変える本体（release、D2）はこれに頼る。
+- どうしたか: 設計値とワークフロー定義の辺を辿る標本（software\_factory/design.py の simulate）を、この標準偏差のためだけに残した。標本の最後の状態と訪問の回数の平均が synthesize の厳密な値と一致することを tests/test\_e2e.py で確かめる
+- 回避したいこと: 遷移規則を例の中で書き直している（ハーネスの実行には使わない）。`Prediction` に訪問の回数の二次の積率（か分散）があれば要らない
 
-### A5. 中断した時の保留中の質問の形
+### N5. 第14節の「ゲートを落とすには…しかなく」は強すぎる（D4 の説明の残り）
 
-adopting.md 第7節は「`state.pending["question"]` に保留中の質問（文と選択肢）がある」と書くが、鍵の名前が無い。試して `{"text": ..., "choices": [...]}` と分かった。
+第14節は、確率的な実行でゲートを揺らすには最終ステージの goal の成果物にゲートの印を入れるしかないと書く。試したところ、成果物ではなく実行ごとの乱数でゲートの答えを決める偽の分類器でも揺らせ、その時は独立性検証が違反を出さず、ゲートの分布を持つマルコフ合成が実測と合った。
 
-### A6. 置き場から状態文書を読む方法
+- 試したこと（スクラッチで。この例には入れていない）: 実行の種から作った `random.Random` を持つ偽の分類器を、ペルソナと同じく実行ごとに組み立てて束縛した。assurance のゲートで changes\_requested が選択肢にあれば確率 0.2 でそれを返し、ほかは `MarkerClassifier` に任せる。markov の本体で 400 回（種 20000）を実測、400 回（種 40000）を推定に使い、ゲートの評価 370 件のうち changes\_requested は 86 件。推定したモデルの予測も、設計値のモデルに assurance のゲートの分布 {goal: 0.8, changes\_requested: 0.2} を足した予測も、41 の量すべてで実測と一致した（k = 4）。独立性検証の violated は無い
+- 欲しいもの: 第14節にこの形（実行ごとに組み立てる、成果物によらない乱数の偽の分類器）を書くか、フレームワークにその偽の分類器を置く。この例に入れなかったのは、実行の集まりを二つ足すと例のテストの時間が目安（N7）からさらに離れるため
 
-第15節と第16節は「状態文書は置き場に残っている」「内容は置き場で読める」と書くが、読む方法を書いていない。第7節の `store.get(snapshot.files[パス])` から類推して `store.get(item.state)` で読めた。
+### N6. carry で振る舞いが変わる実際の本体で、マルコフ合成をどう扱うか（D2 の説明の残り）
 
-### A7. OracleReport.by_target の鍵
+第14節の説明で、偽の本体で確かめる時の置き方は分かる（下の「直さないと言われたもの」）。実際の LLM の本体は carry を受ければたいてい振る舞いを変え、この例の implement のように carry を持つ辺が四本入るステージもある。そういうハーネスで、合成の予測が合わない時に、carry によるものかほかの非マルコフ性によるものかをどう見分けるか、合成をどのステージまで信じてよいかは書かれていない。
 
-第15節は「対象（ステージやフェーズ）ごとの κ と ECE」とだけ書く。鍵はステージの id ではなく `stage:<id>` だった（テストを書いて落ちて分かった）。
+### N7. この例のテストが、第11節の時間の目安（一つの例で一分以内）を超える
 
-## B. リポジトリの中に例を置くこと（第11節）
+第11節に目安が書かれ、`synthesize` も速くなった（下の B6）。それでもこの例のテストはカバレッジの計測の下で約 82 秒かかる（check.sh 全体は約 1 分 46 秒）。大半は 400 回の実行の集まり三つ（分布テスト、独立性検証の divergent、マルコフ合成の推定。一つ約 16〜18 秒）。
 
-### B1. 壊れたコードのフィクスチャと、リポジトリ全体の検査【止まった】
+- どうしたか: 指標の tasks.yaml の読み込みを内容ごとに覚えた（計測の下で、400 回の実行の集まり一つが約 20 秒から約 16〜18 秒に。計測なしでは約 7.8 秒）。cProfile（覚える前、計測なしの 100 回）では、ランタイムのスナップショットの作成（作業領域の走査と正規形の JSON）が約三分の一、残りは本体のフィクスチャの写し、指標、遷移の処理に分かれる。回数を減らさずに大きく縮める手は、例の側には見つからなかった
+- 判断できないこと: 回数を減らすと基準の幅（回数から決めた）と独立性検証の検出力が変わるので、減らしていない。目安を超えてよいのか、三つ目（推定）の集まりを分布テストの集まりと分け合うべきか（推定と実測が同じ実行になると比べる意味が薄れる）は決められない
 
-実装と単体テストのステージは、フィクスチャの小さなコードベースに実際のビルドとテストをかける。そのため、意図的に壊したコード（lint の違反、構文の誤り、失敗するテスト）と、同じモジュール名のファイルの変種（repo/src/shopcart/discount.py が 8 通り）をフィクスチャに置く必要がある。第11節は、examples/<名前>/ の下を `scripts/check.sh` の ruff、ruff format、mypy（strict）、pytest がすべて拾うと書くが、フィクスチャのコードを外す方法を書いていない。そのままでは、pytest がフィクスチャの test_*.py を集めて import に失敗し、mypy は同じ名前のモジュールで止まり、ruff は構文の誤りで落ちる。
+## 解消済み（往復 1）
 
-- 判断できなかったこと: pyproject.toml と scripts/check.sh は読んでよい文書に入っていないので、除外の設定がどこにあるか分からない。check.sh を実行し、出力から手順を推測した
-- どうしたか: 試して、mypy がドットで始まるディレクトリを辿らないこと、入れ子の ruff.toml の exclude が ruff check と ruff format に効くことを確かめた。コードを含むフィクスチャを tests/fixtures/.code/ の下に置き、tests/fixtures/ruff.toml で .code を外し、tests/conftest.py の collect_ignore で pytest の収集から外す。どれもこの例の中に閉じる。指標の lint は `ruff check --isolated` で、これらの設定によらず測る
-- 回避したくなったか: リポジトリの pyproject.toml に除外を足したくなる（本体の設定なので触っていない）。フィクスチャの置き場の名前を、ツールの既定の振る舞い（ドットのディレクトリを辿らない）に頼って決めている。第11節に「フィクスチャにコードを置く時の外し方」があるとよい
+### A. 文書と API の参照
 
-### B2. 例の id が本体の語と重なってはいけない（書かれていない制約）【止まった】
+- **A1 api.md に引数と属性が無い**: 解消。api-reference.md に、前に挙げた名前（Question、record\_run、ConfusionClassifier、FlakyClassifier、enqueue、decide、plan\_coverage、MarkovModel、OracleReport など）の signature、属性、docstring があることを読んで確かめた。StageContext の項は使ってよい属性だけを挙げ、adopting.md 第5節が `dir(context)` で見えるほかの名前を使わないよう書く。signature の中の一部の型が無いことは N1
+- **A2 StageContext の属性の一覧の食い違い**: 解消。adopting.md 第5節と api-reference.md の StageContext に `stage_id` と `visit` がある
+- **A3 契約が読めない文書を根拠として指す**: 一部。contract/、schema/workflow.schema.json、api.md、api-reference.md を plan.md、decisions.md、「決定 #」で検索し、残りは二か所だけ（N2）
+- **A4 記憶がまだ無い時の read\_memory**: 解消。adopting.md 第5節と StageContext.read\_memory の docstring に「値がまだ無ければ None」
+- **A5 保留中の質問の形**: 解消。adopting.md 第7節の手順 1 と RunState の docstring に `{"kind": "user", "question": {"text": ..., "choices": [...]}}`
+- **A6 置き場から状態文書を読む方法**: 解消。adopting.md 第7節（`store.get(snapshot.files[パス])`）、第15節（evaluation の `classification.state`）、第16節（`store.get(item.state)`）と BlobStore.get の docstring
+- **A7 OracleReport.by\_target の鍵**: 解消。adopting.md 第15節と OracleReport の docstring に `stage:<id>` か `phase:<id>`
 
-check.sh の pytest で、本体のテスト `tests/test_package.py::test_body_does_not_mention_example_ids` が落ちた。examples/ のワークフロー定義の id や名前が、本体のファイル（src/ と schema/examples/）に語として現れてはいけないらしい。重なったのは、ステージの id `verify`（公開 API の関数 `testing.harness.verify` と同じ語）、inputs の `request.md`、記憶の `open_questions`（どちらも schema/examples/valid/ の例と同じ語）。
+### B. リポジトリの中に例を置くこと
 
-- どうしたか: テストのソースは読まず、pytest が落ちた時に出した一覧（本体のファイルと行と語）だけを見て、`verify` → `acceptance`、`request.md` → `feature_request.md`、`open_questions` → `intake_questions` に改名した。一覧は一行に一語しか出さないので、直して流し直すのを二回繰り返した
-- 足りなかったこと: 第11節にこの制約が無い。`verify` や `request.md` のようなありふれた語を例で使えないのは予想できない
-- 回避したくなったか: 自然な名前（検証のステージを `verify`）を残したかった。本体のテストを直すのは禁止なので、例の側で名前を変えた
+- **B1 壊れたコードのフィクスチャとリポジトリ全体の検査**: 解消。adopting.md 第11節に「tests/fixtures/ の下は ruff、mypy、pytest の収集から外れる」。試した: tests/fixtures/.code/ を普通のディレクトリ（tests/fixtures/implement/、unit\_test/、inputs/repo/）に移し、tests/fixtures/ruff.toml と tests/conftest.py の collect\_ignore を外した。check.sh が通る（ruff check、ruff format、mypy strict がこの例で 19 ファイル（前と同じ）、pytest 602 件）。意図的に lint に反するコード、構文の誤り、失敗するテスト、同じ名前のモジュールの 8 変種がそのまま置ける
+- **B2 例の id が本体の語と重なってはいけない**: 解消（報告の見え方は N3）。adopting.md 第11節に制約と除外が書かれた。試した: workflow.yaml を一時的に前の名前（`verify`、`request.md`、`open_questions`）に戻して tests/test\_package.py を実行すると、全部通った。記憶の名前を本体にありそうな語（`checkpoint` と `runner`）に一時的に変えると、一回の失敗で両方の語が一覧に出た。戻した名前は採らなかった（`acceptance`、`feature_request.md`、`intake_questions` でも自然で、`verify` に戻すとステージの種が変わり、全テストの数値を取り直すことになるため）
+- **B3 指標の args の型**: 解消。adopting.md 第4節と MetricRegistry.measure の docstring に「読み取り専用の Mapping。必要なら dict(args)」
+- **B4 実在のツールに裏づけられた指標の費用**: 解消。adopting.md 第4節と第11節、MetricRegistry.measure の docstring に「読むファイルの内容のハッシュと args を鍵に覚えてよい」。この例の覚え方（指標名、引数、内容のハッシュ）がそのまま当てはまる。recorder に任せられるかは書かれていないが、覚えてよいと分かったので要らない
+- **B5 変更パスの範囲の指標と writes**: 解消。adopting.md 第4節に「writes より狭い範囲と比べる」と理由
+- **B6 例のテストの時間**: 解消（この例が目安を超えることは N7）。adopting.md 第11節に、一つの例で一分以内の目安、実行の集まりを session の fixture で共有すること、synthesize の時間が到達しうる状態の数に比例することが書かれた。試した: 9 ステージ 12 辺の synthesize は約 8 秒から約 0.8 秒に（カバレッジの計測の下では約 17 秒から約 2.5 秒に）
+- **B7 契約適合テストの意味**: 解消。契約第10節、contract/conformance/README.md、adopting.md 第9節に「判定の対象はランタイムの実装。参照ランタイムを使うハーネスは自分で通す必要は無く、ハーネスの側が守ることはランタイムが実行のたびに検査する」。シナリオ一式は `conformance_dir()` と `conformance_scenarios()` で場所が分かる（25 件）。tests/test\_conformance.py はリポジトリのパスをやめて `conformance_scenarios()` を読み、必須ではない版の確認として残した。形式の schema も `load_contract_schema` で読むようにした（tests/test\_oracle.py、test\_triage.py）
 
-### B3. 指標の args の型
+### C. ワークフロー定義
 
-`measure(name, view, args)` の args は `Mapping[str, JSONValue]` とあるが、実際には読み取り専用の Mapping（dict ではない）で渡る。args を `json.dumps` してキャッシュの鍵にしたら、指標の測定の失敗（未達）として現れた。型注釈どおりではあるが、dict を前提にしやすい。
+- **C1 ゲートの不合格を end\_state で戻すことと「goal に優先」の衝突**: 解消。adopting.md 第2.4節の注意に、goal の時に空になる記憶を証拠にしたクラスにはフェーズ全体の条件を書かず、goal の時にも中身を持てる記憶のクラスに限るとある。この例の書き方（review の changes\_requested だけ）と同じ
+- **C2 goal 到達扱いと後のゲートの実在の指標**: 解消。adopting.md 第7節の末尾と ContinueAsGoal の docstring に「後のゲートの指標は免れない。テストでは後の指標を満たす成果物の状態で使う」
 
-### B4. 実在のツールに裏づけられた指標の費用
+### D. 確率的な本体と分布テスト
 
-第4節は、ビルドやテストの指標を一時ディレクトリにファイルを書き出して走らせるよう書くが、分布テスト（第12節）、独立性検証、マルコフ合成は数百回の実行で同じ指標を何度も測る（400 回の実行で実装と単体テストの評価が千回以上）。一回の pytest と coverage に 0.3 秒ほどかかるので、そのままでは数十分かかる。
+- **D1 ユーザーシミュレータに実行の種が届かない**: 解消。adopting.md 第12節に、`run_many` に渡す関数の中で選んだシミュレータのランタイムを実行ごとに組み立て、置き場と作業ディレクトリは共有する形と、回答を保留するシミュレータを束縛すると実行が中断のまま記録される注意がある（record\_run の docstring にも）。この例の run\_set と同じ形
+- **D3 visit で絞った基準の分母の期待値**: 解消（分散の残りは N4）。`synthesize(design_model, workflow).evaluations[("stage", 対象, 区分)]` と `visit_outcomes` で、markov.yaml の 10 の outcome\_rate の基準の E[n] と設計値の割合が出ることを試した。前に標本で出した値との差は 400 回の実行で最大 0.7（例: analyze の訪問 1 は 388.1 → 388.0、implement の訪問 2 以降は 320.9 → 320.3）で、基準の値は変わらない。markov.yaml の注記を厳密な値に直し、各基準が設計値の両側に標準誤差の 3 倍以上あることを synthesize の値から確かめるテスト（tests/test\_stochastic.py の test\_correct\_expectations\_follow\_the\_design）を足した。design.simulate から訪問ごとの評価の数え上げを除いた
+- **D5 実在の指標と偽の本体のクラスの整合**: 解消。adopting.md 第12節の「偽の本体と実在の指標を組み合わせる時」。この例の設計値の metrics\_fail と tests/test\_metrics.py と同じ形
+- **D6 種の分布を疑った**: 解消。adopting.md 第5節と StageContext.seed の docstring に「`random.Random(seed)` にそのまま渡してよい。訪問ごとに独立な一様の種とみなせる」
 
-- どうしたか: 指標は同じスナップショットに同じ値を返す（第4節）ことを使い、指標名、引数、読むファイルの内容のハッシュで結果をプロセスの中で覚える。偽の本体はフィクスチャを写すので、コードベースの状態は十数通りしかない。400 回の実行は約 11 秒（カバレッジの計測の下では約 18 秒）になった
-- 足りなかったこと: 費用の高い指標の扱い（覚えてよいこと、記録再生の recorder に任せられるか）の指針が無い
+### E. 分類器の検証とトリアージ
 
-### B5. 変更パスの範囲の指標と writes
+- **E1 コーパスの重複と FlakyClassifier**: 解消。`build_corpus(..., unique_states=True)` と、adopting.md 第15節、ConfusionClassifier と FlakyClassifier の docstring の注意。tests/test\_oracle.py の手書きの重複除きをこれに替えた（ステージの項目に絞る）。markov の最初の 60 回で、手書きの重複除きと同じ 127 項目、同じ順になることを試した。κ、ECE、再実行の一致率のテストはそのまま通る
+- **E2 ゲートの項目のラベル**: 解消。adopting.md 第15節に、MarkerClassifier の印はステージのクラスでゲートの状態文書には無いので、ステージの項目に絞るかゲートには人手でラベルを付けるとある
+- **E3 トリアージの関数の費用**: 解消。試した: 確信度 0.6 の MarkerClassifier と review\_below 0.7 で 24 回の実行の全評価（361 項目）を待ち行列に足すのに約 0.25 秒、全項目に判定を付けるのに約 0.17 秒（前は約 360 項目で約 18 秒）。tests/test\_triage.py の Hesitant（review と assurance のゲートだけ確信度を下げる偽の分類器）を外し、全評価を待ち行列に入れる形にした。テストは約 4 秒
+- **E4 トリアージの項目とコーパスの項目の id**: 解消。adopting.md 第16節と CorpusItem、TriageItem の docstring に、同じ形 `<実行の id>-<評価の seq>` で突き合わせられるとある
 
-第4節は「変更されたパスの範囲」を baseline() で測る指標の例に挙げるが、writes に無いパスの変更は契約違反で、評価の前に escalate される（第5節）。そのため「writes の範囲に収まるか」を測る指標は決して落ちない。
+### F. 決定論テストと E2E
 
-- どうしたか: writes（repo/src/、repo/tests/）より狭い範囲、tasks.yaml のタスクの paths と tests を基準にした（out_of_scope_changes）。repo/src/ の下のタスク外のファイルを足す変種（scope）で、指標が実際に落ちることを確かめた
-- 足りなかったこと: 指標の範囲は writes より狭くなければ意味が無い、という注意
+- **F1 シナリオの inputs にディレクトリやフィクスチャを指せない**: 解消。contract/conformance/README.md の「ファイルの内容」と adopting.md 第8節に `{from: パス}`（ディレクトリは鍵と from を / で終える）。software\_factory/scenarios.py が inputs と expect.starts の files をフィクスチャへの参照（`repo/: {from: ../fixtures/inputs/repo/}` など）で書くようにした。14 のシナリオの YAML は 2841 行から 1635 行になり、load\_scenario で読んだ inputs、visits、gates、台本、期待が前と同じ（フィクスチャのパスの `.code/` を除いて）ことを全項目で比べた。フィクスチャの中身を変えても作り直さなくてよくなった。遷移の列を手で並べる道具としては残した。`plan_coverage` の inputs は文字列だけを取るが、inputs() を読めば足りる
+- **F2 シナリオと E2E にユーザーシミュレータを束縛できない**: 解消。`run_scenario(..., user=...)` と `run_coverage(..., user=...)`。三つのペルソナを、持ち帰った問いを尋ねるシナリオ（needs\_unclear\_asks\_again）と、最初の質問で回答を保留するシナリオ（happy\_path\_user\_suspend。再開の回答は台本の user から取る）に束縛し、どちらも期待どおりに通ることをテストにした。E2E のカバレッジでは intake の goal の台本に三つの質問を足し、ペルソナに答えさせて全 (ステージ, クラス) を踏む
 
-### B6. 例のテストの時間
-
-この例を足すと check.sh は約 22 秒から約 2 分 20 秒になった。内訳は、400 回の実行の集まり三つ（カバレッジの計測の下で一つ約 18 秒）、`synthesize` 二回（9 ステージ、12 辺で一回約 8 秒、計測の下で約 17 秒）、シナリオ（実在のツール）など。
-
-- どうしたか: 実行の集まりを tests/conftest.py のセッションの fixture にして、分布テスト、独立性検証、マルコフ合成の実測、分類器の検証で共有した（約 3 分から約 2 分に）
-- 足りなかったこと: 例のテストにかけてよい時間の目安、`synthesize` の費用がワークフローの大きさにどう効くか、が無い
-
-### B7. 契約適合テストの意味（第9節）
-
-第9節は、契約適合テスト（contract/conformance/scenarios/）を「参照ランタイムを使わず、自前のランタイムを用意する場合」に通すものとし、「ハーネスが契約を満たしているかは、このテストでのみ判定する」と書く。参照ランタイムを使うハーネスが何を通せばよいかが分からない。シナリオは合成のワークフローと契約適合テストの指標だけを使い、ハーネスの本体も指標も使わない。
-
-- どうしたか: 24 のシナリオすべてを、この例のテストから `run_scenario` で参照ランタイムにかけた（tests/test_conformance.py）。ハーネスの本体が契約を守ること（宣言外のパスと記憶を変えない、範囲外のファイルを作らない）は、多数の実行に契約違反と警告が一度も無いことで確かめた（tests/test_stochastic.py）
-- 足りなかったこと: 参照ランタイムを使うハーネスにとっての契約適合テストの定義。また、シナリオの置き場はリポジトリの contract/ で、git の tag から pip で入れた利用者が同じシナリオをどこから読むのかも書かれていない（この例はリポジトリの中なので、パスで読んだ）
-
-## C. ワークフロー定義（第2節）
-
-### C1. ゲートの不合格を end_state で戻すことと、「goal に優先」の書き方の衝突
-
-第2.4節は、ゲートの不合格を自動で戻したいなら最終ステージの end_state にフェーズ全体の条件を書き、goal の時にも carry の記憶を書くよう勧める。一方、第2.1節は、戻り先が直すのに使う情報を記憶に書かせ、それを証拠として記述に書くよう勧める。analyze の needs_unclear は「open_questions に問いがあればこの状態とし、goal に優先する」と書いたので、goal の時の open_questions は空になる。ゲートからこの辺で戻っても、持ち帰る問いが空で、戻り先が直せない。
-
-- どうしたか: フェーズ全体の条件は、goal の時にも中身のある記憶を持てる review の changes_requested（修正を要しない指摘を goal の時も review_findings に書く）にだけ書いた。ほかのフェーズのゲートの不合格は、契約 3.2 の帰結どおり unknown で人に戻る
-- 足りなかったこと: 「goal の時にも carry の記憶を書く」と「その記憶が空でないことを end_state の証拠にする」をどう両立させるかの指針
-
-### C2. 運用者の「goal 到達扱い」と、後のゲートの実在の指標
-
-goal 到達扱いで続行すると、そのステージの成果物はそのまま後のゲートで測られる。実在の指標が落ちていれば、ゲートの選択肢から goal が外れ、ゲートでもう一度 escalate する。たとえば単体テストが三回失敗して max を超えたのを goal 扱いにすると、construction のゲートの tests_pass が落ちる。
-
-- どうしたか: max 超過と goal 到達扱いのシナリオには、成果物が後のゲートを通る analyze の needs_unclear を使った
-- 足りなかったこと: 第8.1節と契約 3.4 に、この帰結（強制した成果物は後の指標を免れない）の注意が無い
-
-## D. 確率的な本体と分布テスト（第12〜14節）
-
-### D1. ユーザーシミュレータに実行の種が届かない
-
-第12節は、ユーザーには `AutoUser` かユーザーシミュレータを束縛するとだけ書く。`UserIO.ask` は質問しか受け取らない（種も実行の文脈も無い）ので、実行ごとにペルソナを変えるには、種からペルソナを選んでランタイムを実行ごとに組み立て直すしかない。
-
-- どうしたか: `run_many` に渡す関数の中で、種から選んだペルソナでランタイムを組み立て、置き場（BlobStore）と作業ディレクトリは実行の間で共有した（コーパスとトリアージが後で状態文書を読むため）
-- 足りなかったこと: ユーザーシミュレータの束縛の仕方の例。`record_run` の docstring には「中断した実行はその状態のまま記録する」とあり、回答を保留するシミュレータを分布テストに束縛すると、その実行の下流が観測されないことも書かれていない
+## 直さないと言われたもの
 
 ### D2. carry を受けたかで分布が変わる本体と、(ステージ, 訪問) のマルコフモデル
 
-`estimate_model` と `synthesize` は、クラスの分布が (ステージ, 訪問の区分) で決まると仮定する。carry を受けたかで分布を変える本体は、「訪問 2 以降」と「carry を受けた」が一致しない限り、この仮定を壊す。たとえば implement は、unit_test からの辺では carry を受けて戻るが、review から design に戻った後は carry 無しで二回目の訪問になる。
+adopting.md 第14節に「モデルの区分は (ステージ, 訪問の区分) だけで、carry を受けたかは入らない。そのステージに戻ってくる辺が carry を持つ一本だけでない限り仮定を壊し、予測が合わない。偽の本体で確かめる時は、戻ってくる辺が一本のステージに置く」とある。
 
-- どうしたか: carry で分布が変わる本体は、戻ってくる辺が自分自身への一本だけの release に置いた。運用者が中止で答える実行では「訪問 2 以降」と「空でない missing_notes を受けた」が一致し、それを全実行で確かめた（tests/test_stochastic.py）
-- 足りなかったこと: マルコフモデルの区分に carry の有無を入れられない。carry で振る舞いが変わる本体は実際のハーネスでは普通なので、その時に合成が合わなくなることの注意が欲しい
-
-### D3. visit で絞った基準の分母の期待値
-
-第12節は、幅を「条件に合う評価の数の期待値 E[n]」から出すよう書き、toy-minimal は手で列挙した。`synthesize` はステージごとの全訪問の合計（訪問の回数と結果ごとの回数）しか出さないので、`visit: 1` や `from_visit: 2` の基準の E[n] は出ない。9 ステージ、12 辺のワークフローを手で列挙するのは現実的でない。
-
-- どうしたか: 設計値とワークフロー定義の辺（戻り先と max）を辿る標本（software_factory/design.py の simulate、20 万回）で E[n] を見積もり、その最後の状態の分布と訪問の回数の平均が `synthesize` の厳密な値と一致することをテストで確かめた
-- 回避したくなったか: 遷移規則を例の中で書き直すのは「遷移はワークフロー定義だけが決める」に近づく。ハーネスの実行には使わず、基準の根拠の計算だけに使う。`synthesize` が訪問ごとの到達の確率を出せば要らない
+判断: この例にとっては十分。前に自分で選んだ置き方（release に戻る辺は自分自身への一本だけで、訪問 2 以降と carry を受けたことが一致する）が、そのまま文書の勧めになっている。制限として明示されたので、合成が合わない時の第一の疑いにできる。実際のハーネスでの扱いが足りないことは N6 に書いた。
 
 ### D4. MarkerClassifier の下でのゲートの分布
 
-`MarkerClassifier` のゲートの答えは、状態文書の中身で決まる。確率的な実行でゲートを時々落とすには、最終ステージの goal の成果物の一部の変種にゲートの印を入れるしかないが、そうするとその変種は「goal の中で下流（ゲート）が違う代表」になり、独立性検証が定義上 violated を出す。
+adopting.md 第14節に「ゲートを落とすには最終ステージの goal の成果物の一部にゲートの印を入れるしかなく、その成果物は goal の中で下流が違う代表になり、独立性検証は violated と判定する（正しい判定）。ゲートからの戻りはシナリオで確かめ、確率的な実行のゲートはいつも goal にする」とある。
 
-- どうしたか: toy-minimal と同じく、確率的な実行のゲートはいつも goal にし、ゲートからの戻り（assurance のゲートから changes_requested）はシナリオで確かめた。マルコフモデルのゲートの分布はいつも goal になる
-- 足りなかったこと: ゲートの分布を持つマルコフ合成を、偽の本体でどう確かめるかの例
-
-### D5. 実在の指標と、偽の本体のクラスの整合
-
-`MarkerClassifier` は、印のクラスが選択肢に無ければ答えない（unknown）。実在の指標が落ちると goal が選択肢から外れるので、印が goal なのに指標が落ちる変種は、黙って unknown を増やし、分布テストを狂わせる。第12節と第4節は、偽の本体と実在の指標を組み合わせる時のこの整合に触れていない。
-
-- どうしたか: 設計値の表に、各変種で落ちるはずの指標（metrics_fail）を書き、全変種に実際の指標をかけて一致を確かめるテストを置いた（tests/test_metrics.py）
-
-### D6. 種の分布を疑った
-
-ある 400 回の実行の窓で、verify（今の acceptance）の訪問 1 の `random.Random(context.seed).random()` が 0.05 未満になったのが 1.3%（設計 5%）しか無く、本体の誤りを疑った。使い捨てのワークフローで 4000 回の実行の context.seed を集めると一様（0.045、十分位はどれも 0.1 前後）で、標本の揺れだった。第5節は seed を「確率的な振る舞いの唯一の乱数の源」と書くが、`random.Random` にそのまま渡してよいかは書いていない。
-
-## E. 分類器の検証とトリアージ（第15〜16節）
-
-### E1. コーパスの重複と FlakyClassifier
-
-`build_corpus` は評価ごとに一項目を作る。偽の本体はフィクスチャを写すので、違う実行が同じ状態文書を生み、コーパスに同じ文書が何度も入る。`FlakyClassifier` は「同じ状態文書を二回目以降に分類する時」に揺らすので、一回目の分類の中でも重複した文書で答えを変え、κ が 1 から 0.46 に落ちた。`ConfusionClassifier` は文書ごとに同じ答えを返すので、配分は文書の数で決まる。
-
-- どうしたか: コーパスを状態文書ごとに一項目にした（tests/test_oracle.py）
-- 足りなかったこと: 第15節に、重複した状態文書を除くべきかが無い。実際の LLM の出力では重複は稀だが、偽の本体と組む時は必ず起きる
-
-### E2. ゲートの項目のラベル
-
-ゲートの状態文書には印が無い（MarkerClassifier の既定は goal）ので、印を人手のラベルの代わりにする時、ゲートの項目にはラベルが付けられない。toy-minimal と同じく、分類器の検証はステージの項目だけにした。トリアージでは、ゲートの項目に goal のラベルか classifier_error を付けた。
-
-### E3. トリアージの関数の費用
-
-`decide` と `open_items` は呼ぶたびに待ち行列の全体を読み直すらしく、項目の数の二乗で遅くなる（ソースは読んでいない。cProfile の出力で、`items` が 412 回呼ばれて計 18 秒、一回約 40 ms だった）。確信度を一つしか持たない `MarkerClassifier(confidence=0.65)` と `review_below=0.7` では全評価が待ち行列に入り、24 回の実行の約 360 項目で約 18 秒かかった。
-
-- どうしたか: review と assurance のゲートの評価だけ確信度を下げる偽の分類器（tests/test_triage.py の Hesitant）にして、項目を数十に減らした。本体の偽の分類器には、対象ごとに確信度を変えられるものが無いので、`evaluation_target` と二つの `MarkerClassifier` を組み合わせてテストの中に書いた（偽物で、分類の規則ではない）
-
-### E4. トリアージの項目とコーパスの項目の id
-
-第16節は「ラベルを付けた項目は、分類器の検証のコーパスに足せる」と書くが、トリアージの項目の id とコーパスの項目の id が同じ形かは書いていない。試して同じ（実行の一意な id と評価の seq）と分かり、そのまま突き合わせた。
-
-## F. 決定論テストと E2E（第8節、第14節）
-
-### F1. シナリオの inputs にディレクトリやフィクスチャを指せない
-
-シナリオの inputs はファイルの内容の文字列だけで、フィクスチャのディレクトリを指せない。この例の inputs は依頼と変更前のコードベース（4 ファイル）なので、14 のシナリオすべてに同じコードを書き、`expect.starts` にも全ファイルの内容を書いた。
-
-- どうしたか: シナリオの YAML は software_factory/scenarios.py で作る。遷移の列（expect.trace）はそこで一行ずつ手で並べ、inputs と expect.starts のファイルの内容はフィクスチャから取る（`python -m software_factory.scenarios` で書き直す）。コミットした YAML がこの道具の出力と一致すること、inputs が確率的な実行と同じフィクスチャであることをテストで確かめる
-- 回避したくなったか: 読み込んだ `Scenario` の inputs をテストの中で差し替えたくなるが、`Scenario` の属性は公開の文書に無いので、していない
-
-### F2. シナリオと E2E にユーザーシミュレータを束縛できない
-
-`run_scenario` はシナリオの `user` の台本（ScriptedUser）だけを、`plan_coverage` と `run_coverage` はユーザーを取らない（awaits_user のステージの goal の台本で尋ねられない）。要求の取り込みに束縛するペルソナのシミュレータは、決定論テストと E2E のカバレッジには入れられない。
-
-- どうしたか: ペルソナは、確率的な実行（分布テスト、独立性検証、マルコフ合成、分類器の検証、トリアージ）と、ランタイムを直接組み立てた中断と再開のテスト（tests/test_personas.py）に束縛した。E2E のカバレッジの intake の goal の台本は、尋ねずにフィクスチャを写す
+判断: MarkerClassifier を使う限りの説明として正しく、この例のやり方（確率的な実行のゲートは goal、ゲートからの戻りはシナリオの assurance\_gate\_rolls\_back）と一致する。ただし「しかない」は強すぎる。実行ごとの乱数でゲートを揺らす偽の分類器で、ゲートの分布を持つマルコフ合成を偽の本体のまま確かめられた（N5）。

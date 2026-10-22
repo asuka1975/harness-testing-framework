@@ -5,10 +5,11 @@
 走らせて値にする。変更パスの範囲（out_of_scope_changes）は、view.baseline() との差を tasks.yaml の
 タスクの範囲と比べる。
 
-同じ内容には同じ値を返すので、ツールの結果は、指標名、引数、ファイルの内容のハッシュで覚えておく。分布テストでは
-同じコードベースの状態が何千回も評価されるため（adopting-gaps.md B3）。
+同じ内容には同じ値を返すので、ツールの結果は、指標名、引数、ファイルの内容のハッシュで覚えておく（adopting.md 第4節）。
+分布テストでは同じコードベースの状態が何千回も評価されるため。tasks.yaml の読み込みも、内容ごとに覚える。
 """
 
+import functools
 import hashlib
 import json
 import os
@@ -306,9 +307,15 @@ def design_covers_requirements(view: SnapshotView, args: Mapping[str, JSONValue]
     return _mentioned(ids, _section(_text(view, _str(args, "design", "design.md")), "対応"))
 
 
+@functools.lru_cache(maxsize=64)
+def _load_yaml(text: str) -> Any:
+    """YAML を読む。同じ内容を何度も読むので覚える（結果は読むだけで、変えない）。"""
+    return yaml.safe_load(text)
+
+
 def _tasks(view: SnapshotView, path: str) -> list[dict[str, Any]]:
     try:
-        doc = yaml.safe_load(_text(view, path))
+        doc = _load_yaml(_text(view, path))
     except yaml.YAMLError as e:
         raise MetricError(f"{path} を YAML として読めない: {e}") from e
     tasks = doc.get("tasks") if isinstance(doc, dict) else None

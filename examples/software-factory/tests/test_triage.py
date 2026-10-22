@@ -1,7 +1,7 @@
 """software-factory のトリアージの一周。
 
-1. 印を読む偽の分類器で実行する。review とその assurance のゲートの評価だけ確信度を 0.6 にする（閾値 0.5 は越えるので
-   遷移は変わらない）。unknown と確信度 0.7 未満の評価を待ち行列に足す
+1. 印を読む偽の分類器を確信度 0.6 で束縛して実行する（閾値 0.5 は越えるので遷移は変わらない）。unknown と確信度 0.7 未満の
+   評価（ここではすべての評価）を待ち行列に足す
 2. 人の代わりに、置き場の状態文書を読んで判定する。確信度が低いだけの評価には印のクラスでラベルを付ける（最初のゲートの
    評価だけは、正しいが確信度の低すぎる分類器の誤りとする）。unknown には、分類体系の変更の提案（新しいクラス、記述の修正）
    か「問題なし」を付ける
@@ -11,20 +11,15 @@
 
 import hashlib
 import json
-from collections.abc import Sequence
 from pathlib import Path
 
 import jsonschema
 import pytest
-from software_factory.stages.deterministic import ROOT, WORKFLOW
+from software_factory.stages.deterministic import WORKFLOW
 from software_factory.stages.probabilistic import WORKFLOW_MODEL, run_set
 
-from harness_testing_framework.contract import Classification, Option
-from harness_testing_framework.testing.harness import (
-    MarkerClassifier,
-    evaluation_target,
-    marked_class,
-)
+from harness_testing_framework.contract import load_contract_schema
+from harness_testing_framework.testing.harness import MarkerClassifier, marked_class
 from harness_testing_framework.testing.oracle import Label, build_corpus, oracle_report
 from harness_testing_framework.testing.triage import (
     PROPOSALS,
@@ -37,22 +32,7 @@ from harness_testing_framework.testing.triage import (
     open_items,
 )
 
-FORMATS = ROOT.parents[1] / "contract" / "formats"
-
-
-class Hesitant:
-    """印を読む偽の分類器。review と assurance のゲートの評価だけ、確信度 0.6 で答える。"""
-
-    def __init__(self) -> None:
-        self.sure, self.unsure = MarkerClassifier(confidence=0.9), MarkerClassifier(confidence=0.6)
-
-    def classify(self, state: str, options: Sequence[Option]) -> Classification:
-        target = evaluation_target(state)
-        unsure = target is not None and target[1] in ("review", "assurance")
-        return (self.unsure if unsure else self.sure).classify(state, options)
-
-
-CLASSIFIER = Hesitant()
+CLASSIFIER = MarkerClassifier(confidence=0.6)
 
 
 def test_one_round_of_triage(tmp_path: Path) -> None:
@@ -63,7 +43,8 @@ def test_one_round_of_triage(tmp_path: Path) -> None:
     added = [item for run in runs.runs for item in enqueue(queue, run, review_below=0.7)]
     assert added and items(queue) == added
     assert {i.reason for i in added} == {"unknown", "low_confidence"}
-    assert all(i.outcome == "unknown" or i.target in ("review", "assurance") for i in added)
+    evaluations = sum(1 for run in runs.runs for _ in run.evaluations())
+    assert len(added) == evaluations
     # 同じ実行を二度足しても重ならない
     assert [i for run in runs.runs for i in enqueue(queue, run, review_below=0.7)] == []
 
@@ -103,8 +84,7 @@ def test_one_round_of_triage(tmp_path: Path) -> None:
         "not_a_problem",
     }
     for name, path in (("triage_item", queue), ("triage_decision", record)):
-        schema = json.loads((FORMATS / f"{name}.schema.json").read_text("utf-8"))
-        validator = jsonschema.Draft202012Validator(schema)
+        validator = jsonschema.Draft202012Validator(load_contract_schema(f"{name}.schema.json"))
         for line in path.read_text("utf-8").splitlines():
             validator.validate(json.loads(line))
     # 提案は記録されるだけで、ワークフロー定義は変わらない

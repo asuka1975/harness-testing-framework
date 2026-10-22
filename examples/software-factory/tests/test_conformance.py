@@ -1,21 +1,26 @@
 """契約適合テスト。
 
-このハーネスは参照ランタイムを使う。adopting.md 第9節は、自前のランタイムを用意する場合に contract/conformance/scenarios/
-のすべてのシナリオを通すとするが、このハーネスが束縛して使うランタイムについても同じシナリオを通す
-（adopting-gaps.md）。シナリオは合成のワークフローと契約適合テストの指標レジストリ（metrics: conformance）を使い、
-ハーネスの指標や本体は使わない。ハーネスの本体が契約を守ること（宣言外のパスや記憶を変えない）は、test_stochastic.py の
-多数の実行で確かめる。
+このハーネスは参照ランタイムを使うので、契約適合テストを自分で通す必要は無い（adopting.md 第9節、契約 第10節。判定の対象は
+ランタイムの実装で、参照ランタイムはフレームワークの側で通してある）。ここでは、このハーネスが束縛する版の参照ランタイムに、
+パッケージに同梱したシナリオ一式（conformance_scenarios()。pip で入れた環境でも同じ場所から読める）をかけて、版の取り違えが
+無いことを安く確かめるだけにする。シナリオは合成のワークフローと契約適合テストの指標レジストリ（metrics: conformance）を使い、
+ハーネスの指標や本体は使わない。
+
+ハーネスの側が守ること（宣言外のパスや記憶を変えない、範囲外のファイルを作らない）は、ランタイムが実行のたびに検査する。
+多数の実行に契約違反、本体の例外、範囲外のファイルの警告が一度も無いことを test_stochastic.py で確かめる。
 """
 
 from pathlib import Path
 
 import pytest
-from software_factory.stages.deterministic import ROOT
 
-from harness_testing_framework.testing.harness import load_scenario, run_scenario
+from harness_testing_framework.testing.harness import (
+    conformance_scenarios,
+    load_scenario,
+    run_scenario,
+)
 
-CONFORMANCE = ROOT.parents[1] / "contract" / "conformance" / "scenarios"
-PATHS = sorted(CONFORMANCE.glob("*.yaml"))
+PATHS = conformance_scenarios()
 
 
 def test_the_conformance_suite_is_present() -> None:

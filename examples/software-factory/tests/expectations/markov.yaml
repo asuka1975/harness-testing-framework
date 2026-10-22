@@ -1,8 +1,10 @@
 # 基準は tests/stochastic.yaml の markov の設計値から導いた。中心は設計値の割合、幅は設計値の両側に、既定の回数（400）での
-# 標準誤差のおよそ 3.2 倍をとり、0.01 の単位で外側に丸めた（0 と 1 で切る）。
-# 標準誤差は sqrt(p(1-p)/E[n])。E[n] は条件に合う評価の数の期待値で、software_factory/design.py の simulate
-# （設計値とワークフロー定義の辺を辿る 20 万回の標本。status と訪問の回数の平均は synthesize の厳密な値と一致する）から出した。
-# status_rate と mean_visits の中心は、設計値の MarkovModel に synthesize をかけた厳密な値
+# 標準誤差のおよそ 3.2 倍以上をとり、0.01 の単位で外側に丸めた（0 と 1 で切る）。
+# 標準誤差は sqrt(p(1-p)/E[n])。E[n] は条件に合う評価の数の期待値で、設計値の MarkovModel（software_factory/design.py の
+# design_model）に synthesize をかけた evaluations（訪問の区分ごとの評価の回数の期待値）の 400 倍。p は visit_outcomes から出る
+# 設計値の割合と同じ。status_rate と mean_visits の中心も synthesize の厳密な値。mean_visits の標準誤差に使う訪問の回数の
+# 標準偏差だけは synthesize が出さないので、design.simulate の標本から出した。
+# test_stochastic.py の test_correct_expectations_follow_the_design が、各基準が設計値の両側に 3 SE 以上あることを確かめる
 expectations: software-factory-markov
 description: markov の確率的な偽ステージ本体での、評価の結果の出現率、実行の最後の状態、訪問の回数
 workflow: ../../workflow.yaml
@@ -16,55 +18,55 @@ criteria:
     outcome: unknown
     min: 0.0
     max: 0.06
-  - kind: outcome_rate     # 設計値 0.25、E[n] 388.1、SE 0.0220。両側 3.6 SE
+  - kind: outcome_rate     # 設計値 0.25、E[n] 388.0、SE 0.0220。両側 3.6 SE
     target: analyze
     visit: 1
     outcome: needs_unclear
     min: 0.17
     max: 0.33
-  - kind: outcome_rate     # 設計値 0.72（ok と ok_b の和）、E[n] 344.0、SE 0.0242。両側 3.3 SE
+  - kind: outcome_rate     # 設計値 0.72（ok と ok_b の和）、E[n] 343.8、SE 0.0242。両側 3.3 SE
     target: implement
     visit: 1
     outcome: goal
     min: 0.64
     max: 0.80
-  - kind: outcome_rate     # 設計値 0.90（訪問 2 以降）、E[n] 320.9、SE 0.0167。両側 3.6 SE
+  - kind: outcome_rate     # 設計値 0.90（訪問 2 以降）、E[n] 320.3、SE 0.0168。両側 3.6 SE
     target: implement
     from_visit: 2
     outcome: goal
     min: 0.84
     max: 0.96
-  - kind: outcome_rate     # 設計値 0.22（defect は ok と ok_b の後で impl_defect）、E[n] 330.9、SE 0.0228。両側 3.5 SE
+  - kind: outcome_rate     # 設計値 0.22（defect は ok と ok_b の後で impl_defect）、E[n] 330.6、SE 0.0228。両側 3.5 SE
     target: unit_test
     visit: 1
     outcome: impl_defect
     min: 0.14
     max: 0.30
-  - kind: outcome_rate     # 設計値 0.20、E[n] 330.9、SE 0.0220。両側 3.6 SE
+  - kind: outcome_rate     # 設計値 0.20、E[n] 330.6、SE 0.0220。両側 3.6 SE
     target: unit_test
     visit: 1
     outcome: tests_insufficient
     min: 0.12
     max: 0.28
-  - kind: outcome_rate     # 設計値 0.10、E[n] 314.3、SE 0.0169。両側 3.6 SE
+  - kind: outcome_rate     # 設計値 0.10、E[n] 313.8、SE 0.0169。両側 3.6 SE
     target: acceptance
     visit: 1
     outcome: requirement_unmet
     min: 0.04
     max: 0.16
-  - kind: outcome_rate     # 設計値 0.14、E[n] 299.9、SE 0.0200。両側 3.5 SE
+  - kind: outcome_rate     # 設計値 0.14、E[n] 299.2、SE 0.0201。両側 3.5 SE
     target: review
     visit: 1
     outcome: changes_requested
     min: 0.07
     max: 0.21
-  - kind: outcome_rate     # 設計値 0.23（carry を受けない最初の訪問）、E[n] 283.5、SE 0.0250。両側 3.2 SE
+  - kind: outcome_rate     # 設計値 0.23（carry を受けない最初の訪問）、E[n] 283.0、SE 0.0250。両側 3.2 SE
     target: release
     visit: 1
     outcome: notes_incomplete
     min: 0.15
     max: 0.31
-  - kind: outcome_rate     # 設計値 0.97（carry を受けた再進入）、E[n] 65.4、SE 0.0211。下側 3.3 SE（上側は 1 で切る）
+  - kind: outcome_rate     # 設計値 0.97（carry を受けた再進入）、E[n] 65.1、SE 0.0211。下側 3.3 SE（上側は 1 で切る）
     target: release
     from_visit: 2
     outcome: goal
@@ -74,7 +76,7 @@ criteria:
     status: completed
     min: 0.61
     max: 0.77
-  - kind: mean_visits      # synthesize の厳密な値 1.660、一回の実行の訪問の回数の標準偏差 1.17（simulate）、SE 0.0586。両側 3.2 SE
+  - kind: mean_visits      # synthesize の厳密な値 1.660、一回の実行の訪問の回数の標準偏差 1.17（design.simulate）、SE 0.0586。両側 3.2 SE
     target: implement
     min: 1.47
     max: 1.85

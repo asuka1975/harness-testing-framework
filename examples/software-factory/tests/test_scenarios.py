@@ -4,15 +4,17 @@
 - escalate の四つの選択が動く
 - 指標は実在のツール（pytest、coverage、ruff、compileall）で測り、その値で選択肢から goal が外れることも確かめる
 - 記録再生で同一のスナップショットが得られる
-- シナリオの inputs は、確率的な実行と同じフィクスチャ（依頼と変更前のコードベース）である
-- コミットしたシナリオの YAML は、software_factory/scenarios.py が今のフィクスチャから作るものと一致する
-  （フィクスチャを変えたら `python -m software_factory.scenarios` で作り直す）
+- シナリオの inputs は、確率的な実行と同じフィクスチャ（依頼と変更前のコードベース）である。シナリオはフィクスチャを
+  `{from: パス}` で参照する
+- コミットしたシナリオの YAML は、software_factory/scenarios.py が作るものと一致する
+  （遷移の列を変えた時と、ok のフィクスチャのファイルを足し引きした時は `python -m software_factory.scenarios` で作り直す）
+- 要求の取り込みのペルソナ（ユーザーシミュレータ）を、台本の user の代わりに束縛しても、シナリオの期待どおりに動く
 """
 
 from pathlib import Path
 
 import pytest
-import yaml
+from software_factory.personas import CAP, FLOOR, PERSONAS, QUESTIONS, Persona, PersonaUser
 from software_factory.scenarios import GENERATED
 from software_factory.stages.deterministic import SCENARIOS, inputs, run
 
@@ -81,8 +83,23 @@ def test_replay_gives_identical_snapshots(name: str, tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("path", PATHS, ids=[p.stem for p in PATHS])
 def test_scenario_inputs_are_the_shared_fixtures(path: Path) -> None:
-    doc = yaml.safe_load(path.read_text("utf-8"))
-    assert {k: v.encode() for k, v in doc["inputs"].items()} == inputs()
+    scenario = load_scenario(path)
+    assert {k: v.encode() for k, v in scenario.inputs.items()} == inputs()
+
+
+@pytest.mark.parametrize("persona", PERSONAS, ids=[p.name for p in PERSONAS])
+def test_personas_can_stand_in_for_the_scripted_user(persona: Persona, tmp_path: Path) -> None:
+    """持ち帰った問いをペルソナに尋ねる。ペルソナが最初の質問で回答を保留すると中断し、再開の回答は台本の user から取る。"""
+    answering = PersonaUser(persona)
+    result = run(SCENARIOS / "needs_unclear_asks_again.yaml", tmp_path / "a", user=answering)
+    assert result.problems == []
+    assert answering.asked == [CAP, FLOOR]
+
+    deferring = PersonaUser(persona, defer_first=True)
+    result = run(SCENARIOS / "happy_path_user_suspend.yaml", tmp_path / "b", user=deferring)
+    assert result.problems == []
+    assert result.resumes == 1
+    assert deferring.asked == list(QUESTIONS)
 
 
 def test_committed_scenarios_match_the_generator() -> None:

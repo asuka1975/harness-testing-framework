@@ -1,8 +1,8 @@
 # software-factory の確率的な偽ステージ本体の設計値。
 #
 # 本体は訪問ごとに、文脈の種（context.seed）だけを乱数の源にして変種を一つ選び、フィクスチャ
-# （tests/fixtures/<ステージ>/<変種>/、実装と単体テストは tests/fixtures/.code/<ステージ>/<変種>/）を作業領域に写し、
-# 変種の記憶を書く。成果物の先頭の印 [[class <ステージ>=<クラス>]] を MarkerClassifier が読む。
+# （tests/fixtures/<ステージ>/<変種>/）を作業領域に写し、変種の記憶を書く。成果物の先頭の印
+# [[class <ステージ>=<クラス>]] を MarkerClassifier が読む。
 #
 # 分布の鍵（condition）:
 # - first / again: 訪問 1 / 訪問 2 以降の分布
