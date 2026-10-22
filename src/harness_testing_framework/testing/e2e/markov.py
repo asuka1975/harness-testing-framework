@@ -69,8 +69,8 @@ class Prediction:
       区分は min(訪問の番号, cap)。ゲートの訪問はフェーズの最終ステージの訪問の番号。visit や from_visit で
       絞った分布テストの基準の分母の期待値 E[n] になる（区分が cap より小さい訪問は、その訪問ちょうど）
     - visit_outcomes: (scope, 対象, 訪問の区分, 結果) ごとの評価の回数の期待値
-    - visits_variance: ステージごとの、一回の実行の中での訪問の回数の分散（一度も訪れない実行は 0 と数える。
-      分布テストの mean_visits と同じ数え方）。mean_visits の基準の幅は、N 回の実行なら標準誤差
+    - visits_variance: ステージごとの、実行ごとの訪問の回数の、実行の間での分散（一度も訪れない実行は 0 と
+      数える。分布テストの mean_visits と同じ数え方）。mean_visits の基準の幅は、N 回の実行なら標準誤差
       sqrt(visits_variance / N) から出せる
     """
 

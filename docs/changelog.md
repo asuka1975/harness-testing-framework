@@ -7,6 +7,7 @@
 ### 互換性に注意する変更
 
 - `compare_prediction` が返す量に、ゲートの評価の結果ごとの回数（`gate:<フェーズ>=<結果>`）を足した。返す量の種類を固定の集合で確かめているテストは、`gate` を足す必要がある
+- 公開の範囲を明記した。`StageContext` は、`stage_id`、`visit`、`workspace`、`seed`、`read_memory`、`write_memory`、`user_io`、`llm` だけが公開で、ほかの名前（`dir(context)` で見えるもの）はランタイムの内部。`RunState` は、`to_json`、`from_json`、`current`、`pending` だけが公開で、ほかの属性はランタイムの内部（読み書きしない）
 
 ### 足したもの
 

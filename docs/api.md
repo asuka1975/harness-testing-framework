@@ -190,7 +190,7 @@ E2E のカバレッジ計画（誘発と注入）とマルコフ合成。
 | `Dist` | クラスの分布（クラスの id から確率） |
 | `estimate_model` | 実行の集まりからモデルを推定する |
 | `synthesize` | モデルとワークフローから、最後の状態の分布、訪問の回数の期待値、評価の結果ごとの回数の期待値（訪問の区分ごとにも）を厳密に計算する（escalate の後は中止） |
-| `Prediction` | 合成の結果。`evaluations[(scope, 対象, 訪問の区分)]` は visit や from\_visit で絞った基準の分母の期待値 E[n]。`visits_variance` は一回の実行の中での訪問の回数の分散 |
+| `Prediction` | 合成の結果。`evaluations[(scope, 対象, 訪問の区分)]` は visit や from\_visit で絞った基準の分母の期待値 E[n]。`visits_variance` は実行ごとの訪問の回数（一度も訪れない実行は 0）の、実行の間での分散 |
 | `ModelIncomplete` | 到達しうる (ステージ, 訪問) の分布がモデルに無い |
 | `compare_prediction` | 予測と実測を比べる（最後の状態、訪問の回数、ステージとゲートの評価の結果ごとの回数。差が標準誤差の k 倍以内なら一致） |
 | `Comparison` | 一つの量の比較 |

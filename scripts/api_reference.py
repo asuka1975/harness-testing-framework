@@ -121,7 +121,9 @@ def _entry(name: str, obj: object) -> list[str]:
         doc = _doc(obj)
         return [f"### `{name}{_signature(obj)}`", *(["", *doc] if doc else [])]
     shown = repr(obj)
-    if len(shown) > 200:
+    if len(shown) > 200 and not (
+        isinstance(obj, tuple | list) and all(isinstance(v, str) for v in obj)
+    ):
         shown = shown[:200] + " …"
     return [f"### `{name}`", "", f"`{_short(shown)}`"]
 

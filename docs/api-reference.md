@@ -123,7 +123,7 @@ carry は持ち帰る記憶の名前で、戻り先の memory_in にあるもの
 
 ### `SCHEMA_FILES`
 
-`('snapshot.schema.json', 'trace.schema.json', 'scenario.schema.json', 'expectations.schema.json', 'corpus_item.schema.json', 'label.schema.json', 'triage_item.schema.json', 'triage_decision.schema.jso …`
+`('snapshot.schema.json', 'trace.schema.json', 'scenario.schema.json', 'expectations.schema.json', 'corpus_item.schema.json', 'label.schema.json', 'triage_item.schema.json', 'triage_decision.schema.json')`
 
 ### `SnapshotView`（Protocol）
 
@@ -679,8 +679,8 @@ representatives は、ステージの評価の seq から、その評価の直�
   区分は min(訪問の番号, cap)。ゲートの訪問はフェーズの最終ステージの訪問の番号。visit や from_visit で
   絞った分布テストの基準の分母の期待値 E[n] になる（区分が cap より小さい訪問は、その訪問ちょうど）
 - visit_outcomes: (scope, 対象, 訪問の区分, 結果) ごとの評価の回数の期待値
-- visits_variance: ステージごとの、一回の実行の中での訪問の回数の分散（一度も訪れない実行は 0 と数える。
-  分布テストの mean_visits と同じ数え方）。mean_visits の基準の幅は、N 回の実行なら標準誤差
+- visits_variance: ステージごとの、実行ごとの訪問の回数の、実行の間での分散（一度も訪れない実行は 0 と
+  数える。分布テストの mean_visits と同じ数え方）。mean_visits の基準の幅は、N 回の実行なら標準誤差
   sqrt(visits_variance / N) から出せる
 
 ### `run_coverage(plan: list[CoverageItem], workdir: Path, *, registry: MetricRegistry, fixtures: Path | None = None, user: UserIO | None = None) -> CoverageReport`
