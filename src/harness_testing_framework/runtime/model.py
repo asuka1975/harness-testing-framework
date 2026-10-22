@@ -30,18 +30,24 @@ class Criterion:
 
 @dataclass(frozen=True)
 class Goal:
+    """ステージかフェーズの goal。qualitative は記述、criteria は quantitative の各指標の基準。"""
+
     qualitative: str
     criteria: tuple[Criterion, ...]
 
 
 @dataclass(frozen=True)
 class EndState:
+    """end_state の一項目（unknown を含む）。id と、分類器に渡す記述。"""
+
     id: str
     description: str
 
 
 @dataclass(frozen=True)
 class Rollback:
+    """rollback の一項目。ステージ stage の end_state state から target へ、記憶 carry を持って戻る。max 回まで。"""
+
     stage: str
     state: str
     target: str
@@ -68,6 +74,8 @@ class Stage:
 
 @dataclass(frozen=True)
 class Phase:
+    """フェーズ。stages はそのフェーズのステージの id（順に）。goal はゲートの基準。"""
+
     id: str
     name: str
     description: str

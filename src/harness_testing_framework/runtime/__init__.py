@@ -8,10 +8,26 @@ from harness_testing_framework.runtime.checkpoint import (
     canonical_json,
 )
 from harness_testing_framework.runtime.loader import WorkflowInvalid, load_workflow
-from harness_testing_framework.runtime.model import Stage, Workflow, build_workflow
-from harness_testing_framework.runtime.recorder import Passthrough, Recorder, Recording, ReplayOnly
+from harness_testing_framework.runtime.model import (
+    Criterion,
+    EndState,
+    Goal,
+    Phase,
+    Rollback,
+    Stage,
+    Workflow,
+    build_workflow,
+)
+from harness_testing_framework.runtime.recorder import (
+    Key,
+    Passthrough,
+    Recorder,
+    Recording,
+    ReplayOnly,
+)
 from harness_testing_framework.runtime.runner import (
     ContractViolation,
+    Event,
     OperatorDecisionInvalid,
     RunResult,
     RunState,
@@ -22,11 +38,18 @@ __all__ = [
     "Annotation",
     "BlobStore",
     "ContractViolation",
+    "Criterion",
+    "EndState",
+    "Event",
+    "Goal",
+    "Key",
     "OperatorDecisionInvalid",
     "Passthrough",
+    "Phase",
     "Recorder",
     "Recording",
     "ReplayOnly",
+    "Rollback",
     "RunResult",
     "RunState",
     "Runtime",

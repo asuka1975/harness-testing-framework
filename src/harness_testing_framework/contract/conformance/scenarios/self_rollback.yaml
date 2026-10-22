@@ -1,5 +1,5 @@
 scenario: self_rollback
-description: s3 が e3_retry で自分自身へ戻り、m33 を持ってやり直す（A2）
+description: s3 が e3_retry で自分自身へ戻り、m33 を持ってやり直す
 workflow: ../workflows/basic.yaml
 metrics: conformance
 seed: 1

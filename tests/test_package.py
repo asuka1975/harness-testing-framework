@@ -109,7 +109,7 @@ def test_body_has_no_banned_names() -> None:
         for n, line in _lines(p)
         if BANNED.search(line)
     ]
-    assert not hits
+    assert not hits, "\n".join(hits)
 
 
 def _example_ids() -> set[str]:
@@ -191,4 +191,4 @@ def test_body_does_not_mention_example_ids() -> None:
         for n, line in _lines(p)
         for m in pattern.finditer(line)
     ]
-    assert not hits
+    assert not hits, "\n".join(hits)

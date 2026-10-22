@@ -10,6 +10,7 @@ from harness_testing_framework.testing.e2e.coverage import (
 )
 from harness_testing_framework.testing.e2e.markov import (
     Comparison,
+    Dist,
     MarkovModel,
     ModelIncomplete,
     Prediction,
@@ -22,6 +23,7 @@ __all__ = [
     "Comparison",
     "CoverageItem",
     "CoverageReport",
+    "Dist",
     "MarkovModel",
     "ModelIncomplete",
     "Prediction",

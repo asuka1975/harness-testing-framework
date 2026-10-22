@@ -1,12 +1,13 @@
 """E2E のカバレッジ計画とマルコフ合成（plan.md 第6節 F3）。手で計算できる合成のモデルで確かめる。"""
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from harness_testing_framework.contract import Question
-from harness_testing_framework.runtime import load_workflow
+from harness_testing_framework.contract import Question, StageContext
+from harness_testing_framework.runtime import BlobStore, Runtime, load_workflow
 from harness_testing_framework.testing.e2e import (
     MarkovModel,
     ModelIncomplete,
@@ -18,8 +19,19 @@ from harness_testing_framework.testing.e2e import (
     run_coverage,
     synthesize,
 )
-from harness_testing_framework.testing.harness import ConformanceRegistry
-from harness_testing_framework.testing.stages import RunRecord, RunSet
+from harness_testing_framework.testing.harness import (
+    AbortOperator,
+    ConformanceRegistry,
+    MarkerClassifier,
+    RandomGateClassifier,
+)
+from harness_testing_framework.testing.stages import (
+    RunRecord,
+    RunSet,
+    independence,
+    record_run,
+    run_many,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = load_workflow(
@@ -326,3 +338,130 @@ def test_coverage_runs_can_bind_a_user_simulator(tmp_path: Path) -> None:
     assert report.missing == []
     # s1 の最初の訪問は、どの項目でも尋ねる
     assert len(simulator.asked) >= len(plan)
+
+
+def test_synthesis_gives_the_variance_of_visit_counts() -> None:
+    """一回の実行の中での訪問の回数の分散（mean_visits の基準の幅の根拠）。手計算と比べる。"""
+    model = MarkovModel(
+        stage={
+            ("s1", 1): {"goal": 1.0},
+            ("s2", 1): {"goal": 0.5, "e2_back": 0.5},
+            ("s3", 1): {"goal": 1.0},
+        },
+        gate={("p1", 1): {"goal": 1.0}, ("p2", 1): {"goal": 1.0}},
+        cap=1,
+    )
+    p = synthesize(model, WORKFLOW)
+    # s2 の訪問の回数は 1, 2, 3 がそれぞれ 1/2, 1/4, 1/4（三回目の e2_back で中止）
+    mean = 0.5 * 1 + 0.25 * 2 + 0.25 * 3
+    assert p.mean_visits["s2"] == pytest.approx(mean)
+    assert p.visits_variance["s2"] == pytest.approx(0.5 * 1 + 0.25 * 4 + 0.25 * 9 - mean**2)
+    # s3 は 0 回か 1 回（ベルヌーイ）
+    assert p.visits_variance["s3"] == pytest.approx(0.875 * 0.125)
+    assert p.visits_variance["s1"] == pytest.approx(p.visits_variance["s2"])
+
+
+def test_visit_variance_matches_runs_simulated_from_the_model() -> None:
+    """ゲートの戻りと unknown を含むモデルで、分散を厳密な列挙と標本で比べる。"""
+    import random
+
+    model = MarkovModel(
+        stage={
+            ("s1", 1): {"goal": 0.9, "unknown": 0.1},
+            ("s2", 1): {"goal": 0.6, "e2_back": 0.4},
+            ("s3", 1): {"goal": 0.5, "e3_back": 0.3, "e3_retry": 0.2},
+        },
+        gate={("p1", 1): {"goal": 0.7, "e2_back": 0.3}, ("p2", 1): {"goal": 1.0}},
+        cap=1,
+    )
+    p = synthesize(model, WORKFLOW)
+    rng = random.Random(0)
+    maxes = {(s.id, rb.state): rb.max for s in WORKFLOW.stages for rb in s.rollbacks.values()}
+
+    def draw(dist: Mapping[str, float]) -> str:
+        r, acc = rng.random(), 0.0
+        for k, v in dist.items():
+            acc += v
+            if r < acc:
+                return k
+        return k
+
+    samples: dict[str, list[int]] = {s.id: [] for s in WORKFLOW.stages}
+    for _ in range(40000):
+        visits = dict.fromkeys(samples, 0)
+        counts: dict[tuple[str, str], int] = {}
+        stage: str | None = "s1"
+        while stage is not None:
+            visits[stage] += 1
+            outcome = draw(model.stage_distribution(stage, 1))
+            if outcome == "goal" and WORKFLOW.is_last_in_phase(stage):
+                outcome = draw(model.gate_distribution(WORKFLOW.stage(stage).phase, 1))
+            if outcome == "goal":
+                following = WORKFLOW.next_stage(stage)
+                stage = None if following is None else following.id
+            elif outcome == "unknown" or counts.get((stage, outcome), 0) >= maxes[(stage, outcome)]:
+                stage = None
+            else:
+                counts[(stage, outcome)] = counts.get((stage, outcome), 0) + 1
+                stage = WORKFLOW.stage(stage).rollbacks[outcome].target
+        for s, v in visits.items():
+            samples[s].append(v)
+    for s, values in samples.items():
+        mean = sum(values) / len(values)
+        variance = sum((v - mean) ** 2 for v in values) / (len(values) - 1)
+        assert p.mean_visits[s] == pytest.approx(mean, abs=0.03)
+        assert p.visits_variance[s] == pytest.approx(variance, rel=0.05, abs=0.01)
+
+
+def _goal_body(context: StageContext) -> None:
+    n = context.stage_id[-1]
+    (context.workspace / f"s{n}.txt").write_text(n)
+    (context.workspace / f"s{n}.flag").write_text("true")
+    if n == "2":
+        (context.workspace / "gate1.flag").write_text("true")
+        context.write_memory("m21", "直すところ")
+    if n == "3":
+        (context.workspace / "gate2.num").write_text("0")
+
+
+def test_random_gate_classifier_shakes_gates_independently_of_artifacts(tmp_path: Path) -> None:
+    """ゲートの答えを実行ごとの乱数で決める偽の分類器。ゲートの分布はクラスの中の代表によらないので、
+    独立性検証は違反を出さず、ゲートの分布を持つマルコフ合成が実測と合う。"""
+    store = BlobStore(tmp_path / "store")
+
+    def run_one(seed: int) -> RunRecord:
+        runtime = Runtime(
+            WORKFLOW,
+            {s.id: _goal_body for s in WORKFLOW.stages},
+            registry=ConformanceRegistry(),
+            classifier=RandomGateClassifier(
+                MarkerClassifier(), seed, {"p1": {"goal": 0.5, "e2_back": 0.5}}
+            ),
+            operator=AbortOperator(),
+            store=store,
+            workdir=tmp_path,
+        )
+        return record_run(runtime, seed, {"in.txt": b"x"})
+
+    runs = run_many(400, 0, run_one)
+    gates = [
+        e["outcome"]
+        for r in runs.runs
+        for e in r.evaluations()
+        if e["scope"] == "phase" and e["phase"] == "p1"
+    ]
+    share = gates.count("e2_back") / len(gates)
+    assert abs(share - 0.5) < 4 * (0.25 / len(gates)) ** 0.5
+    # 同じ種では同じ実行
+    assert run_one(7).events == run_one(7).events
+    model = MarkovModel(
+        stage={(s.id, 1): {"goal": 1.0} for s in WORKFLOW.stages},
+        gate={("p1", 1): {"goal": 0.5, "e2_back": 0.5}, ("p2", 1): {"goal": 1.0}},
+        cap=1,
+    )
+    prediction = synthesize(model, WORKFLOW)
+    assert prediction.status["completed"] == pytest.approx(1 - 0.5**3)
+    assert all(c.within for c in compare_prediction(prediction, runs)), [
+        c.line() for c in compare_prediction(prediction, runs) if not c.within
+    ]
+    assert "violated" not in {r.verdict for r in independence(runs)}

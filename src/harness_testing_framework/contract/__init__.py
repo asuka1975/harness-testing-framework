@@ -264,6 +264,7 @@ class Operator(Protocol):
 
 __all__ = [
     "CONTRACT_VERSION",
+    "SCHEMA_FILES",
     "Abort",
     "AwaitingAnswer",
     "AwaitingDecision",

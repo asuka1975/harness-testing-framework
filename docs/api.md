@@ -72,6 +72,7 @@
 | `AwaitingDecision` | 選択がまだ無いことの合図。ランタイムは実行を escalate 待ちで止める |
 | `JSONValue` | JSON で表せる値 |
 | `CONTRACT_VERSION` | 契約の版 |
+| `SCHEMA_FILES` | `load_contract_schema` が受け取る名前の一覧 |
 | `load_contract_schema` | 同梱した契約の JSON Schema を読む |
 
 ## `harness_testing_framework.runtime`
@@ -85,8 +86,14 @@
 | `build_workflow` | 検査済みの文書からモデルを作る |
 | `Workflow` | ワークフローのモデル |
 | `Stage` | ステージのモデル |
+| `Phase` | フェーズのモデル |
+| `Goal` | goal（記述と指標の基準） |
+| `Criterion` | 指標の基準の一項目 |
+| `EndState` | end\_state の一項目（id と記述） |
+| `Rollback` | rollback の一項目（辺、carry、max） |
 | `Runtime` | ランタイム。`start(seed, inputs)` で始め、`resume(state, answer=... / decision=...)` で再開する。引数と既定値は adopting.md の第7節 |
 | `RunResult` | 一区切りの結果（状態、出来事、スナップショットの id） |
+| `Event` | 実行記録の一つの出来事（形は contract/trace.schema.json） |
 | `RunState` | 保存して再開できる実行の状態（`to_json` / `from_json`）。中断なら `pending["question"]` に保留中の質問（`text` と `choices`） |
 | `BlobStore` | 内容アドレスのファイル置き場とスナップショットの置き場。`get(SHA-256)` でファイルの内容も状態文書も読める |
 | `Snapshot` | スナップショット（ファイル、記憶、ゲート、注記）。`id` はマニフェストの正規形の SHA-256 |
@@ -94,6 +101,7 @@
 | `Annotation` | 注記（goal 到達扱いの記録など） |
 | `canonical_json` | マニフェストの正規形 |
 | `Recorder` | 記録再生の口 |
+| `Key` | 記録の鍵（実行の種、ステージ、訪問の回数、呼び出しの順番など） |
 | `Passthrough` | 記録も再生もしない |
 | `Recording` | 外を呼び、応答を記録する |
 | `ReplayOnly` | 記録だけから再生する。記録に無い呼び出しは `ReplayOnly.Missing` |
@@ -123,6 +131,7 @@
 | `ConformanceRegistry` | 契約適合テストの指標レジストリ（flag と number） |
 | `Unreachable` | 呼ばれたら失敗する代役（再生の検査で使う） |
 | `MarkerClassifier` | 成果物の先頭の印 `[[class <対象の id>=<クラス>]]` を読む偽の分類器（確率的な偽の本体と組む） |
+| `RandomGateClassifier` | フェーズゲートの答えを、成果物によらない乱数（実行ごとの種）で決める偽の分類器。ステージの評価は基の分類器に任せる |
 | `AbortOperator` | escalate にいつも中止で答える運用者 |
 | `AutoUser` | いつも同じ回答をその場で返すユーザー |
 | `ReplayOnly` | runtime の `ReplayOnly` と同じもの |
@@ -139,6 +148,8 @@
 | --- | --- |
 | `RunRecord` | 一回の実行の記録（種、最後の状態、実行記録、評価ごとの代表のハッシュ） |
 | `RunSet` | 実行の記録の集まり |
+| `Event` | 実行記録の一つの出来事（読み取り専用の対応） |
+| `writes_hash` | 代表の鍵の既定（ステージが書いた成果物の内容のハッシュ） |
 | `record_run` | ランタイムで一回実行し、評価ごとに代表の鍵を添えて記録する。鍵の既定はステージが書いた成果物の内容のハッシュ（`representative` 引数で変えられる） |
 | `run_many` | 種を一つずつ変えて何回も実行する |
 | `runs_from_environment` | 実行の回数。環境変数 `HTF_RUNS` が既定より大きければそれを使う（減らせない） |
@@ -170,9 +181,10 @@ E2E のカバレッジ計画（誘発と注入）とマルコフ合成。
 | `run_coverage` | 計画を実行し、踏んだ (ステージ, クラス) と踏めなかったものを返す。`user` でユーザーシミュレータを束縛できる |
 | `CoverageReport` | カバレッジの結果 |
 | `MarkovModel` | (ステージ, 訪問の区分) ごとのクラスの分布と、(フェーズ, 最終ステージの訪問の区分) ごとのゲートの分布 |
+| `Dist` | クラスの分布（クラスの id から確率） |
 | `estimate_model` | 実行の集まりからモデルを推定する |
 | `synthesize` | モデルとワークフローから、最後の状態の分布、訪問の回数の期待値、評価の結果ごとの回数の期待値（訪問の区分ごとにも）を厳密に計算する（escalate の後は中止） |
-| `Prediction` | 合成の結果。`evaluations[(scope, 対象, 訪問の区分)]` は visit や from\_visit で絞った基準の分母の期待値 E[n] |
+| `Prediction` | 合成の結果。`evaluations[(scope, 対象, 訪問の区分)]` は visit や from\_visit で絞った基準の分母の期待値 E[n]。`visits_variance` は一回の実行の中での訪問の回数の分散 |
 | `ModelIncomplete` | 到達しうる (ステージ, 訪問) の分布がモデルに無い |
 | `compare_prediction` | 予測と実測を比べる（差が標準誤差の k 倍以内なら一致） |
 | `Comparison` | 一つの量の比較 |

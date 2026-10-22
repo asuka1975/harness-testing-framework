@@ -1,5 +1,6 @@
 """決定論テストと契約適合テストの偽物（contract/conformance/README.md）。"""
 
+import random
 import re
 import shutil
 from collections.abc import Collection, Mapping, Sequence
@@ -10,6 +11,7 @@ from harness_testing_framework.contract import (
     AwaitingAnswer,
     AwaitingDecision,
     Classification,
+    Classifier,
     Decision,
     Escalation,
     JSONValue,
@@ -206,6 +208,46 @@ class MarkerClassifier:
         if choice not in ids:
             return Classification(None, 0.0)
         return Classification(choice, self.confidence)
+
+
+class RandomGateClassifier:
+    """フェーズゲートの答えを、成果物によらない乱数で決める偽の分類器。ステージの評価は base に任せる。
+
+    gates はフェーズの id からクラスの分布（クラスから確率）。そのフェーズのゲートを評価するたびに、種 seed の
+    乱数で分布からクラスを一つ引き、選択肢にあれば確信度 confidence で返す。選択肢に無いクラスを引いた時と、
+    gates に無いフェーズは base に任せる。分類器は種を受け取らないので、実行ごとに、その実行の種で組み立てて
+    束縛する（ランタイムを実行ごとに組み立てる）。
+
+    ゲートの答えがクラスの中の代表（成果物）によらないので、独立性検証は違反を出さず、マルコフ合成はゲートの
+    分布をそのまま扱える。成果物の印でゲートを落とすと、その成果物は「goal の中で下流が違う代表」になる。
+    """
+
+    def __init__(
+        self,
+        base: Classifier,
+        seed: int,
+        gates: Mapping[str, Mapping[str, float]],
+        confidence: float = 0.9,
+    ) -> None:
+        self._base = base
+        self._random = random.Random(seed)
+        self._gates = gates
+        self._confidence = confidence
+
+    def classify(self, state: str, options: Sequence[Option]) -> Classification:
+        target = evaluation_target(state)
+        if target is None or target[0] != "phase" or target[1] not in self._gates:
+            return self._base.classify(state, options)
+        dist = self._gates[target[1]]
+        r, acc, choice = self._random.random(), 0.0, None
+        for cls, p in dist.items():
+            acc += p
+            if r < acc:
+                choice = cls
+                break
+        if choice is None or choice not in {o.id for o in options}:
+            return self._base.classify(state, options)
+        return Classification(choice, self._confidence)
 
 
 class AbortOperator:

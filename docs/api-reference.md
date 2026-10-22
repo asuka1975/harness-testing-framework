@@ -121,6 +121,10 @@ edge と count は、max を超えた辺と、それを通った回数（max 超
 
 carry は持ち帰る記憶の名前で、戻り先の memory_in にあるものに限る。
 
+### `SCHEMA_FILES`
+
+`('snapshot.schema.json', 'trace.schema.json', 'scenario.schema.json', 'expectations.schema.json', 'corpus_item.schema.json', 'label.schema.json', 'triage_item.schema.json', 'triage_decision.schema.jso …`
+
 ### `SnapshotView`（Protocol）
 
 読み取り専用のスナップショット。
@@ -201,6 +205,26 @@ carry は持ち帰る記憶の名前で、戻り先の memory_in にあるもの
 
 本体が契約に反する操作をした（契約 第8節）。
 
+### `Criterion(name: str, description: str, equals: bool | float | None, min: float | None, max: float | None, args: Mapping[str, JSONValue])`
+
+goal の quantitative の一項目。
+
+### `EndState(id: str, description: str)`
+
+end_state の一項目（unknown を含む）。id と、分類器に渡す記述。
+
+### `Event`（型）
+
+`Event = dict[str, JSONValue]`
+
+### `Goal(qualitative: str, criteria: tuple[Criterion, ...])`
+
+ステージかフェーズの goal。qualitative は記述、criteria は quantitative の各指標の基準。
+
+### `Key`（型）
+
+`Key = Sequence[str | int]`
+
 ### `load_workflow(path: Path, metrics: Collection[str]) -> Workflow`
 
 ワークフロー定義を読む。metrics は指標レジストリにある指標名。警告は読み込みを妨げない。
@@ -214,6 +238,10 @@ carry は持ち帰る記憶の名前で、戻り先の memory_in にあるもの
 記録も再生もしない。
 
 - `call(kind: str, key: Key, request: JSONValue, live: Callable[[], JSONValue]) -> JSONValue`
+
+### `Phase(id: str, name: str, description: str, goal: Goal, stages: tuple[str, ...])`
+
+フェーズ。stages はそのフェーズのステージの id（順に）。goal はゲートの基準。
 
 ### `Recorder`（Protocol）
 
@@ -232,6 +260,10 @@ carry は持ち帰る記憶の名前で、戻り先の memory_in にあるもの
 - `Missing`（例外）
   記録に無い呼び出し。黙って外を呼ばない。
 - `call(kind: str, key: Key, request: JSONValue, live: Callable[[], JSONValue]) -> JSONValue`
+
+### `Rollback(stage: str, state: str, target: str, carry: tuple[str, ...], max: int)`
+
+rollback の一項目。ステージ stage の end_state state から target へ、記憶 carry を持って戻る。max 回まで。
 
 ### `RunResult(status: str, state: RunState, events: list[Event], snapshots: list[str])`
 
@@ -373,6 +405,20 @@ goal が選択肢にあれば goal（フェーズゲートの既定）、なけ�
 
 - `classify(state: str, options: Sequence[Option]) -> Classification`
 
+### `RandomGateClassifier(base: Classifier, seed: int, gates: Mapping[str, Mapping[str, float]], confidence: float = 0.9)`
+
+フェーズゲートの答えを、成果物によらない乱数で決める偽の分類器。ステージの評価は base に任せる。
+
+gates はフェーズの id からクラスの分布（クラスから確率）。そのフェーズのゲートを評価するたびに、種 seed の
+乱数で分布からクラスを一つ引き、選択肢にあれば確信度 confidence で返す。選択肢に無いクラスを引いた時と、
+gates に無いフェーズは base に任せる。分類器は種を受け取らないので、実行ごとに、その実行の種で組み立てて
+束縛する（ランタイムを実行ごとに組み立てる）。
+
+ゲートの答えがクラスの中の代表（成果物）によらないので、独立性検証は違反を出さず、マルコフ合成はゲートの
+分布をそのまま扱える。成果物の印でゲートを落とすと、その成果物は「goal の中で下流が違う代表」になる。
+
+- `classify(state: str, options: Sequence[Option]) -> Classification`
+
 ### `ReplayOnly(path: Path)`
 
 記録から応答を返し、外を呼ばない。記録に無い呼び出しは Missing で止める。
@@ -465,6 +511,10 @@ user を与えると、シナリオの user の台本の代わりにそれ（ユ
 
 各基準を判定する。
 
+### `Event`（型）
+
+`Event = Mapping[str, Any]`
+
 ### `ExpectationReport(expectations: Expectations, results: list[CriterionResult])`
 
 - `passed: bool`（属性）
@@ -539,6 +589,10 @@ representatives は、ステージの評価の seq から、その評価の直�
 
 二項の割合の Wilson の区間。n が 0 なら [0, 1]。
 
+### `writes_hash(stage: Stage, snapshot: Snapshot, store: BlobStore) -> str`
+
+既定の代表の鍵: ステージが書いた成果物（writes に当たるファイル）の内容のハッシュ。
+
 ## `harness_testing_framework.testing.e2e`
 
 ### `compare_prediction(prediction: Prediction, runs: RunSet, k: float = 4.0) -> list[Comparison]`
@@ -558,6 +612,10 @@ representatives は、ステージの評価の seq から、その評価の直�
 - `target: Target`（属性）
 
 ### `CoverageReport(covered: list[Target], missing: list[Target], reached: dict[Target, bool])`
+
+### `Dist`（型）
+
+`Dist = Mapping[str, float]`
 
 ### `estimate_model(runs: RunSet, cap: int = 2) -> MarkovModel`
 
@@ -579,7 +637,7 @@ representatives は、ステージの評価の seq から、その評価の直�
 最初の項目は全ステージが goal の実行（全ステージの goal を踏む）。続く各項目は、対象のステージの
 最初の訪問だけを対象のクラスにし、ほかの訪問は goal にする。escalate には中止で答える。
 
-### `Prediction(status: dict[str, float], mean_visits: dict[str, float], outcomes: dict[tuple[str, str], float] = <factory>, evaluations: dict[tuple[str, str, int], float] = <factory>, visit_outcomes: dict[tuple[str, str, int, str], float] = <factory>)`
+### `Prediction(status: dict[str, float], mean_visits: dict[str, float], outcomes: dict[tuple[str, str], float] = <factory>, evaluations: dict[tuple[str, str, int], float] = <factory>, visit_outcomes: dict[tuple[str, str, int, str], float] = <factory>, visits_variance: dict[str, float] = <factory>)`
 
 合成の結果。
 
@@ -590,6 +648,8 @@ representatives は、ステージの評価の seq から、その評価の直�
   区分は min(訪問の番号, cap)。ゲートの訪問はフェーズの最終ステージの訪問の番号。visit や from_visit で
   絞った分布テストの基準の分母の期待値 E[n] になる（区分が cap より小さい訪問は、その訪問ちょうど）
 - visit_outcomes: (scope, 対象, 訪問の区分, 結果) ごとの評価の回数の期待値
+- visits_variance: ステージごとの、一回の実行の中での訪問の回数の分散。mean_visits の基準の幅は、
+  N 回の実行なら標準誤差 sqrt(visits_variance / N) から出せる
 
 ### `run_coverage(plan: list[CoverageItem], workdir: Path, *, registry: MetricRegistry, fixtures: Path | None = None, user: UserIO | None = None) -> CoverageReport`
 
@@ -599,11 +659,13 @@ user を与えると、awaits_user のステージの台本の ask は、計画�
 
 ### `synthesize(model: MarkovModel, workflow: Workflow, policy: str = 'abort') -> Prediction`
 
-モデルとワークフローから、最後の状態の分布と、訪問と評価の回数の期待値を厳密に計算する（Prediction）。
+モデルとワークフローから、最後の状態の分布と、訪問と評価の回数の期待値、訪問の回数の分散を
+厳密に計算する（Prediction）。
 
 状態（いまのステージ、ステージごとの訪問の番号、辺ごとの戻りの回数）の確率を、遷移規則に沿って前へ
 流す。戻りのたびに回数の和が増え、戻りが無ければステージの位置が進むので、状態は (回数の和, 位置) の
 順に一度ずつ処理すれば足りる。訪問の番号は cap で頭打ちにして持つ（分布は min(訪問, cap) だけで決まる）。
+訪問の回数の二次の積率は、同じ状態を逆の順にたどって求める。
 
 ### `Target(stage: str, outcome: str)`
 

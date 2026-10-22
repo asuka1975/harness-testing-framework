@@ -19,15 +19,18 @@ from harness_testing_framework.testing.stages.independence import (
     transitions,
 )
 from harness_testing_framework.testing.stages.runs import (
+    Event,
     RunRecord,
     RunSet,
     record_run,
     run_many,
     runs_from_environment,
+    writes_hash,
 )
 
 __all__ = [
     "CriterionResult",
+    "Event",
     "ExpectationReport",
     "Expectations",
     "ExpectationsInvalid",
@@ -46,4 +49,5 @@ __all__ = [
     "transition_matrix",
     "transitions",
     "wilson_interval",
+    "writes_hash",
 ]
