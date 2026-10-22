@@ -272,3 +272,55 @@ acceptance の tests\_pass は unit\_test の goal と construction のゲート
   - (1) discovery のゲートの goal は、回答を「requirements.md の要件か受け入れ基準に」反映することを求めるが、利用者は「## 利用者」の節にあり、要件でも受け入れ基準でもない。README の 4 は「requirements.md に反映」と言い換えている。**代表の側で直す**（利用者を、受け入れ基準のある要件として書くなど）。discovery の goal の記述を変えるのは新しい記述の改訂で、人間の承認が要るので、ここでは採らない
   - (2) vague\_founder の「端数は切り捨て」は何を切り捨てるかを言わず、REQ-1 の「割引額の 1 円未満は切り捨てる」の根拠が薄い。「割り引く額の端数は切り捨て」のようにする
   - README の「フェーズゲートの落ち方」の assurance の行は、ゲートの goal に足した「判断は verification.md と review.json に基づき、このゲートで repo/ のコードを改めて検証しない」を反映していない。workflow.yaml の文に合わせる
+
+## G. 人間の決定（往復 10 の後）
+
+往復 10 の後、第三者が二度確かめ（事前レビューと、別のモデルによる敵対的なレビュー）、人間が決めた。
+
+### 人間の決定
+
+1. **unit\_test の tests\_defective の分割を取り消す。** 二つは戻り先が同じ（unit\_test 自身）で、違いは集計の都合（不足と不備を分けて数えたい）だけだった。end\_state のクラスは下流の振る舞いに関する同値類で、集計のための分類ではない。手引き第13節に、このことと、クラスを変えた後に確かめることを書き足した（「violated が出たら」の下）。往復 10 の前も、一つの記憶 coverage\_gaps が不足と不備の両方を運んでいた
+   - 利用者役が足した句（テスト自身の誤りで失敗するテスト）も入らない。そうした失敗は、前と同じく unknown（人に戻す）になる
+2. **往復 10 で代表を変えた所は、人が印を除いて読んでラベルを付ける**（手引き第15.1節。全部の付け直しはしない）
+
+### 直すこと
+
+**G-1. unit\_test と construction のゲートの記述を、往復 10 の前の文に戻す**
+
+- 戻す文は `git show 08f79b4:examples/software-factory/workflow.yaml` の unit\_test（description、artifacts の memory\_in と memory\_out、goal、end\_state、rollback）と、construction のゲートの goal。これは人間が承認した文
+- 記憶 test\_defects と、tests\_defective の rollback を除く。test\_report.md の節は「## テスト」「## 失敗」「## 未網羅」の三つに戻す
+- 不足と不備を数えたいなら、記述は変えずに、coverage\_gaps の項目の書き方で区別してよい（手引き第13節）。必須ではない
+
+**G-2. 代表とテストを合わせる**
+
+- tests/fixtures/unit\_test/defective/ は、確率 0 の tests\_insufficient の変種として残す（往復 10 の前の tests\_insufficient には、要件に反する期待を持つテストの代表が無かった）。test\_report.md の不備を「## 未網羅」と記憶 coverage\_gaps に書く形にし、往復 10 の前の tests\_insufficient の記述どおりにそのクラスになることを確かめる
+- 自分自身へ戻るシナリオ（unit\_test\_defective\_self\_rollback）を、tests\_insufficient で空でない coverage\_gaps を持って unit\_test に戻り、expect.starts で unit\_test の訪問 2 の記憶を確かめる形にする
+- E2E のカバレッジの (ステージ, クラス) の数、構成の表、遷移の被覆、テストを合わせる。分布と基準の値は変えない（確率的な実行には不備の代表を出さない）
+
+**G-3. README を人間の決定に合わせる**
+
+- 「人間のレビューで確かめてほしいこと」から tests\_defective の記述と境界の項目を除き、決まったこと（分割は取り消し、テスト自身の誤りで落ちるテストは unknown）を書く
+
+**G-4. 前の不足の確かめ**
+
+- N14: 手引き第13節の書き足しで判断できるかを確かめ、adopting-gaps.md の扱いを直す
+- N15: contract/conformance/README.md の「ファイルの内容」に、鍵が重なる時の規則（より長い鍵の内容になり、鍵の並びによらない）が書かれた。判断できるかを確かめる。ファイルごとに展開した回避（software\_factory/scenarios.py）を外せるなら外す
+
+**G-5. 第三者の事前レビューの低（分割の取り消しの後も残るもの）**
+
+- tests/test\_scenarios.py の test\_every\_rollback\_edge\_is\_taken の docstring は、「持ち帰る記憶が戻り先の開始時スナップショットに届くことは、各シナリオの expect.starts が確かめる」と言うが、unit\_test → unit\_test（construction\_rollbacks）、review → implement（assurance\_gate\_rolls\_back）、release → release（release\_notes\_self\_rollback）の三本は、戻り先の訪問の expect.starts が無い。三本に足すか、docstring を事実に合わせる
+- tests/test\_e2e.py の test\_coverage\_plan\_reaches\_every\_stage\_class は、誘発で踏むはずの目標が誘発で踏まれることを確かめていない（注入で踏まれても通る）。誘発の目標がすべて induce であることを確かめる一行を足す
+- README の「記述と代表の整合」に、plan\_tasks/incomplete（シナリオだけが写す代表）は、design/gap と組む状態文書を記述だけで読んで確かめた、と書き足す（試しのコーパスには出ないので）
+- tests/expectations/markov.yaml と markov\_gated.yaml の注記の「implement の訪問の回数 1.674」は、厳密な値 1.67349 を丸めると 1.673（任意）
+
+**G-6. 人がラベルを付ける材料を作る（人間の決定 2）**
+
+- 手引き第15.1節の手順で、往復 10 で代表を変えた所の項目を集める
+  - REQ-3 に利用者をまとめた requirements.md を状態文書に含む評価（analyze、discovery のゲート、acceptance など。ペルソナごと）
+  - design/ok を含む評価（design）
+  - acceptance/misread（ペルソナごと）
+  - vague\_founder の回答を含む intake.md（intake）
+  - G-2 で tests\_insufficient の確率 0 の変種にした不備の代表（unit\_test）
+- 状態文書と選択肢の組ごとに一項目にし（`unique_states=True`）、確率的な実行に出ない代表は、その代表が届く上流の組み合わせを踏む試しの実行で入れる（手引き第15.1節）
+- docs/human-labeling.md に、項目ごとに、項目の id、対象（ステージかフェーズと訪問）、印を除いた状態文書（`unmarked(item.state)`）、選択肢（id と記述）、空欄の「ラベル:」を書く。冒頭に、読み方（印を探さず、選択肢の記述だけで選ぶ。迷った時は unknown と書き、理由を添える）を書く
+- 人のラベルを受け取ったら、contract/formats/label.schema.json の形の JSON Lines にして `oracle_report(MarkerClassifier(), corpus, labels)` を出せるように、コーパスの書き出しと、ラベルのファイルがあれば比べるテスト（無ければスキップではなく、ファイルが無いことを報告する小さなコマンド）を用意する。項目の数を README に書く
