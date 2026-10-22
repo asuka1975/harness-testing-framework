@@ -459,6 +459,7 @@ user を与えると、シナリオの user の台本の代わりにそれ（ユ
 - store: 実行が使った置き場。分類器が見た状態文書は、trace の evaluation の classification.state
   （SHA-256）を store.get に渡して読める
 - resumes: 再開の回数
+- problems: シナリオの期待との食い違い（verify の結果）。空なら期待どおり
 
 ### `ScriptedBody(visits: Mapping[str, Mapping[str, Any]], fixtures: Path | None = None)`
 

@@ -162,6 +162,7 @@ class ScenarioResult:
     - store: 実行が使った置き場。分類器が見た状態文書は、trace の evaluation の classification.state
       （SHA-256）を store.get に渡して読める
     - resumes: 再開の回数
+    - problems: シナリオの期待との食い違い（verify の結果）。空なら期待どおり
     """
 
     status: str
@@ -173,7 +174,6 @@ class ScenarioResult:
     store: BlobStore
     resumes: int = 0
     problems: list[str] = field(default_factory=list)
-    """シナリオの期待との食い違い（verify の結果）。空なら期待どおり。"""
 
 
 def run_scenario(
