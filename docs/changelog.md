@@ -16,6 +16,7 @@
 - 公開の名前: `Criterion`、`EndState`、`Goal`、`Phase`、`Rollback`、`Event`、`Key`（runtime）、`Event`、`writes_hash`、`entries`、`Entry`、`entry_dependence`、`EntryDependenceResult`（testing.stages）、`Dist`（testing.e2e）、`SCHEMA_FILES`（contract）、`RandomGateClassifier`、`conformance_dir`、`conformance_scenarios`、`unmarked`（testing.harness）
 - シナリオの形式: `inputs` と `expect.starts` の `files` の値に、ファイルとディレクトリの参照 `{from: パス}`（contract/conformance/README.md の「ファイルの内容」）。契約適合テストのシナリオ `inputs_from_file` を足した
 - `run_scenario(..., user=)` と `run_coverage(..., user=)`: 台本の代わりにユーザーシミュレータを束縛する
+- `ScenarioResult.store`: シナリオの実行が使った置き場。分類器が見た状態文書を読める（手引き第15.1節）。`ScenarioResult`、`ScriptedClassifier`、`ScriptedBody` の引数と属性の説明（api-reference.md）
 - `Prediction` の `evaluations`、`visit_outcomes`（訪問の区分ごとの評価の回数の期待値）と `visits_variance`（訪問の回数の分散）
 - `build_corpus(..., unique_states=True)`: 状態文書と選択肢の組ごとに一項目にする
 - `entries` と `entry_dependence`: 訪問 2 以降の評価の結果が入り方で違うかの検定（マルコフ合成の仮定の確かめ）

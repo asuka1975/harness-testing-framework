@@ -446,15 +446,34 @@ user を与えると、シナリオの user の台本の代わりにそれ（ユ
 
 シナリオがスキーマに適合しない。
 
-### `ScenarioResult(status: str, summary: list[str], trace: list[dict[str, JSONValue]], snapshots: list[Snapshot], final_snapshot: Snapshot, state: RunState, resumes: int = 0, problems: list[str] = <factory>)`
+### `ScenarioResult(status: str, summary: list[str], trace: list[dict[str, JSONValue]], snapshots: list[Snapshot], final_snapshot: Snapshot, state: RunState, store: BlobStore, resumes: int = 0, problems: list[str] = <factory>)`
+
+シナリオの実行の結果。
+
+- status: 最後の状態
+- summary: 実行記録の要約（README.md の規則）
+- trace: 実行記録の出来事（再開をまたいで続けたもの）
+- snapshots: 実行記録に現れた順のスナップショット
+- final_snapshot: 最後のスナップショット
+- state: 最後の実行の状態
+- store: 実行が使った置き場。分類器が見た状態文書は、trace の evaluation の classification.state
+  （SHA-256）を store.get に渡して読める
+- resumes: 再開の回数
 
 ### `ScriptedBody(visits: Mapping[str, Mapping[str, Any]], fixtures: Path | None = None)`
 
 訪問ごとの台本どおりに作業領域と記憶を変える偽のステージ本体。全ステージで共有できる。
 
+visits はシナリオの visits そのもの（「<ステージ id>#<訪問の回数>」から台本へ）。fixtures は台本の fixture
+の起点のディレクトリ。
+
 ### `ScriptedClassifier(stages: Mapping[str, Mapping[str, Any]], gates: Mapping[str, Mapping[str, Any]])`
 
 台本どおりに分類する。台本に無いか、選んだ id が選択肢に無ければ「答え無し」。
+
+stages は「<ステージ id>#<訪問の回数>」から {"choice": id, "confidence": 数} への対応（シナリオの
+visits の各項目の classify の値だけを集めたもの）。gates は「<フェーズ id>#<最終ステージの訪問の回数>」
+から同じ形への対応（シナリオの gates そのもの）。
 
 - `classify(state: str, options: Sequence[Option]) -> Classification`
 

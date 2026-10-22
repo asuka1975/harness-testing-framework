@@ -76,6 +76,19 @@ def test_reference_runtime_passes_scenario(path: Path, tmp_path: Path) -> None:
         assert not list(snapshot_validator.iter_errors(snapshot.manifest()))
 
 
+def test_result_store_holds_the_state_documents_the_classifier_saw(tmp_path: Path) -> None:
+    """シナリオだけが写す代表の状態文書を、結果の置き場から読める（手引き第15.1節）。"""
+    states = []
+    for path in SCENARIOS:
+        result = run_scenario(load_scenario(path), tmp_path / path.stem)
+        for event in result.trace:
+            classification = event.get("classification")
+            if isinstance(classification, dict) and "state" in classification:
+                states.append(result.store.get(str(classification["state"])).decode("utf-8"))
+    assert states
+    assert all(s.startswith("# 評価: ") for s in states)
+
+
 def test_scenarios_cover_every_transition_kind(tmp_path: Path) -> None:
     covered: set[str] = set()
     for i, path in enumerate(SCENARIOS):

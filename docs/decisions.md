@@ -1090,3 +1090,10 @@ end\_state の追加・分割・統合と、goal と end\_state の記述の意�
 - 強制点: F4
 - 関係: reports/f4-delta-review.md（準正常）
 - 決定: B3-L1 は手引き第15.1節に、選んだ規則と項目の id を人に渡す形に書かず、項目は通し番号で渡すことを書いた。B3-L2 は第15.1節の「E2E の注入だけが写す代表」を「誘発の台本だけが写す代表」に直した（注入は分類の結果だけを変え、代表を写さない。第12節の「注入で踏む」はクラスを踏む方法なので、そのまま）。B3-L3 は D-17 の状態の行と表に、D-19 での取り消しと回答を書いた
+
+## D-23 F4 の往復 14 の不足 N18 の扱い（2026-10-23）
+
+- 状態: 承認（包括指示による推奨の採用。互換性を壊さない追加）
+- 強制点: F4
+- 関係: examples/software-factory/docs/adopting-gaps.md の N18
+- 決定: 解消（本体と文書）。`ScenarioResult` に `store`（実行が使った置き場）を足し、シナリオで分類器が見た状態文書を `result.store.get(classification.state)` で読めるようにした。`ScenarioResult`、`ScriptedClassifier`（stages は classify の値だけを集めたもの、gates はシナリオの gates そのもの）、`ScriptedBody`（visits はシナリオの visits そのもの）の docstring に引数と属性を書き、api-reference.md を作り直した。手引き第15.1節に読み方を書いた。`ScenarioResult` を利用者が組み立てることは無いので、必須の属性を足しても互換性は壊れない

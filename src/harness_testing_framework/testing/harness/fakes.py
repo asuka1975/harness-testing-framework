@@ -37,7 +37,12 @@ def _classification(entry: Mapping[str, Any]) -> Classification:
 
 
 class ScriptedClassifier:
-    """台本どおりに分類する。台本に無いか、選んだ id が選択肢に無ければ「答え無し」。"""
+    """台本どおりに分類する。台本に無いか、選んだ id が選択肢に無ければ「答え無し」。
+
+    stages は「<ステージ id>#<訪問の回数>」から {"choice": id, "confidence": 数} への対応（シナリオの
+    visits の各項目の classify の値だけを集めたもの）。gates は「<フェーズ id>#<最終ステージの訪問の回数>」
+    から同じ形への対応（シナリオの gates そのもの）。
+    """
 
     def __init__(
         self, stages: Mapping[str, Mapping[str, Any]], gates: Mapping[str, Mapping[str, Any]]
@@ -95,7 +100,11 @@ class ScriptedUser(_Script):
 
 
 class ScriptedBody:
-    """訪問ごとの台本どおりに作業領域と記憶を変える偽のステージ本体。全ステージで共有できる。"""
+    """訪問ごとの台本どおりに作業領域と記憶を変える偽のステージ本体。全ステージで共有できる。
+
+    visits はシナリオの visits そのもの（「<ステージ id>#<訪問の回数>」から台本へ）。fixtures は台本の fixture
+    の起点のディレクトリ。
+    """
 
     def __init__(
         self, visits: Mapping[str, Mapping[str, Any]], fixtures: Path | None = None

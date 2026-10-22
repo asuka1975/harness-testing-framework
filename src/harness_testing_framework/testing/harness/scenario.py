@@ -151,12 +151,26 @@ def load_scenario(path: Path) -> Scenario:
 
 @dataclass(frozen=True)
 class ScenarioResult:
+    """シナリオの実行の結果。
+
+    - status: 最後の状態
+    - summary: 実行記録の要約（README.md の規則）
+    - trace: 実行記録の出来事（再開をまたいで続けたもの）
+    - snapshots: 実行記録に現れた順のスナップショット
+    - final_snapshot: 最後のスナップショット
+    - state: 最後の実行の状態
+    - store: 実行が使った置き場。分類器が見た状態文書は、trace の evaluation の classification.state
+      （SHA-256）を store.get に渡して読める
+    - resumes: 再開の回数
+    """
+
     status: str
     summary: list[str]
     trace: list[dict[str, JSONValue]]
     snapshots: list[Snapshot]
     final_snapshot: Snapshot
     state: RunState
+    store: BlobStore
     resumes: int = 0
     problems: list[str] = field(default_factory=list)
     """シナリオの期待との食い違い（verify の結果）。空なら期待どおり。"""
@@ -248,6 +262,7 @@ def run_scenario(
         snapshots=[store.get_snapshot(i) for i in snapshot_ids],
         final_snapshot=store.get_snapshot(result.state.current),
         state=result.state,
+        store=store,
         resumes=resumes,
     )
     outcome.problems.extend(verify(scenario, outcome, store))
