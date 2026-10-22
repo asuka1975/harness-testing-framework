@@ -18,8 +18,8 @@ visits:
     fixture: analyze/unclear
     memory:
       intake_questions: &id002
-      - 百分率の割引の上限は何 % ですか
-      - 定額の割引が小計を超えた時、支払額はどうなりますか
+      - キャンペーンが終わった後も、割引コードを使えるようにしますか
+      - 同じ購入者が同じコードを何回でも使えるようにしますか
     classify:
       choice: needs_unclear
       confidence: 0.9
@@ -79,8 +79,8 @@ gates:
   assurance#1: *id001
   delivery#1: *id001
 user:
-- answer: 50% まで
-- answer: 0 円にする。マイナスにはしない
+- answer: キャンペーンの結果を見て、来月の末に決める
+- answer: 回数の制限は、法務と相談してから決める
 expect:
   status: completed
   trace:

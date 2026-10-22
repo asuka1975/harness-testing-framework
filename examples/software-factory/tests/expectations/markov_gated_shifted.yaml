@@ -12,4 +12,4 @@ bindings:
 criteria:
   - {kind: outcome_rate, scope: phase, target: assurance, visit: 1, outcome: changes_requested, min: 0.35, max: 0.50}  # 上へ 5.7 SE
   - {kind: outcome_rate, scope: phase, target: assurance, visit: 1, outcome: changes_requested, min: 0.0, max: 0.10}   # 下へ 3.8 SE
-  - {kind: status_rate, status: completed, min: 0.75, max: 0.90}                                                        # 上へ 3.8 SE
+  - {kind: status_rate, status: completed, min: 0.76, max: 0.90}                                                        # 上へ 4.0 SE（正しい基準 [0.59, 0.75] と端を共有しない）

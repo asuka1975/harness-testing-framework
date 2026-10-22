@@ -287,8 +287,8 @@ workflow:
             memory_out: [failing_tests, coverage_gaps]
           goal:
             qualitative: >-
-              repo/tests/ のテストが requirements.md のすべての受け入れ基準を確かめ、すべて通り、test_report.md の「## 失敗」と
-              「## 未網羅」が空である。
+              repo/tests/ のテストが requirements.md のすべての受け入れ基準と、impl_notes.md の「## テストへの依頼」のすべてを
+              確かめ、すべて通り、test_report.md の「## 失敗」と「## 未網羅」が空である。
             quantitative:
               tests_pass:
                 description: repo/tests/ のテストが一件以上あり、pytest で全部通る
@@ -334,8 +334,8 @@ workflow:
       description: 要件ごとに受け入れ基準を確かめ、変更をレビューする
       goal:
         qualitative: >-
-          verification.md ですべての要件が合格し、review.json の指摘（修正を要しないものを含む）を合わせても、repo/ をこのまま
-          リリースしてよい。
+          verification.md の表ですべての要件が合格し、review.json の指摘（修正を要しないものを含む）を合わせても、repo/ を
+          このままリリースしてよい。判断は verification.md と review.json に基づき、このゲートで repo/ のコードを改めて検証しない。
         quantitative:
           verified_requirements:
             description: requirements.md の要件のうち、verification.md の表で合格のものの割合

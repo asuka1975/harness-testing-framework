@@ -1,6 +1,6 @@
 """software-factory の遷移の決定論テスト。
 
-- 遷移の六種をすべて通す（フェーズ境界越えは五通り）
+- 遷移の六種をすべて通す（フェーズ境界越えは、定義の上の六本の辺のすべてと、運用者による越境）
 - escalate の四つの選択が動く
 - 指標は実在のツール（pytest、coverage、ruff、compileall）で測り、その値で選択肢から goal が外れることも確かめる
 - 記録再生で同一のスナップショットが得られる
@@ -14,7 +14,7 @@
 from pathlib import Path
 
 import pytest
-from software_factory.personas import CAP, FLOOR, PERSONAS, QUESTIONS, Persona, PersonaUser
+from software_factory.personas import AFTER, PERSONAS, QUESTIONS, REUSE, Persona, PersonaUser
 from software_factory.scenarios import GENERATED
 from software_factory.stages.deterministic import SCENARIOS, inputs, run
 
@@ -51,7 +51,8 @@ def test_all_four_escalation_decisions(tmp_path: Path) -> None:
 
 
 def test_crossing_rollbacks_from_every_later_phase(tmp_path: Path) -> None:
-    """フェーズ境界を越える辺（design、implement、acceptance、review の各辺）と、運用者による越境を通す。"""
+    """フェーズ境界を越える定義の上の六本の辺（design → analyze、implement → plan_tasks、acceptance → analyze と
+    implement、review → design と implement）と、運用者による越境（release → implement）を通す。"""
     crossings: set[tuple[str, str]] = set()
     for i, path in enumerate(PATHS):
         for event in run(path, tmp_path / str(i)).trace:
@@ -64,6 +65,7 @@ def test_crossing_rollbacks_from_every_later_phase(tmp_path: Path) -> None:
     assert crossings >= {
         ("design", "analyze"),
         ("implement", "plan_tasks"),
+        ("acceptance", "analyze"),
         ("acceptance", "implement"),
         ("review", "implement"),
         ("review", "design"),
@@ -93,7 +95,7 @@ def test_personas_can_stand_in_for_the_scripted_user(persona: Persona, tmp_path:
     answering = PersonaUser(persona)
     result = run(SCENARIOS / "needs_unclear_asks_again.yaml", tmp_path / "a", user=answering)
     assert result.problems == []
-    assert answering.asked == [CAP, FLOOR]
+    assert answering.asked == [AFTER, REUSE]
 
     deferring = PersonaUser(persona, defer_first=True)
     result = run(SCENARIOS / "happy_path_user_suspend.yaml", tmp_path / "b", user=deferring)

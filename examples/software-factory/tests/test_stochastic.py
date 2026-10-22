@@ -193,6 +193,36 @@ def test_metrics_never_fail_to_measure_and_goal_marks_keep_goal(
     assert goal_marked > 1000
 
 
+@pytest.mark.parametrize("name", ["markov", "gated"])
+def test_bodies_write_memory_out_on_every_visit(
+    name: str, markov_runs: tuple[RunSet, BlobStore], gated_runs: tuple[RunSet, BlobStore]
+) -> None:
+    """本体が訪問のたびに memory_out を書くことを、本体の振る舞いで確かめる。印が goal のステージの評価では、その訪問の
+    終了時スナップショットの memory_out の記憶が、goal の変種の値（tests/stochastic.yaml の ok）と等しい。本体が書かなけれ
+    ば、持ち帰った前の値や前の訪問の値が残り、違う値になる。"""
+    runs, store = markov_runs if name == "markov" else gated_runs
+    memory_out = {s.id: s.memory_out for s in WORKFLOW_MODEL.stages}
+    checked = 0
+    for run in runs.runs:
+        ended: dict[str, str] = {}
+        for event in run.events:
+            if event["event"] == "stage_end":
+                ended[str(event["stage"])] = str(event["snapshot"])
+                continue
+            classification: Any = event.get("classification")
+            if event["event"] != "evaluation" or event["scope"] != "stage" or not classification:
+                continue
+            stage = str(event["stage"])
+            if marked_class(store.get(str(classification["state"])).decode("utf-8")) != "goal":
+                continue
+            memory = store.get_snapshot(ended[stage]).memory
+            expected = TABLE["variants"][stage]["ok"].get("memory", {})
+            for item in memory_out[stage]:
+                assert memory.get(item) == expected[item], (run.seed, stage, item, memory.get(item))
+            checked += 1
+    assert checked > 1000
+
+
 def test_every_body_writes_every_memory_out_item() -> None:
     """memory_out の記憶は訪問のたびに書く（問題が無ければ空の一覧）。書かないと、持ち帰った前の値が状態文書に残り、
     問いが解けていても同じ end_state に分類されうる（adopting.md 第2.1節）。確率的な本体の変種と、シナリオの台本の

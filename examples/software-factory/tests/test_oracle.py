@@ -13,6 +13,7 @@
 """
 
 import json
+import math
 from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
@@ -151,7 +152,8 @@ def test_flaky_classifier_disagrees_on_reruns(
     corpus, labels = labeled
     report = oracle_report(FlakyClassifier(MarkerClassifier(confidence=0.9), 4), corpus, labels)
     assert report.kappa == pytest.approx(1.0)
-    assert report.rerun_agreement == pytest.approx(0.75, abs=0.05)
+    # 初めて見た順で 4 件に 1 件が揺れるので、一致率は 1 - ceil(n / 4) / n に決まる
+    assert report.rerun_agreement == pytest.approx(1 - math.ceil(len(corpus) / 4) / len(corpus))
 
 
 def test_corpus_and_labels_round_trip_in_the_contract_formats(

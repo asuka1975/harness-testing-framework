@@ -10,6 +10,7 @@
 """
 
 import pytest
+from software_factory.design import family_wise_violations
 
 from harness_testing_framework.runtime import BlobStore
 from harness_testing_framework.testing.stages import RunSet, independence
@@ -40,7 +41,13 @@ def test_markov_body_is_not_flagged(verdicts: dict[str, Verdicts]) -> None:
     verdict, groups = verdicts["markov"][("stage:implement=goal", 1, 1)]
     assert verdict == "not_detected"
     assert len(groups) == 2, groups
-    assert "violated" not in {v for v, _ in verdicts["markov"].values()}
+
+
+def test_markov_body_has_no_family_wise_violation(markov_runs: tuple[RunSet, BlobStore]) -> None:
+    """仕込んでいない状態にも違いが無いこと。検定は状態ごとに alpha 0.01 で補正が無いので、全状態を alpha 0.01 で
+    確かめると、正しい本体でも種や回数（HTF_RUNS）によって数 % の確率で落ちる。全状態を見る時は、判定できた検定の数で
+    alpha を割る（Bonferroni）。"""
+    assert family_wise_violations(independence(markov_runs[0])) == []
 
 
 @pytest.mark.parametrize("profile", ["markov", "divergent"])
@@ -53,6 +60,7 @@ def test_persona_representatives_do_not_change_downstream(
 
 
 def test_random_gate_is_not_flagged(gated_runs: tuple[RunSet, BlobStore]) -> None:
-    verdicts = {r.verdict for r in independence(gated_runs[0])}
-    assert "violated" not in verdicts
-    assert "not_detected" in verdicts
+    """ゲートを揺らしても、どの状態にも違いが無い（判定できた検定の数で alpha を割って確かめる）。"""
+    results = independence(gated_runs[0])
+    assert family_wise_violations(results) == []
+    assert "not_detected" in {r.verdict for r in results}

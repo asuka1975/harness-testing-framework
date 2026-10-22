@@ -7,11 +7,12 @@
   同じ予測の visits_variance（一回の実行の中での訪問の回数の分散）から出す
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from harness_testing_framework.schema import load_workflow_document
 from harness_testing_framework.testing.e2e import MarkovModel, Prediction
+from harness_testing_framework.testing.stages import EntryDependenceResult, IndependenceResult
 from software_factory.stages.deterministic import WORKFLOW
 from software_factory.stages.probabilistic import TABLE
 
@@ -82,3 +83,15 @@ def expected_count(
         for (k, t, b, result), n in prediction.visit_outcomes.items()
         if result == outcome and matches(k, t, b)
     )
+
+
+def family_wise_violations(
+    results: Sequence[IndependenceResult | EntryDependenceResult],
+) -> list[str]:
+    """判定できた検定のうち、p 値が alpha 0.01 を検定の数で割った値を下回るもの（多重性を見込んだ判定）。"""
+    determined = [r for r in results if r.p_value is not None]
+    return [
+        f"{r.state if isinstance(r, IndependenceResult) else r.stage} {r.visit} p={r.p_value}"
+        for r in determined
+        if r.p_value is not None and r.p_value < 0.01 / len(determined)
+    ]

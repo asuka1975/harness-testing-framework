@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from software_factory.design import family_wise_violations
 from software_factory.metrics import REGISTRY
 from software_factory.personas import PERSONAS, QUESTIONS, PersonaUser
 from software_factory.stages.deterministic import FIXTURES, WORKFLOW, inputs
@@ -50,13 +51,13 @@ def _script(stage: str, variant: str, family: str = "rounds_total") -> dict[str,
 # intake の goal の台本は、依頼者（ペルソナ）に決まった三つの質問を尋ねる
 GOAL = {s.id: _script(s.id, "ok") for s in WORKFLOW_MODEL.stages}
 GOAL["intake"] = {**GOAL["intake"], "ask": list(QUESTIONS)}
-# (ステージ, クラス) → 誘発に使う変種。intake と review の unknown は誘発の手段を用意せず、注入で踏む
+# (ステージ, クラス) → 誘発に使う変種。intake と review の unknown は誘発の手段を用意せず、注入で踏む。plan_tasks の
+# design_incomplete は、design の goal の後に記述どおりに当たる代表が無い（tests/stochastic.yaml）ので、注入で踏む
 INDUCED = {
     ("analyze", "needs_unclear"): "unclear",
     ("analyze", "unknown"): "unknown",
     ("design", "requirements_gap"): "gap",
     ("design", "unknown"): "unknown",
-    ("plan_tasks", "design_incomplete"): "incomplete",
     ("plan_tasks", "unknown"): "unknown",
     ("implement", "task_unclear"): "unclear",
     ("implement", "quality_violation"): "lint",
@@ -132,10 +133,11 @@ def test_class_distributions_do_not_depend_on_the_entry(
     name: str, markov_runs: tuple[RunSet, BlobStore], gated_runs: tuple[RunSet, BlobStore]
 ) -> None:
     """訪問 2 以降の評価の結果が、入り方（どの辺から戻ったか、next で入り直したか）で違わない。入り方が五通りある
-    implement を含め、入り方が二つ以上あるステージはどれも not_detected（release は入り方が自分自身からの一本だけ）。"""
+    implement は not_detected（release は入り方が自分自身からの一本だけ）。ほかのステージは、検定の数で alpha を割って
+    確かめる（補正の無い alpha 0.01 で全ステージを見ると、正しい本体でも種や回数によって数 % の確率で落ちる）。"""
     runs = (markov_runs if name == "markov" else gated_runs)[0]
     results = {r.stage: r for r in entry_dependence(runs)}
-    assert "violated" not in {r.verdict for r in results.values()}
+    assert family_wise_violations(list(results.values())) == []
     assert results["implement"].verdict == "not_detected"
     assert len(results["implement"].groups) == 5, results["implement"].groups
     assert set(results["release"].groups) == {"rollback:release=notes_incomplete"}

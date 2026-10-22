@@ -14,6 +14,7 @@ from typing import Any
 
 import yaml
 
+from software_factory.personas import AFTER, INVALID, KINDS, PERSONAS, QUESTIONS, REUSE, WHO
 from software_factory.stages.deterministic import FIXTURES as FX
 from software_factory.stages.deterministic import SCENARIOS as OUT
 from software_factory.stages.probabilistic import TABLE, WORKFLOW_MODEL
@@ -180,12 +181,8 @@ def write(name: str, description: str, run: Run, expect: dict[str, Any], **extra
     )
 
 
-Q_BASE = [
-    "この機能を使うのは誰ですか",
-    "配る割引コードの種類と上限は何ですか",
-    "使えないコードが入力された時はどうしますか",
-]
-OPEN_Q = ["百分率の割引の上限は何 % ですか", "定額の割引が小計を超えた時、支払額はどうなりますか"]
+Q_BASE = list(QUESTIONS)
+OPEN_Q = [AFTER, REUSE]
 UNCLEAR = {
     "fixture": "analyze/unclear",
     "memory": {"intake_questions": OPEN_Q},
@@ -204,12 +201,10 @@ write(
     r,
     {},
     user=[
-        {"answer": "ネットショップの購入者。レジの画面でコードを入力する"},
+        {"answer": PERSONAS[0].answer(WHO)},
         {"defer": True},
-        {
-            "answer": "PCT10 のような百分率のコードと、OFF500 のような定額のコード。百分率は 50% まで"
-        },
-        {"answer": "エラーにして、割引しない"},
+        {"answer": PERSONAS[0].answer(KINDS)},
+        {"answer": PERSONAS[0].answer(INVALID)},
     ],
 )
 
@@ -233,7 +228,7 @@ write(
         # 問いが解けた analyze#2 は空の一覧を書くので、持ち帰った問いは最後の記憶に残らない
         "memory": {"intake_questions": []},
     },
-    user=[{"answer": "50% まで"}, {"answer": "0 円にする。マイナスにはしない"}],
+    user=[{"answer": PERSONAS[0].answer(q)} for q in OPEN_Q],
 )
 
 # --- 3. 設計が要件の不足を見つけ、フェーズ境界を越えて analyze に戻る ---
@@ -602,6 +597,40 @@ write(
             "stage:release#2": ["goal", "notes_incomplete", "unknown"],
         },
         "memory": {"missing_notes": []},
+    },
+)
+
+
+# --- 15. 検証が要件と依頼の食い違いを見つけ、三つのフェーズ境界を越えて analyze に戻る ---
+MISREAD = TABLE["variants"]["acceptance"]["misread"]["memory"]["requirement_gaps"]
+r = Run()
+r.through("intake", "unit_test")
+r.start(
+    "acceptance",
+    {
+        "fixture": "acceptance/misread",
+        "memory": {"requirement_gaps": MISREAD, "unmet_requirements": []},
+        "classify": cls("requirement_misread"),
+    },
+)
+r.eval("acceptance", "requirement_misread")
+r.line("rollback acceptance -> analyze [requirement_misread 1] crossing")
+r.through("analyze")
+write(
+    "acceptance_misread_crosses_phases",
+    "acceptance が requirements.md と intake.md の回答の食い違い（入力されたコードの大文字と小文字）を見つけ、記憶 "
+    "requirement_gaps を持って assurance から discovery の analyze に戻る（三つのフェーズ境界越え）。discovery、architecture、"
+    "construction のゲートを評価し直す。analyze が食い違いを直した後は、持ち帰った食い違いは最後の記憶に残らない",
+    r,
+    {
+        "starts": {
+            "analyze#2": {
+                "files": ok_files("intake"),
+                "memory": {"requirement_gaps": MISREAD},
+                "gates": [],
+            }
+        },
+        "memory": {"requirement_gaps": []},
     },
 )
 

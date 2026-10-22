@@ -32,7 +32,7 @@ variants:
     unclear:
       class: needs_unclear
       memory:
-        intake_questions: [百分率の割引の上限は何 % ですか, 定額の割引が小計を超えた時、支払額はどうなりますか]
+        intake_questions: [キャンペーンが終わった後も、割引コードを使えるようにしますか, 同じ購入者が同じコードを何回でも使えるようにしますか]
     unknown:
       class: unknown
       memory: {intake_questions: []}
@@ -45,11 +45,11 @@ variants:
       metrics_fail: [design_covers_requirements]
     unknown: {class: unknown, memory: {requirement_gaps: []}, metrics_fail: [design_covers_requirements]}
   plan_tasks:
+    # design_incomplete の変種は置かない。plan_tasks は design が goal の後にしか走らず、design の goal の代表の design.md は
+    # すべての要件を構成のファイルに割り当てているので、それを読む plan_tasks が記述どおりに design_incomplete になる代表は
+    # 作れない（クラスは種だけで選ぶので、代表は組みうるすべての上流の成果物と整合しなければならない）。design_incomplete は
+    # E2E のカバレッジで注入して踏む（README の「人間のレビューで確かめてほしいこと」）
     ok: {class: goal, memory: {design_issues: []}}
-    incomplete:
-      class: design_incomplete
-      memory: {design_issues: [REQ-3 と REQ-4 を受け持つ構成要素が design.md の構成に無い]}
-      metrics_fail: [tasks_cover_requirements]
     unknown: {class: unknown, memory: {design_issues: []}}
   implement:
     ok: {class: goal, memory: {task_questions: [], impl_violations: []}}
@@ -150,8 +150,8 @@ profiles:
       first: {ok: 0.85, gap: 0.12, unknown: 0.03}
       again: {ok: 0.95, gap: 0.03, unknown: 0.02}
     plan_tasks:
-      first: {ok: 0.82, incomplete: 0.15, unknown: 0.03}
-      again: {ok: 0.93, incomplete: 0.05, unknown: 0.02}
+      first: {ok: 0.97, unknown: 0.03}
+      again: {ok: 0.98, unknown: 0.02}
     implement:
       first: {ok: 0.36, ok_b: 0.36, lint: 0.08, scope: 0.07, broken: 0.05, unclear: 0.05, unknown: 0.03}
       again: {ok: 0.45, ok_b: 0.45, lint: 0.03, scope: 0.02, broken: 0.02, unclear: 0.01, unknown: 0.02}
@@ -183,8 +183,8 @@ profiles:
       first: {ok: 0.85, gap: 0.12, unknown: 0.03}
       again: {ok: 0.95, gap: 0.03, unknown: 0.02}
     plan_tasks:
-      first: {ok: 0.82, incomplete: 0.15, unknown: 0.03}
-      again: {ok: 0.93, incomplete: 0.05, unknown: 0.02}
+      first: {ok: 0.97, unknown: 0.03}
+      again: {ok: 0.98, unknown: 0.02}
     implement:
       first: {ok: 0.36, ok_fixed: 0.36, lint: 0.08, scope: 0.07, broken: 0.05, unclear: 0.05, unknown: 0.03}
       again: {ok: 0.45, ok_fixed: 0.45, lint: 0.03, scope: 0.02, broken: 0.02, unclear: 0.01, unknown: 0.02}

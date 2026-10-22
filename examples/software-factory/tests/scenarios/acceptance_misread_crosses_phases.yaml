@@ -1,0 +1,184 @@
+scenario: acceptance_misread_crosses_phases
+description: acceptance が requirements.md と intake.md の回答の食い違い（入力されたコードの大文字と小文字）を見つけ、記憶 requirement_gaps
+  を持って assurance から discovery の analyze に戻る（三つのフェーズ境界越え）。discovery、architecture、construction のゲートを評価し直す。analyze
+  が食い違いを直した後は、持ち帰った食い違いは最後の記憶に残らない
+workflow: ../../workflow.yaml
+seed: 11
+inputs:
+  feature_request.md: &id009
+    from: ../fixtures/inputs/feature_request.md
+  repo/: &id010
+    from: ../fixtures/inputs/repo/
+visits:
+  intake#1:
+    fixture: intake/ok
+    classify: &id001
+      choice: goal
+      confidence: 0.9
+  analyze#1:
+    fixture: analyze/ok
+    classify: *id001
+    memory:
+      intake_questions: &id002 []
+  design#1:
+    fixture: design/ok
+    classify: *id001
+    memory:
+      requirement_gaps: &id003 []
+  plan_tasks#1:
+    fixture: plan_tasks/ok
+    classify: *id001
+    memory:
+      design_issues: &id004 []
+  implement#1:
+    fixture: implement/ok
+    classify: *id001
+    memory:
+      task_questions: &id005 []
+      impl_violations: &id006 []
+  unit_test#1:
+    fixture: unit_test/ok
+    classify: *id001
+    memory:
+      failing_tests: &id007 []
+      coverage_gaps: &id008 []
+  acceptance#1:
+    fixture: acceptance/misread
+    memory:
+      unmet_requirements: []
+      requirement_gaps: &id011
+      - requirements.md にコードの大文字と小文字の扱いが無く、入力された pct10 を拒む
+    classify:
+      choice: requirement_misread
+      confidence: 0.9
+  analyze#2:
+    fixture: analyze/ok
+    classify: *id001
+    memory:
+      intake_questions: *id002
+  design#2:
+    fixture: design/ok
+    classify: *id001
+    memory:
+      requirement_gaps: *id003
+  plan_tasks#2:
+    fixture: plan_tasks/ok
+    classify: *id001
+    memory:
+      design_issues: *id004
+  implement#2:
+    fixture: implement/ok
+    classify: *id001
+    memory:
+      task_questions: *id005
+      impl_violations: *id006
+  unit_test#2:
+    fixture: unit_test/ok
+    classify: *id001
+    memory:
+      failing_tests: *id007
+      coverage_gaps: *id008
+  acceptance#2:
+    fixture: acceptance/ok
+    classify: *id001
+    memory:
+      unmet_requirements: []
+      requirement_gaps: []
+  review#1:
+    fixture: review/ok
+    classify: *id001
+    memory:
+      review_findings:
+      - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
+      design_issues: []
+  release#1:
+    fixture: release/ok
+    classify: *id001
+    memory:
+      missing_notes: []
+gates:
+  discovery#1: *id001
+  architecture#1: *id001
+  construction#1: *id001
+  discovery#2: *id001
+  architecture#2: *id001
+  construction#2: *id001
+  assurance#1: *id001
+  delivery#1: *id001
+expect:
+  status: completed
+  trace:
+  - start intake#1
+  - eval stage intake = goal
+  - next intake -> analyze
+  - start analyze#1
+  - eval stage analyze = goal
+  - eval phase discovery = goal
+  - gate_pass analyze
+  - next analyze -> design
+  - start design#1
+  - eval stage design = goal
+  - next design -> plan_tasks
+  - start plan_tasks#1
+  - eval stage plan_tasks = goal
+  - eval phase architecture = goal
+  - gate_pass plan_tasks
+  - next plan_tasks -> implement
+  - start implement#1
+  - eval stage implement = goal
+  - next implement -> unit_test
+  - start unit_test#1
+  - eval stage unit_test = goal
+  - eval phase construction = goal
+  - gate_pass unit_test
+  - next unit_test -> acceptance
+  - start acceptance#1
+  - eval stage acceptance = requirement_misread
+  - rollback acceptance -> analyze [requirement_misread 1] crossing
+  - start analyze#2
+  - eval stage analyze = goal
+  - eval phase discovery = goal
+  - gate_pass analyze
+  - next analyze -> design
+  - start design#2
+  - eval stage design = goal
+  - next design -> plan_tasks
+  - start plan_tasks#2
+  - eval stage plan_tasks = goal
+  - eval phase architecture = goal
+  - gate_pass plan_tasks
+  - next plan_tasks -> implement
+  - start implement#2
+  - eval stage implement = goal
+  - next implement -> unit_test
+  - start unit_test#2
+  - eval stage unit_test = goal
+  - eval phase construction = goal
+  - gate_pass unit_test
+  - next unit_test -> acceptance
+  - start acceptance#2
+  - eval stage acceptance = goal
+  - next acceptance -> review
+  - start review#1
+  - eval stage review = goal
+  - eval phase assurance = goal
+  - gate_pass review
+  - next review -> release
+  - start release#1
+  - eval stage release = goal
+  - eval phase delivery = goal
+  - gate_pass release
+  - complete
+  - end completed
+  starts:
+    analyze#2:
+      files:
+        feature_request.md: *id009
+        repo/: *id010
+        intake.md:
+          from: ../fixtures/intake/ok/intake.md
+      memory:
+        requirement_gaps: *id011
+      gates: []
+  memory:
+    requirement_gaps: []

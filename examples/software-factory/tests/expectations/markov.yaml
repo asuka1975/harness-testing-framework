@@ -6,9 +6,12 @@
 # 標準誤差は sqrt(p(1-p)/E[n])。E[n] は条件に合う評価の数の期待値で、設計値の MarkovModel（software_factory/design.py の
 # design_model）に synthesize をかけた evaluations（訪問の区分ごとの評価の回数の期待値）の 400 倍。p は visit_outcomes から出る
 # 設計値の割合と同じ。status_rate と mean_visits の中心も synthesize の厳密な値。mean_visits の標準誤差は、同じ予測の
-# visits_variance（一回の実行の中での訪問の回数の分散）から sqrt(分散 / 400)。
+# visits_variance（実行ごとの訪問の回数の、実行の間での分散）から sqrt(分散 / 400)。
 # test_stochastic.py の test_correct_expectations_follow_the_design が、各基準が設計値の両側に 3 SE 以上 5 SE 以下あること
 # （0 と 1 で切る側を除く）と、上の歪む基準の二項分布の裾の確率が 0.1% 以下であることを確かめる
+# 往復 8 で、plan_tasks の design_incomplete の変種を設計値から外した（design の goal の後に記述どおりに当たる代表が無い。
+# tests/stochastic.yaml）。plan_tasks より後の評価の数と、完了の割合、訪問の回数が変わったので、すべての基準を設計値から
+# 導き直した（種は変えていない）。
 expectations: software-factory-markov
 description: markov の確率的な偽ステージ本体での、評価の結果の出現率、実行の最後の状態、訪問の回数
 workflow: ../../workflow.yaml
@@ -28,53 +31,51 @@ criteria:
     outcome: needs_unclear
     min: 0.17
     max: 0.33
-  - kind: outcome_rate     # 設計値 0.72（ok と ok_b の和）、E[n] 343.8、SE 0.0242。両側 3.3 SE
+  - kind: outcome_rate     # 設計値 0.72（ok と ok_b の和）、E[n] 346.4、SE 0.0241。両側 3.3 SE
     target: implement
     visit: 1
     outcome: goal
     min: 0.64
     max: 0.80
-  - kind: outcome_rate     # 設計値 0.90（訪問 2 以降）、E[n] 320.3、SE 0.0168。両側 3.6 SE
+  - kind: outcome_rate     # 設計値 0.90（訪問 2 以降）、E[n] 323.0、SE 0.0167。両側 3.6 SE
     target: implement
     from_visit: 2
     outcome: goal
     min: 0.84
     max: 0.96
-  - kind: outcome_rate     # 設計値 0.22（defect は ok と ok_b の後で impl_defect）、E[n] 330.6、SE 0.0228。両側 3.5 SE
+  - kind: outcome_rate     # 設計値 0.22（defect は ok と ok_b の後で impl_defect）、E[n] 333.2、SE 0.0227。両側 3.5 SE
     target: unit_test
     visit: 1
     outcome: impl_defect
     min: 0.14
     max: 0.30
-  - kind: outcome_rate     # 設計値 0.20、E[n] 330.6、SE 0.0220。両側 3.6 SE
+  - kind: outcome_rate     # 設計値 0.20、E[n] 333.2、SE 0.0219。両側 3.7 SE
     target: unit_test
     visit: 1
     outcome: tests_insufficient
     min: 0.12
     max: 0.28
-  - kind: outcome_rate     # 設計値 0.10、E[n] 313.8、SE 0.0169。両側 3.5 SE
+  - kind: outcome_rate     # 設計値 0.10、E[n] 316.2、SE 0.0169。両側 3.6 SE
     target: acceptance
     visit: 1
     outcome: requirement_unmet
     min: 0.04
     max: 0.16
-  - kind: outcome_rate     # 設計値 0.14、E[n] 299.2、SE 0.0201。両側 3.5 SE
+  - kind: outcome_rate     # 設計値 0.14、E[n] 301.6、SE 0.0200。両側 3.5 SE
     target: review
     visit: 1
     outcome: changes_requested
     min: 0.07
     max: 0.21
-  # 設計値 0.23（carry を受けない最初の訪問）、E[n] 283.0、SE 0.0250。3.2 SE は [0.14995, 0.31005] で、外側に丸めて両側 3.6 SE
-  # （前の [0.15, 0.31] は 3.198 SE で規則をわずかに下回っていた）
-  - kind: outcome_rate
+  - kind: outcome_rate     # 設計値 0.23（carry を受けない最初の訪問）、E[n] 285.3、SE 0.0249。両側 3.6 SE
     target: release
     visit: 1
     outcome: notes_incomplete
-    min: 0.14
-    max: 0.32
-  # 設計値 0.97（carry を受けた再進入）、E[n] 65.1、SE 0.0211。外れる側の期待件数は 65.1 × 0.03 ≈ 2 で二項分布が歪むので、
-  # 二項分布（n = 65、p = 0.97）の下側の裾から決めた: min 0.90 では観測値が下に外れる確率が 0.33%、0.88 では 0.07%
-  # （正規近似の「3.3 SE」が示す約 0.05% より、0.90 は大きく外れていた）。0.88 は下側 4.3 SE。上側は 1 で切る。
+    min: 0.15
+    max: 0.31
+  # 設計値 0.97（carry を受けた再進入）、E[n] 65.6、SE 0.0211。外れる側の期待件数は 65.6 × 0.03 ≈ 2 で二項分布が歪むので、
+  # 二項分布（n = 66、p = 0.97）の下側の裾から決めた: min 0.90 では観測値が下に外れる確率が 0.36%、0.88 では 0.08%
+  # （正規近似の「3 SE」が示す確率より、0.90 は大きく外れる）。0.88 は下側 4.3 SE。上側は 1 で切る。
   # markov_shifted.yaml の [0.65, 0.85] とは重ならない
   - kind: outcome_rate
     target: release
@@ -82,11 +83,12 @@ criteria:
     outcome: goal
     min: 0.88
     max: 1.0
-  - kind: status_rate      # synthesize の厳密な値 0.6885、SE 0.0232。下側 3.4 SE、上側 3.5 SE
+  - kind: status_rate      # synthesize の厳密な値 0.6942、SE 0.0230。下側 3.2 SE、上側 3.3 SE
     status: completed
-    min: 0.61
+    min: 0.62
     max: 0.77
-  - kind: mean_visits      # synthesize の厳密な値 1.660、一回の実行の訪問の回数の標準偏差 1.170（visits_variance 1.368）、SE 0.0585。両側 3.2 SE
+  # synthesize の厳密な値 1.674、訪問の回数の標準偏差 1.166（visits_variance 1.360）、SE 0.0583。下側 3.3 SE、上側 3.2 SE
+  - kind: mean_visits
     target: implement
-    min: 1.47
-    max: 1.85
+    min: 1.48
+    max: 1.86

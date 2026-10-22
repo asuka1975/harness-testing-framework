@@ -9,12 +9,12 @@
 import json
 from pathlib import Path
 
-from software_factory.personas import CAP, FLOOR, PERSONAS, QUESTIONS, PersonaUser, persona_for
+from software_factory.personas import AFTER, PERSONAS, QUESTIONS, REUSE, PersonaUser, persona_for
 from software_factory.stages.probabilistic import INPUTS, run_set, runtime
 
 from harness_testing_framework.runtime import BlobStore, RunState
 
-ALL_QUESTIONS = [*QUESTIONS, CAP, FLOOR]
+ALL_QUESTIONS = [*QUESTIONS, AFTER, REUSE]
 
 
 def test_personas_answer_every_question_differently() -> None:
@@ -49,7 +49,7 @@ def test_intake_writes_the_personas_answers(tmp_path: Path) -> None:
             assert f"- Q: {question}\n  A: {persona.answer(question)}\n" in text
         if visit >= 2:
             asked_again += 1
-            assert f"- Q: {CAP}\n  A: {persona.answer(CAP)}\n" in text
+            assert f"- Q: {AFTER}\n  A: {persona.answer(AFTER)}\n" in text
     assert asked_again > 0
     assert {persona_for(s).name for s, _, _ in texts} == {p.name for p in PERSONAS}
 
