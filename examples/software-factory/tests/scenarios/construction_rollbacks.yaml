@@ -4,9 +4,9 @@ description: implement の lint 違反（実在の ruff）で自分自身に戻�
 workflow: ../../workflow.yaml
 seed: 11
 inputs:
-  feature_request.md: &id005
+  feature_request.md: &id004
     from: ../fixtures/inputs/feature_request.md
-  repo/: &id006
+  repo/: &id005
     from: ../fixtures/inputs/repo/
 visits:
   intake#1:
@@ -18,22 +18,22 @@ visits:
     fixture: analyze/ok
     classify: *id001
     memory:
-      intake_questions: &id007 []
+      intake_questions: &id006 []
   design#1:
     fixture: design/ok
     classify: *id001
     memory:
-      requirement_gaps: &id008 []
+      requirement_gaps: &id007 []
   plan_tasks#1:
     fixture: plan_tasks/ok
     classify: *id001
     memory:
-      design_issues: &id009 []
+      design_issues: &id008 []
   implement#1:
     fixture: implement/lint
     memory:
       task_questions: &id002 []
-      impl_violations: &id010
+      impl_violations: &id009
       - 'lint: repo/src/shopcart/discount.py に使っていない import と長すぎる行がある'
     classify:
       choice: quality_violation
@@ -43,24 +43,22 @@ visits:
     classify: *id001
     memory:
       task_questions: *id002
-      impl_violations: &id004 []
+      impl_violations: &id003 []
   unit_test#1:
     fixture: unit_test/thin
     memory:
       failing_tests: []
-      coverage_gaps:
+      coverage_gaps: &id012
       - REQ-1、REQ-2、REQ-3 の受け入れ基準にテストが無い
-      test_defects: &id003 []
     classify:
       choice: tests_insufficient
       confidence: 0.9
   unit_test#2:
     fixture: unit_test/defect_found
     memory:
-      failing_tests: &id012
+      failing_tests: &id011
       - 'test_percent_discount_rounds_the_discount_down: 333 円の PCT10 が 299 円になる（期待 300 円）'
       coverage_gaps: []
-      test_defects: *id003
     classify:
       choice: impl_defect
       confidence: 0.9
@@ -69,14 +67,13 @@ visits:
     classify: *id001
     memory:
       task_questions: *id002
-      impl_violations: *id004
+      impl_violations: *id003
   unit_test#3:
     fixture: unit_test/defect_passed
     classify: *id001
     memory:
       failing_tests: []
       coverage_gaps: []
-      test_defects: *id003
   acceptance#1:
     fixture: acceptance/ok
     classify: *id001
@@ -156,9 +153,9 @@ expect:
   - end completed
   starts:
     implement#2:
-      files: &id011
-        feature_request.md: *id005
-        repo/: *id006
+      files: &id010
+        feature_request.md: *id004
+        repo/: *id005
         intake.md:
           from: ../fixtures/intake/ok/intake.md
         requirements.md:
@@ -168,21 +165,49 @@ expect:
         tasks.yaml:
           from: ../fixtures/plan_tasks/ok/tasks.yaml
       memory:
-        intake_questions: *id007
-        requirement_gaps: *id008
-        design_issues: *id009
-        impl_violations: *id010
+        intake_questions: *id006
+        requirement_gaps: *id007
+        design_issues: *id008
+        impl_violations: *id009
       gates:
       - discovery
       - architecture
     implement#3:
-      files: *id011
+      files: *id010
       memory:
-        intake_questions: *id007
-        requirement_gaps: *id008
-        design_issues: *id009
-        impl_violations: *id010
-        failing_tests: *id012
+        intake_questions: *id006
+        requirement_gaps: *id007
+        design_issues: *id008
+        impl_violations: *id009
+        failing_tests: *id011
+      gates:
+      - discovery
+      - architecture
+    unit_test#2:
+      files:
+        feature_request.md: *id004
+        repo/: *id005
+        intake.md:
+          from: ../fixtures/intake/ok/intake.md
+        requirements.md:
+          from: ../fixtures/analyze/ok/requirements.md
+        design.md:
+          from: ../fixtures/design/ok/design.md
+        tasks.yaml:
+          from: ../fixtures/plan_tasks/ok/tasks.yaml
+        impl_notes.md:
+          from: ../fixtures/implement/ok/impl_notes.md
+        repo/src/shopcart/cart.py:
+          from: ../fixtures/implement/ok/repo/src/shopcart/cart.py
+        repo/src/shopcart/discount.py:
+          from: ../fixtures/implement/ok/repo/src/shopcart/discount.py
+      memory:
+        intake_questions: *id006
+        requirement_gaps: *id007
+        design_issues: *id008
+        task_questions: *id002
+        impl_violations: *id003
+        coverage_gaps: *id012
       gates:
       - discovery
       - architecture

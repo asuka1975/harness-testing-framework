@@ -6,8 +6,9 @@
 - フェーズ境界を越えるロールバック、carry、ユーザー回答待ちを含み、遷移の六種のそれぞれが定義の上で起こりうる
 - 全ステージに unknown があり、unknown 以外の end_state はそれぞれ一つの戻り先を持つ
 - carry する記憶は、その end_state の記述が証拠として名指す（記述が観測できる条件として書かれていることの一部）
-- unit_test は、テストの不備（tests_defective）と不足（tests_insufficient）を分け、test_report.md の節も分ける。代表の
-  test_report.md は、印のクラスの記述が証拠とする節だけが埋まっている
+- unit_test のテストの不足と不備は、一つの end_state（tests_insufficient）と一つの記憶（coverage_gaps）で扱う（往復 11 で
+  人間の決定により、往復 10 の tests_defective の分割を取り消した）。代表の test_report.md は、印のクラスの記述が証拠と
+  する節だけが埋まっている
 """
 
 from pathlib import Path
@@ -88,48 +89,47 @@ def test_end_states_name_the_carried_memory_as_evidence() -> None:
             assert f"記憶 {item}" in description, (stage["id"], rb["state"], item)
 
 
-def test_unit_test_separates_defective_from_insufficient_tests() -> None:
-    """unit_test のテストの不備（誤っているテスト）と不足（足りないテスト）は別の end_state で、どちらも unit_test 自身に
-    戻る。優先は impl_defect、tests_defective、tests_insufficient の順。不備で戻る時は、同時にある不足も持ち帰る（往復 10、
-    docs/review-findings.md の F-1。README の「人間のレビューで確かめてほしいこと」）。"""
+def test_unit_test_keeps_one_class_for_missing_and_wrong_tests() -> None:
+    """unit_test のテストの不足（足りない）と不備（誤っている）は、どちらも tests_insufficient で unit_test 自身に戻り、記憶
+    coverage_gaps 一つで持ち帰る。戻り先が同じで、分けて数えたいだけのクラスは分けない（adopting.md 第13節）。往復 10 で
+    足した tests_defective は、人間の決定（docs/review-findings.md の G）で取り消し、unit_test と construction のゲートの
+    記述を往復 10 の前（人間が承認した文）に戻した。テスト自身の誤り（準備、呼び出し、import）で失敗するテストは、どの
+    end_state にも当たらず unknown になる（前と同じ）。"""
     unit_test = next(s for _, s in STAGES if s["id"] == "unit_test")
     ids = [e["id"] for e in unit_test["end_state"]]
-    assert ids == ["impl_defect", "tests_defective", "tests_insufficient", "unknown"]
+    assert ids == ["impl_defect", "tests_insufficient", "unknown"]
     edges = {rb["state"]: rb for rb in unit_test["rollback"]}
-    assert edges["tests_defective"] == {
-        "state": "tests_defective",
+    assert edges["tests_insufficient"] == {
+        "state": "tests_insufficient",
         "stage": "unit_test",
-        "carry": ["test_defects", "coverage_gaps"],
+        "carry": ["coverage_gaps"],
         "max": 2,
     }
-    assert edges["tests_insufficient"]["carry"] == ["coverage_gaps"]
-    assert unit_test["artifacts"]["memory_in"] == ["coverage_gaps", "test_defects"]
-    assert unit_test["artifacts"]["memory_out"] == [
-        "failing_tests",
-        "coverage_gaps",
-        "test_defects",
-    ]
+    assert unit_test["artifacts"]["memory_in"] == ["coverage_gaps"]
+    assert unit_test["artifacts"]["memory_out"] == ["failing_tests", "coverage_gaps"]
     description = {e["id"]: e["description"] for e in unit_test["end_state"]}
-    assert "tests_defective と tests_insufficient に優先する" in description["impl_defect"]
-    assert "tests_insufficient に優先する" in description["tests_defective"]
-    for section in ("「## 失敗」", "「## 不備」", "「## 未網羅」"):
-        assert section in unit_test["goal"]["qualitative"], section
+    assert description["impl_defect"].endswith("tests_insufficient に優先する。")
+    assert "requirements.md の要件に反する期待を持つテスト" in description["tests_insufficient"]
+    assert "テスト自身の誤り" not in unit_test["description"] + "".join(description.values())
+    assert "「## テスト」「## 失敗」「## 未網羅」の節" in unit_test["description"]
+    assert "「## 失敗」と「## 未網羅」が空である" in unit_test["goal"]["qualitative"]
     construction = next(p for p in PHASES if p["id"] == "construction")
-    assert "失敗、不備、未網羅" in construction["goal"]["qualitative"]
+    assert "問い、失敗、未網羅が無い" in construction["goal"]["qualitative"]
+    assert "不備" not in construction["goal"]["qualitative"]
 
 
-REPORT_SECTIONS = ["## テスト", "## 失敗", "## 不備", "## 未網羅"]
+REPORT_SECTIONS = ["## テスト", "## 失敗", "## 未網羅"]
 # 印のクラスごとに、test_report.md の空でない節（「（なし）」でない節）。記述が証拠とする節だけが埋まる
 FILLED = {
     "goal": set(),
     "impl_defect": {"## 失敗"},
-    "tests_defective": {"## 不備"},
     "tests_insufficient": {"## 未網羅"},
 }
 
 
 def test_unit_test_reports_fill_the_section_their_class_names() -> None:
-    """unit_test の全フィクスチャの test_report.md が四つの節を持ち、印のクラスの記述が証拠とする節だけが埋まっている。"""
+    """unit_test の全フィクスチャの test_report.md が三つの節を持ち、印のクラスの記述が証拠とする節だけが埋まっている。
+    確率 0 の変種 defective（要件に反する期待を持つテスト）は tests_insufficient の代表で、不備を「## 未網羅」に書く。"""
     reports = sorted(
         (WORKFLOW.parent / "tests" / "fixtures" / "unit_test").glob("*/test_report.md")
     )

@@ -3,7 +3,9 @@
 各シナリオの期待する実行記録の要約（trace）は、下の Run の呼び出しで遷移を一つずつ手で並べる（実装より先に書く）。
 inputs と expect.starts のファイルは、フィクスチャへの参照（`{from: パス}`。ディレクトリは鍵と from を / で終える）で
 書く。内容は load_scenario が読む時にフィクスチャから取るので、フィクスチャの中身を変えても作り直さなくてよい
-（ok のフィクスチャのファイルを足したり消したりした時は作り直す）。
+（ok のフィクスチャのファイルを足したり消したりした時は作り直す）。inputs の repo/ のディレクトリの参照に、implement や
+unit_test のフィクスチャの repo/ の下のファイルの参照を重ねると、より長い鍵（ファイルの参照）の内容になる（鍵の並びに
+よらない。contract/conformance/README.md の「ファイルの内容」）。
 
     python -m software_factory.scenarios   # tests/scenarios/*.yaml を書き直す
 
@@ -110,19 +112,9 @@ LAST = {"analyze", "plan_tasks", "unit_test", "review", "release"}
 
 
 def ok_files(*stages: str) -> dict[str, Any]:
-    """inputs に、各ステージの ok のフィクスチャを重ねた範囲内のファイル（repo/ は変更前のまま）。"""
+    """inputs に、各ステージの ok のフィクスチャを重ねた範囲内のファイル。implement と unit_test の repo/ の下のファイルは、
+    inputs の repo/ のディレクトリの参照より長い鍵なので、その内容になる。"""
     out: dict[str, Any] = dict(INPUTS)
-    for s in stages:
-        added = refs(FIX[s])
-        assert not any(k.startswith("repo/") for k in added), s
-        out |= added
-    return out
-
-
-def ok_files_by_file(*stages: str) -> dict[str, Any]:
-    """ok_files と同じ範囲を、inputs の repo/ もファイルごとに展開して書く。implement の ok のフィクスチャのように repo/ の
-    下のファイルを置き換えるステージを重ねられる（ディレクトリの参照と、その下のファイルの参照を混ぜない）。"""
-    out = refs("inputs")
     for s in stages:
         out |= refs(FIX[s])
     return out
@@ -374,6 +366,13 @@ write(
                 | {"impl_violations": VIOL, "failing_tests": FAILING},
                 "gates": ["discovery", "architecture"],
             },
+            # unit_test#1 の開始時スナップショット（implement#2 の goal の後）に、持ち帰った coverage_gaps を重ねる
+            "unit_test#2": {
+                "files": ok_files("intake", "analyze", "design", "plan_tasks", "implement"),
+                "memory": ok_memory("intake", "analyze", "design", "plan_tasks", "implement")
+                | {"coverage_gaps": GAPS_T},
+                "gates": ["discovery", "architecture"],
+            },
         },
         "memory": {"failing_tests": [], "impl_violations": []},
     },
@@ -487,6 +486,16 @@ write(
     "（review の end_state のフェーズ全体の条件）を選び、goal の時に書いた review_findings を持って implement に戻る（ゲートからの rollback）",
     r,
     {
+        "starts": {
+            # implement#1 の開始時スナップショットに、ゲートから持ち帰った review_findings を重ねる。construction と assurance
+            # のゲートは未通過に戻る
+            "implement#2": {
+                "files": before_impl,
+                "memory": ok_memory("intake", "analyze", "design", "plan_tasks")
+                | {"review_findings": FINDINGS},
+                "gates": ["discovery", "architecture"],
+            }
+        },
         "options": {"phase:assurance#1": ["goal", "design_flaw", "changes_requested", "unknown"]},
         "memory": {"review_findings": FINDINGS},
     },
@@ -601,6 +610,14 @@ write(
     "二回目の release は持ち帰った記憶を受けて書き直す（自分自身への rollback と carry）",
     r,
     {
+        "starts": {
+            # release#1 の開始時スナップショット（review の goal の後）に、持ち帰った missing_notes を重ねる
+            "release#2": {
+                "files": ok_files(*ORDER[:-1]),
+                "memory": ok_memory(*ORDER[:-1]) | {"missing_notes": MISSING},
+                "gates": ["discovery", "architecture", "construction", "assurance"],
+            }
+        },
         "options": {
             "stage:release#1": ["notes_incomplete", "unknown"],
             "stage:release#2": ["goal", "notes_incomplete", "unknown"],
@@ -644,54 +661,40 @@ write(
 )
 
 
-# --- 16. 単体テストの不備（要件に反する期待）を見つけ、持ち帰って自分自身に戻る ---
+# --- 16. 単体テストの不備（要件に反する期待）を見つけ、不足として持ち帰って自分自身に戻る ---
 DEFECTIVE = TABLE["variants"]["unit_test"]["defective"]["memory"]
 r = Run()
 r.through("intake", "implement")
 r.start(
     "unit_test",
-    {"fixture": "unit_test/defective", "memory": DEFECTIVE, "classify": cls("tests_defective")},
+    {"fixture": "unit_test/defective", "memory": DEFECTIVE, "classify": cls("tests_insufficient")},
 )
-r.eval("unit_test", "tests_defective")
-r.line("rollback unit_test -> unit_test [tests_defective 1]")
+r.eval("unit_test", "tests_insufficient")
+r.line("rollback unit_test -> unit_test [tests_insufficient 1]")
 r.through("unit_test")
 write(
     "unit_test_defective_self_rollback",
-    "unit_test が、要件に反する期待のテスト（小計 300 円に OFF500 で -200 円を期待する。実在の pytest で落ちる）を不備として"
-    "記憶 test_defects に書き、自分自身に戻る。テストは落ちるが期待が要件に反するので impl_defect ではない。二回目の unit_test は"
-    "持ち帰った不備と不足（test_defects と coverage_gaps）を受けて書き直す（自分自身への rollback と carry。実在の指標で goal が"
-    "選択肢から外れる）",
+    "unit_test が、要件に反する期待のテスト（小計 300 円に OFF500 で -200 円を期待する。実在の pytest で落ちる）を、直すべき"
+    "不備として記憶 coverage_gaps と test_report.md の「## 未網羅」に書き、自分自身に戻る（tests_insufficient。テストは落ちるが"
+    "期待が要件に反するので impl_defect ではない）。二回目の unit_test は持ち帰った coverage_gaps を受けて書き直す（自分自身への"
+    " rollback と carry。実在の指標で goal が選択肢から外れる）",
     r,
     {
         "starts": {
             "unit_test#2": {
-                # unit_test#1 の開始時スナップショット（implement の goal の後）に、持ち帰った二つの記憶を重ねる
-                "files": ok_files_by_file("intake", "analyze", "design", "plan_tasks", "implement"),
+                # unit_test#1 の開始時スナップショット（implement の goal の後）に、持ち帰った coverage_gaps を重ねる
+                "files": ok_files("intake", "analyze", "design", "plan_tasks", "implement"),
                 "memory": ok_memory("intake", "analyze", "design", "plan_tasks", "implement")
-                | {
-                    "test_defects": DEFECTIVE["test_defects"],
-                    "coverage_gaps": DEFECTIVE["coverage_gaps"],
-                },
+                | {"coverage_gaps": DEFECTIVE["coverage_gaps"]},
                 "gates": ["discovery", "architecture"],
             }
         },
         "options": {
-            "stage:unit_test#1": [
-                "impl_defect",
-                "tests_defective",
-                "tests_insufficient",
-                "unknown",
-            ],
-            "stage:unit_test#2": [
-                "goal",
-                "impl_defect",
-                "tests_defective",
-                "tests_insufficient",
-                "unknown",
-            ],
+            "stage:unit_test#1": ["impl_defect", "tests_insufficient", "unknown"],
+            "stage:unit_test#2": ["goal", "impl_defect", "tests_insufficient", "unknown"],
         },
         # unit_test#2 が空の一覧を書くので、持ち帰った不備は最後の記憶に残らない
-        "memory": {"test_defects": [], "coverage_gaps": []},
+        "memory": {"coverage_gaps": [], "failing_tests": []},
     },
 )
 

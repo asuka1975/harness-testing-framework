@@ -1,13 +1,13 @@
 scenario: unit_test_defective_self_rollback
-description: unit_test が、要件に反する期待のテスト（小計 300 円に OFF500 で -200 円を期待する。実在の pytest で落ちる）を不備として記憶 test_defects
-  に書き、自分自身に戻る。テストは落ちるが期待が要件に反するので impl_defect ではない。二回目の unit_test は持ち帰った不備と不足（test_defects と coverage_gaps）を受けて書き直す（自分自身への
-  rollback と carry。実在の指標で goal が選択肢から外れる）
+description: unit_test が、要件に反する期待のテスト（小計 300 円に OFF500 で -200 円を期待する。実在の pytest で落ちる）を、直すべき不備として記憶 coverage_gaps
+  と test_report.md の「## 未網羅」に書き、自分自身に戻る（tests_insufficient。テストは落ちるが期待が要件に反するので impl_defect ではない）。二回目の
+  unit_test は持ち帰った coverage_gaps を受けて書き直す（自分自身への rollback と carry。実在の指標で goal が選択肢から外れる）
 workflow: ../../workflow.yaml
 seed: 11
 inputs:
-  feature_request.md:
+  feature_request.md: &id002
     from: ../fixtures/inputs/feature_request.md
-  repo/:
+  repo/: &id003
     from: ../fixtures/inputs/repo/
 visits:
   intake#1:
@@ -19,33 +19,32 @@ visits:
     fixture: analyze/ok
     classify: *id001
     memory:
-      intake_questions: &id002 []
+      intake_questions: &id004 []
   design#1:
     fixture: design/ok
     classify: *id001
     memory:
-      requirement_gaps: &id003 []
+      requirement_gaps: &id005 []
   plan_tasks#1:
     fixture: plan_tasks/ok
     classify: *id001
     memory:
-      design_issues: &id004 []
+      design_issues: &id006 []
   implement#1:
     fixture: implement/ok
     classify: *id001
     memory:
-      task_questions: &id005 []
-      impl_violations: &id006 []
+      task_questions: &id007 []
+      impl_violations: &id008 []
   unit_test#1:
     fixture: unit_test/defective
     memory:
       failing_tests: []
-      coverage_gaps: &id008 []
-      test_defects: &id007
+      coverage_gaps: &id009
       - 'repo/tests/test_discount.py の test_amount_code_subtracts_the_whole_amount: 小計 300 円に OFF500 で
         -200 円を期待しているが、REQ-2 は支払額が 0 円を下回らない（受け入れ基準は 0 円）。期待が要件に反するので、このテストは落ちる'
     classify:
-      choice: tests_defective
+      choice: tests_insufficient
       confidence: 0.9
   unit_test#2:
     fixture: unit_test/ok
@@ -53,7 +52,6 @@ visits:
     memory:
       failing_tests: []
       coverage_gaps: []
-      test_defects: []
   acceptance#1:
     fixture: acceptance/ok
     classify: *id001
@@ -101,8 +99,8 @@ expect:
   - eval stage implement = goal
   - next implement -> unit_test
   - start unit_test#1
-  - eval stage unit_test = tests_defective
-  - rollback unit_test -> unit_test [tests_defective 1]
+  - eval stage unit_test = tests_insufficient
+  - rollback unit_test -> unit_test [tests_insufficient 1]
   - start unit_test#2
   - eval stage unit_test = goal
   - eval phase construction = goal
@@ -125,14 +123,8 @@ expect:
   starts:
     unit_test#2:
       files:
-        feature_request.md:
-          from: ../fixtures/inputs/feature_request.md
-        repo/src/shopcart/__init__.py:
-          from: ../fixtures/inputs/repo/src/shopcart/__init__.py
-        repo/src/shopcart/cart.py:
-          from: ../fixtures/implement/ok/repo/src/shopcart/cart.py
-        repo/tests/test_cart.py:
-          from: ../fixtures/inputs/repo/tests/test_cart.py
+        feature_request.md: *id002
+        repo/: *id003
         intake.md:
           from: ../fixtures/intake/ok/intake.md
         requirements.md:
@@ -143,31 +135,30 @@ expect:
           from: ../fixtures/plan_tasks/ok/tasks.yaml
         impl_notes.md:
           from: ../fixtures/implement/ok/impl_notes.md
+        repo/src/shopcart/cart.py:
+          from: ../fixtures/implement/ok/repo/src/shopcart/cart.py
         repo/src/shopcart/discount.py:
           from: ../fixtures/implement/ok/repo/src/shopcart/discount.py
       memory:
-        intake_questions: *id002
-        requirement_gaps: *id003
-        design_issues: *id004
-        task_questions: *id005
-        impl_violations: *id006
-        test_defects: *id007
-        coverage_gaps: *id008
+        intake_questions: *id004
+        requirement_gaps: *id005
+        design_issues: *id006
+        task_questions: *id007
+        impl_violations: *id008
+        coverage_gaps: *id009
       gates:
       - discovery
       - architecture
   options:
     stage:unit_test#1:
     - impl_defect
-    - tests_defective
     - tests_insufficient
     - unknown
     stage:unit_test#2:
     - goal
     - impl_defect
-    - tests_defective
     - tests_insufficient
     - unknown
   memory:
-    test_defects: []
     coverage_gaps: []
+    failing_tests: []

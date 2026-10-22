@@ -8,15 +8,15 @@ harness-testing-framework（v0.1.0）の利用者として、adopting.md だけ�
 
 ## 状態（2026-10-22）
 
-往復 10（人間のレビューの回答と、完了判定の二回目の指摘への対応）まで完了。`scripts/check.sh` が通る（ruff check、ruff format、mypy strict、pytest 649 件で 142.6 秒、全体で約 2 分 23 秒）。この例のテストは 188 件。変更は examples/software-factory/ の中だけ。adopting-gaps.md の未解消は N14、N15（往復 10 で見つけた）。
+往復 11（往復 10 の後の人間の決定への対応）まで完了。`scripts/check.sh` が通る（ruff check、ruff format、mypy strict、pytest 660 件で 139.3 秒、全体で約 2 分 20 秒）。この例のテストは 197 件。変更は examples/software-factory/ の中だけ。adopting-gaps.md の未解消は N16（往復 11 で見つけた）。N14、N15 は往復 11 で解消した。
 
-最初の版（下の「経過」）の後、フレームワークの側が adopting-gaps.md の 30 項目を受けて直したので、往復 1 で各項目を確かめ、要らなくなった回避策を外した（下の「往復 1」）。往復 1 で見つけた N1〜N7 も直ったので往復 2 で、往復 2 で見つけた N8、N9 も直ったので往復 3 で、往復 3 で見つけた N10 も直ったので往復 4 で、往復 4 で見つけた N11 も直ったので往復 5 で確かめた（下の「往復 2」〜「往復 5」）。往復 6 で、人間のレビューの前の検証役の指摘（docs/review-findings.md）に対応した（下の「往復 6」）。往復 8 で完了判定の指摘（E）に、往復 10 で人間のレビューの回答と完了判定の二回目の指摘（F）に対応した。今の未解消は adopting-gaps.md の先頭にある。
+最初の版（下の「経過」）の後、フレームワークの側が adopting-gaps.md の 30 項目を受けて直したので、往復 1 で各項目を確かめ、要らなくなった回避策を外した（下の「往復 1」）。往復 1 で見つけた N1〜N7 も直ったので往復 2 で、往復 2 で見つけた N8、N9 も直ったので往復 3 で、往復 3 で見つけた N10 も直ったので往復 4 で、往復 4 で見つけた N11 も直ったので往復 5 で確かめた（下の「往復 2」〜「往復 5」）。往復 6 で、人間のレビューの前の検証役の指摘（docs/review-findings.md）に対応した（下の「往復 6」）。往復 8 で完了判定の指摘（E）に、往復 10 で人間のレビューの回答と完了判定の二回目の指摘（F）に、往復 11 で往復 10 の後の人間の決定（G。tests\_defective の分割の取り消しと、人が付けるラベルの材料）に対応した。今の未解消は adopting-gaps.md の先頭にある。
 
 | 求められたこと | どこで満たしたか |
 | --- | --- |
 | 4 フェーズ以上、8 ステージ以上 | workflow.yaml（5 フェーズ、9 ステージ）。tests/test\_definition.py |
 | フェーズ境界越えのロールバック、carry、ユーザー回答待ち | 越境の辺 6 本（design → analyze、implement → plan\_tasks、acceptance → analyze と implement、review → design と implement）。全辺に carry。intake が awaits\_user |
-| end\_state は観測できる条件、戻り先つき、unknown を含む | 全ステージに unknown、unknown 以外の 13 クラスにそれぞれ戻り先（往復 10 で unit\_test の tests\_defective を足した）。carry する記憶を記述が証拠として名指す（テストで確かめる） |
+| end\_state は観測できる条件、戻り先つき、unknown を含む | 全ステージに unknown、unknown 以外の 12 クラスにそれぞれ戻り先（往復 10 で足した unit\_test の tests\_defective は、往復 11 で人間の決定により取り消した）。carry する記憶を記述が証拠として名指す（テストで確かめる） |
 | 偽のステージ本体（LLM なし） | 決定論的: シナリオの台本でフィクスチャを写す。確率的: tests/stochastic.yaml の設計値で、種だけから変種を選ぶ |
 | carry を受けた再進入で分布が変わるもの | release（missing\_notes を受けると goal 0.75 → 0.97）。訪問 2 以降と carry の有無が一致することを全実行で確かめる |
 | クラス内で下流の分布が分かれるもの | divergent の implement の goal（ok は REQ-1 の切り捨てを誤り、ok\_fixed は正しい）。unit\_test の defect のテストは実在の pytest で前者だけ落ちる |
@@ -28,11 +28,12 @@ harness-testing-framework（v0.1.0）の利用者として、adopting.md だけ�
 
 - 整合性検査: 誤り 0、警告 0
 - 契約適合テスト: パッケージに同梱した 25 シナリオ（`conformance_scenarios()`）すべてが参照ランタイムで期待どおり（tests/test\_conformance.py。参照ランタイムを使うので必須ではなく、版の確認として残す）。ハーネスの本体は、400 回の実行で契約違反、本体の例外、範囲外のファイルの警告が一度も無い
-- 遷移の決定論テスト: 17 シナリオ。遷移の六種、escalate の四択、越境の 7 通り（定義の上の六本の辺のすべてと、運用者による越境）、定義の上のロールバックの辺 13 本のすべて（自分自身への辺と plan\_tasks → design を含む）を通す。実在の指標の値で goal が選択肢から外れることを expect.options で確かめる。記録再生で同一のスナップショットの列。inputs と開始時スナップショットのファイルはフィクスチャを `{from: パス}` で参照する。三つのペルソナを台本の user の代わりに束縛しても期待どおり（持ち帰った問いを尋ねる、最初の質問で保留して再開する）。偽の本体は訪問のたびに memory\_out のすべての項目を書き、持ち帰った記憶は、問いが解けた後の訪問が空の一覧を書くので最後の記憶に残らない（expect.memory で確かめる）
+- 遷移の決定論テスト: 17 シナリオ。遷移の六種、escalate の四択、越境の 7 通り（定義の上の六本の辺のすべてと、運用者による越境）、定義の上のロールバックの辺 12 本のすべて（自分自身への辺と plan\_tasks → design を含む）を通し、どの辺でも、戻った直後の訪問の開始時スナップショットに carry する記憶が空でない値で届くことを expect.starts で確かめる（往復 11）。実在の指標の値で goal が選択肢から外れることを expect.options で確かめる。記録再生で同一のスナップショットの列。inputs と開始時スナップショットのファイルはフィクスチャを `{from: パス}` で参照する。三つのペルソナを台本の user の代わりに束縛しても期待どおり（持ち帰った問いを尋ねる、最初の質問で保留して再開する）。偽の本体は訪問のたびに memory\_out のすべての項目を書き、持ち帰った記憶は、問いが解けた後の訪問が空の一覧を書くので最後の記憶に残らない（expect.memory で確かめる）
 - 分布テスト: markov.yaml の 12 基準がすべて通り（400 回、種 20000）、markov\_shifted.yaml の 14 基準はすべて落ちる。release の訪問 2 以降の goal は 0.969（62/64）で、基準 [0.88, 1.0]（二項分布の裾から決めた）に入り、「carry で変わらない」とした基準（0.65〜0.85）は落ちる。assurance のゲートを RandomGateClassifier で揺らす markov\_gated.yaml の 4 基準もすべて通る（400 回、種 50000。ゲートの訪問 1 の changes\_requested 0.209（45/215）、訪問 2 以降 0.156（17/109）、完了 0.625、implement の訪問の回数の平均 2.002。往復 8 の設計値の変更の後の値）。markov\_gated\_shifted.yaml の 3 基準はすべて落ちる。各基準が設計値の両側に標準誤差の 3 倍以上 5 倍以下あることを、synthesize の evaluations（厳密な E[n]）と visits\_variance から確かめ、外れる側の期待件数が 10 に届かない基準は二項分布の裾の確率（0.1% 以下）で確かめる。分布テストに使う二つの実行の集まりに、指標の測定の失敗と、印が goal なのに goal が選択肢から外れた評価が一度も無い
 - 独立性検証: divergent は stage:implement=goal（訪問 1 → 1）で violated（p = 0.0005、代表 136 と 126）。markov は、全状態を判定できた検定の数で alpha を割って violated が無く、同じ状態は p = 0.23（「p 値が 0.001 以上」で確かめる。往復 10）。intake の goal のペルソナごとの三つの代表は、markov で p = 0.44、divergent で p = 0.78。ゲートを揺らす実行にも violated が無い
-- E2E: カバレッジ計画が全 (ステージ, クラス) の 31 を踏む（往復 10 で 30 から。tests\_defective は誘発で踏む。誘発と注入の両方。intake の質問にはペルソナが答える）。推定したモデルと設計値のモデルの予測が、どちらもゲートの評価の結果を含むすべての量で実測と一致（k = 4）。ゲートの分布を足した設計値のモデルの予測も、ゲートを揺らした実行の 46 の量（assurance のゲートの goal と changes\_requested を含む。往復 8 で plan\_tasks の design\_incomplete を設計値から外して 47 から減った）と一致する。入り方が二つ以上あるステージの訪問 2 以降の結果は、markov とゲートを揺らす実行のどちらでも入り方によらない（entry\_dependence で、判定できた検定の数で alpha を割って violated 無し。implement は入り方 5 通りで p = 0.56 と 0.43）
-- オラクル: `build_corpus(..., unique_states=True)` でステージの 123 項目（往復 8 で plan\_tasks の design\_incomplete を外したので、往復 7 までの 127 から変わった。往復 10 では変わらない）。印を読む分類器は κ 1、ECE 0.1。既知の混同行列の分類器は κ 0.603、ECE 0.275、答え無し 6（選択肢に無いクラス）で、独立に計算した値と一致。揺れる分類器の再実行の一致率は 0.748（1 − ⌈123/4⌉/123 に一致）
+- E2E: カバレッジ計画が全 (ステージ, クラス) の 30 を踏む（往復 10 で 31 にし、往復 11 で tests\_defective を取り消して 30 に戻った。誘発と注入の両方で、誘発の台本を与えた目標はすべて誘発で踏む。intake の質問にはペルソナが答える）。推定したモデルと設計値のモデルの予測が、どちらもゲートの評価の結果を含むすべての量で実測と一致（k = 4）。ゲートの分布を足した設計値のモデルの予測も、ゲートを揺らした実行の 46 の量（assurance のゲートの goal と changes\_requested を含む。往復 8 で plan\_tasks の design\_incomplete を設計値から外して 47 から減った）と一致する。入り方が二つ以上あるステージの訪問 2 以降の結果は、markov とゲートを揺らす実行のどちらでも入り方によらない（entry\_dependence で、判定できた検定の数で alpha を割って violated 無し。implement は入り方 5 通りで p = 0.56 と 0.43）
+- オラクル: `build_corpus(..., unique_states=True)` でステージの 123 項目（往復 8 で plan\_tasks の design\_incomplete を外したので、往復 7 までの 127 から変わった。往復 10、往復 11 では変わらない）。印を読む分類器は κ 1、ECE 0.1。既知の混同行列の分類器は κ 0.603、ECE 0.275、答え無し 6（選択肢に無いクラス）で、独立に計算した値と一致。揺れる分類器の再実行の一致率は 0.748（1 − ⌈123/4⌉/123 に一致）
+- 記述と代表の整合（第15.1節）: 人がラベルを付ける材料 docs/human-labeling.md（30 項目。intake 2、analyze 7、discovery のゲート 3、design 3、unit\_test 3、acceptance 12）を、試しの実行（tests/stochastic.yaml の labeling、120 回、種 90000）から作る。人のラベルはまだ無い。受け取ったら `python -m software_factory.labeling compare` で印と比べる（往復 11）
 - トリアージ: 確信度 0.6 の印を読む分類器で 24 回実行し、全評価（unknown を含む 361 項目）を確信度 0.7 未満として待ち行列に足し、五種類の判定（label、classifier\_error、new\_class\_proposal、description\_revision\_proposal、not\_a\_problem）を付けて未判定を無くした。ワークフロー定義は変わらない。ラベルを付けた項目をコーパスに足してオラクルのレポートを出した（κ 1、ECE 0.4）
 
 ## 経過（2026-10-22）
@@ -61,6 +62,7 @@ harness-testing-framework（v0.1.0）の利用者として、adopting.md だけ�
 | ゲートを揺らす分布テスト、独立性検証、マルコフ合成の実測（markov\_gated.yaml） | markov と RandomGateClassifier | 400 | 50000 |
 | トリアージ | markov | 24 | 80000 |
 | 第15.1節の試し（往復 10。スクラッチで、例のテストには無い） | markov に implement の ok\_fixed と unit\_test の defective を足した試しの分布 | 300 | 70000 |
+| 人がラベルを付ける材料（往復 11。docs/human-labeling.md、tests/test\_labeling.py） | labeling（tests/stochastic.yaml） | 120 | 90000 |
 
 種は基準を書く前に決め、基準が通るように選び直してはいない。回数は環境変数 `HTF_RUNS` で増やせる。
 
@@ -257,12 +259,56 @@ harness-testing-framework（v0.1.0）の利用者として、adopting.md だけ�
 
 手引きと公開 API の文書だけでは判断できなかったこととして、クラスの粒度を独立性検証の結果以外の理由で変えてよいか（N14）と、シナリオの files でディレクトリの参照とその下のファイルの鍵が重なる時の扱い（N15）を adopting-gaps.md に書いた。
 
+## 往復 11（2026-10-22）
+
+往復 10 の後、第三者が二度確かめ（事前レビューと、別のモデルによる敵対的なレビュー）、人間が決めた（docs/review-findings.md の G）。決定は二つ: unit\_test の tests\_defective の分割を取り消す（戻り先が同じで、違いは集計の都合だけ。クラスは下流の振る舞いに関する同値類で、集計のための分類ではない。手引き第13節に書き足された）、往復 10 で代表を変えた所は人が印を除いて読んでラベルを付ける（全部の付け直しはしない）。G-1〜G-6 に対応した。記述は、G-1 で人間が承認した往復 10 の前の文に戻したほかは変えていない。種と、分布テストの分布（markov、divergent）、設計値、基準の値は変えていない。
+
+| 指摘 | 対応 |
+| --- | --- |
+| G-1 unit\_test と construction のゲートの記述を往復 10 の前に戻す | 戻した。`git show 08f79b4:examples/software-factory/workflow.yaml` をそのまま書き、`git diff 08f79b4 -- examples/software-factory/workflow.yaml` が空（差の無いことを確かめた）。往復 10 と 08f79b4 の差は unit\_test（description、memory\_in と memory\_out、goal、end\_state、rollback）と construction のゲートの goal だけだったので、ファイル全体を戻しても同じ。記憶 test\_defects、tests\_defective の rollback、test\_report.md の「## 不備」が無くなった（節は「## テスト」「## 失敗」「## 未網羅」）。unit\_test の六つのフィクスチャの test\_report.md も、defective を除いて往復 10 の前のものに戻した。coverage\_gaps の項目の書き方で不足と不備を区別すること（任意）はしていない |
+| G-2 代表、シナリオ、E2E、テストを合わせる | 代表 unit\_test/defective を tests\_insufficient の確率 0 の代表にした（印、test\_report.md の不備を「## 未網羅」に、記憶を coverage\_gaps に。「## 失敗」は（なし）。tests/stochastic.yaml の variants のクラスと記憶も）。シナリオ unit\_test\_defective\_self\_rollback を、tests\_insufficient で空でない coverage\_gaps を持って unit\_test に戻り、expect.starts で unit\_test#2 の記憶を確かめる形にした（名前は代表に合わせて残した）。E2E の誘発から tests\_defective を外した。README の構成の表、フェーズゲートの落ち方、確率的な本体の仕掛け、通したランナー、tests/README.md、tests/fixtures/README.md、markov.yaml の注記を合わせた |
+| G-3 README を人間の決定に合わせる | 「人間のレビューで確かめてほしいこと」から tests\_defective の記述と境界の項目、往復 10 の提案を除き、決まったこと（分割の取り消し、記述を往復 10 の前の文に戻したこと、テスト自身の誤りで落ちるテストは unknown、defective を tests\_insufficient の確率 0 の代表にしたこと、人がラベルを付けること）と、まだのこと（人手のラベル）を書いた |
+| G-4 N14、N15 | どちらも解消（adopting-gaps.md の「解消済み（往復 11）」）。N14 は第13節の書き足しで判断でき、取り消しに第13節のクラスを変えた後の一覧を当てはめた。N15 は鍵の並びを変えた 7 通りで「より長い鍵の内容」を確かめ、回避の ok\_files\_by\_file を外した |
+| G-5 第三者の事前レビューの低 | 四つとも直した。(1) 戻った直後の訪問の expect.starts が無かった三本（construction\_rollbacks の unit\_test#2、assurance\_gate\_rolls\_back の implement#2、release\_notes\_self\_rollback の release#2）に足し、定義の上のロールバックの辺 12 本のすべてで、どれかのシナリオが戻った直後の訪問の expect.starts に carry する記憶を空でない値で持つことをテストにした（test\_every\_rollback\_edge\_has\_its\_carry\_checked\_at\_the\_next\_start。docstring もそれを指す）。(2) E2E のカバレッジのテストに、誘発の台本を与えた目標がすべて induce で踏まれることを足した。(3) README の「記述と代表の整合」に、plan\_tasks/incomplete はシナリオで分類器が見る状態文書（design/gap と組むもの）を記述だけで読んで確かめたことを書いた（実際に読んだ。design\_incomplete に当たる）。(4) markov.yaml と markov\_gated.yaml の 1.674 を 1.673 にした |
+| G-6 人がラベルを付ける材料と、印と比べる仕組み | software\_factory/labeling.py と docs/human-labeling.md（30 項目）、そのコーパス docs/human-labeling.corpus.jsonl を足した。下の「材料」 |
+
+材料（G-6）:
+
+- 試しの実行: tests/stochastic.yaml に分布 labeling を足した（分布テスト、独立性検証、マルコフ合成には使わない）。訪問 1 の分布を寄せ（intake の unknown 0.15、analyze の needs\_unclear 0.35 と unknown 0.15、design の requirements\_gap 0.25 と unknown 0.15、implement の ok、ok\_b、ok\_fixed をほぼ三等分、unit\_test の defective 0.5、acceptance の四つのクラスを 0.25 ずつ）、訪問 2 以降は goal に寄せた。120 回、種 90000（回数と種は材料の項目を選ぶ規則を決めた後に決め、30 の組がすべて出ることを確かめた。`HTF_RUNS` によらない）。約 5 秒
+- コーパス: `build_corpus(..., unique_states=True)` で 170 項目（ステージ 123、ゲート 47）。そのうち 162 項目が往復 10 で変えた代表のどれかを含む（requirements.md が下流のほとんどの状態文書に入るため）
+- 選び方: 変えた代表を状態文書に含む評価のうち、記述がその内容を証拠に使う対象（intake: vague\_founder の回答、analyze と discovery のゲート: requirements.md と回答、design: requirements.md と design.md、unit\_test: defective、acceptance: requirements.md、verification.md、回答）の訪問 1 のもの（64 項目）から、(対象, 印, 上流の違い) ごとに状態文書の短いものを一つ。上流の違いは、intake.md を読む対象ではペルソナ、unit\_test では goal の実装の変種。acceptance は主経路の実装（ok、ok\_b）の後のものに限る（requirement\_unmet の代表は REQ-1 の誤りを見つけるので ok\_fixed とは組まない）
+- 項目の数: 30。intake 2（vague\_founder の goal と unknown）、analyze 7（goal と needs\_unclear を三つのペルソナで 6、vague\_founder の unknown 1）、discovery のゲート 3（ペルソナ）、design 3（goal、requirements\_gap、unknown）、unit\_test 3（defective を ok、ok\_b、ok\_fixed の後で）、acceptance 12（四つのクラスを三つのペルソナで）。ステージ 27、ゲート 3
+- human-labeling.md: 冒頭に読み方（印を探さず、選択肢の記述だけで選ぶ。迷った時は unknown と書き、理由を添える）、選んだ項目の範囲と数、ラベルを付けた後の手順。項目ごとに id、対象と訪問、印を除いた状態文書（`unmarked(item.state)`）、選択肢（id と記述）、空の「ラベル:」。並びは対象ごとで、対象の中は項目の id の順（クラスの順ではない）。印は無い（テストで確かめる）。コーパスの source からは分類器の選択（印と同じ）を除いた
+- 比べる仕組み: `python -m software_factory.labeling labels --labeler <名前>` が「ラベル:」の最初の id を読み、選択肢に無い id は誤りにして、docs/human-labels.jsonl（label.schema.json の形）を書く。`python -m software_factory.labeling compare` が `oracle_report(MarkerClassifier(), corpus, labels)` と食い違う項目を出す。ラベルのファイルが無ければ「ラベルのファイルが無い」と報告して 1 で終わる（スキップしない。今はこの状態）。`write` が材料を作り直す（埋めた「ラベル:」は空になる）。人が手で書くのは「ラベル:」の行だけで、埋めた後も test\_labeling.py は通る（「ラベル:」を空にして作り直したものと比べる）。ラベルのファイルがあれば、項目と選択肢に合い、human-labeling.md の「ラベル:」と同じであることを確かめる
+
+変わった数値:
+
+- unknown 以外の end\_state: 13 → 12。定義の上のロールバックの辺: 13 → 12。E2E のカバレッジの (ステージ, クラス): 31 → 30（往復 10 の前と同じ）
+- シナリオ: 17 本のまま（unit\_test\_defective\_self\_rollback は tests\_insufficient の辺を通す形に）。戻った直後の訪問の expect.starts に carry する記憶を空でない値で持つ辺: 往復 10 は 13 本のうち 9、往復 11 は 12 本のすべて（新しいテストを直す前に走らせて、欠けていた 4 本を確かめた）
+- 人がラベルを付ける材料: 30 項目（新しい）
+- 分布テストの観測値、独立性検証と入り方の検定の p 値、マルコフ合成の比較: 変わらない（markov と divergent の分布、種、変種の選び方を変えていない）。オラクル: ステージの 123 項目、既知の混同行列の分類器は κ 0.603、ECE 0.275、答え無し 6、揺れる分類器の一致率 0.748（往復 10 と同じことを独立に計算して確かめた）
+- 例のテスト: 188 → 197 件（tests/test\_labeling.py の 7 件、test\_stochastic.py の defective の 1 件、test\_scenarios.py の carry の 1 件を足し、test\_definition.py の unit\_test の分割のテストを取り消しの形のテストに置き換えた）
+
+検証:
+
+1. 先に完了条件をテストにした: unit\_test の記述が往復 10 の前の形（end\_state、rollback、記憶、goal と construction のゲートの文）であること、test\_report.md の節が三つで印のクラスの節だけが埋まること（test\_definition.py）、defective が tests\_insufficient の確率 0 の代表であること（test\_stochastic.py）、ロールバックの辺が 12 本で、すべての辺に戻った直後の carry の expect.starts があること（test\_scenarios.py）、E2E の (ステージ, クラス) が 30 で誘発の目標が誘発で踏まれること（test\_e2e.py）、人がラベルを付ける材料と比べる仕組み（test\_labeling.py）。直す前に 6 件が落ち、test\_labeling.py は labeling.py が無いので収集で落ちることを確かめた
+2. G-1 の後、`git diff 08f79b4 -- examples/software-factory/workflow.yaml` が空であることを確かめた
+3. N15: 鍵の並びを変えた 7 通りのシナリオを `load_scenario` で読み、より長い鍵の内容になることを確かめてから、ok\_files\_by\_file を外してシナリオを作り直した。作り直したシナリオのうち往復 10 の前からある 15 本の、08f79b4 との差は、足した expect.starts（と YAML の別名）だけ
+4. 戻った直後の訪問の expect.starts を足した三本と unit\_test\_defective\_self\_rollback で、持ち帰った記憶の期待を空の一覧に書き換えると、どれも開始時スナップショットの記憶の食い違いで落ちることを、スクラッチで確かめた（持ち帰った記憶を実際に確かめている）
+5. plan\_tasks/incomplete: シナリオ plan\_tasks\_design\_incomplete\_rollback を走らせ、置き場から plan\_tasks の訪問 1 の状態文書を読み、印を除いて記述だけで読んだ（design\_incomplete に当たる。README）
+6. オラクルの数値（123 項目、κ 0.603、ECE 0.275、答え無し 6、一致率 0.748）を、フィクスチャを戻した後に独立に計算し直して確かめた
+7. defective（implement の ok の後）の状態文書を、往復 10 の前の記述だけで読んだ。goal は指標で外れ、impl\_defect は落ちるテストの期待が REQ-2 に反し、記憶 failing\_tests と「## 失敗」も空なので当たらず、tests\_insufficient（要件に反する期待を持つテストが記憶 coverage\_gaps と「## 未網羅」に列挙）に当たる。エージェントが読んだもので、人手のラベルは材料（unit\_test の 3 項目）で受け取る
+8. 人がラベルを付けた後を試した: 印どおりの試しのラベル（ゲートは goal）を human-labeling.md の「ラベル:」に理由つきで埋め、`labels` で docs/human-labels.jsonl を作り（30 件）、`compare` で κ 1.000、食い違い 0 件。この状態で test\_labeling.py が通ることを確かめ（最初は、空の「ラベル:」を前提にした二つのテストが落ちたので、`write` が作る形を使うように直した）、材料を元に戻してラベルのファイルを消した
+9. 例のテストは 197 件すべて通る。ruff check、ruff format、mypy strict も例の中で通る
+10. check.sh が通る（ruff check、ruff format、mypy strict、pytest 660 件で 139.3 秒、全体で約 2 分 20 秒）
+
+手引きと公開 API の文書だけでは判断できなかったこととして、変えた所に絞ってラベルを付け直す時にコーパスのどの項目を人に渡すか（N16）を adopting-gaps.md に書いた。
+
 ## 残っていること
 
 - markov.yaml の実行のゲートはいつも goal（前の数値を保つため）。ゲートの分布は markov\_gated.yaml の実行の集まりで確かめる
 - release 以外で carry によって分布が変わる本体は、マルコフ合成と合わないので例には置いていない（gaps D2）。entry\_dependence がそれを見分けることはスクラッチで確かめた（gaps N9）
 - 分類器の検証の閾値は、偽の分類器なので決めていない（第15節の「人間が閾値を決める」は実際の分類器の時の手順）
-- 記述と代表の整合は、試しのラベル（エージェント）で κ 1.0（往復 8 は 56 項目、往復 10 は変えた所の 32 項目）。人手のラベルではないので、第15.1節の手順は人間がする（人間の回答でもまだ）
-- 往復 10 で足した tests\_defective と、絞った tests\_insufficient の記述と境界は、人間がもう一度確かめる（README の「人間のレビューで確かめてほしいこと」）
+- 記述と代表の整合の人手のラベル: docs/human-labeling.md の 30 項目に人がラベルを付ける（まだ）。受け取ったら `python -m software_factory.labeling labels --labeler <名前>` と `compare` で印と比べ、食い違いがあれば代表か記述を直す（記述を直すのは人間の承認の後）。これまでの試しのラベル（エージェント）は往復 8 の 56 項目と往復 10 の 32 項目で、どちらも κ 1.0
 - plan\_tasks の design\_incomplete は、人間の回答で、記述を変えず確率的な代表を置かない今の形のまま残すと決まった（E2E の注入とシナリオで踏む）
-- tests\_defective は確率的な実行に出ない（分布に置いていない）。出すかどうかは README に提案として書いた
+- 不足と不備を分けて数えることは、記述を変えずに coverage\_gaps の項目の書き方で区別できる（第13節。任意）。今はしていない

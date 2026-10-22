@@ -1,4 +1,4 @@
-[[class unit_test=tests_defective]]
+[[class unit_test=tests_insufficient]]
 # 単体テストの記録
 
 ## テスト
@@ -7,8 +7,5 @@
 ## 失敗
 （なし）
 
-## 不備
-- test_amount_code_subtracts_the_whole_amount: 小計 300 円に OFF500 で -200 円を期待しているが、REQ-2 は支払額が 0 円を下回らない（受け入れ基準は 0 円）。期待が要件に反するので、このテストは落ちる。repo/src/ ではなくテストが誤っている
-
 ## 未網羅
-（なし）
+- test_amount_code_subtracts_the_whole_amount: 小計 300 円に OFF500 で -200 円を期待しているが、REQ-2 は支払額が 0 円を下回らない（受け入れ基準は 0 円）。期待が要件に反するので、このテストは落ちる。repo/src/ ではなくテストが誤っている

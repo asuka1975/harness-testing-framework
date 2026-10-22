@@ -44,7 +44,6 @@ visits:
     memory:
       failing_tests: []
       coverage_gaps: []
-      test_defects: []
   acceptance#1:
     fixture: acceptance/ok
     classify: *id001

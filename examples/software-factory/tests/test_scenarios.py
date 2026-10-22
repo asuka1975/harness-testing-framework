@@ -1,7 +1,8 @@
 """software-factory の遷移の決定論テスト。
 
 - 遷移の六種をすべて通す（フェーズ境界越えは、定義の上の六本の辺のすべてと、運用者による越境）
-- 定義の上のロールバックの辺 13 本をすべて通す（unit_test の tests_defective と、plan_tasks の design_incomplete を含む）
+- 定義の上のロールバックの辺 12 本をすべて通す（自分自身への辺と、plan_tasks → design を含む）。どの辺についても、戻った直後の
+  訪問の開始時スナップショットを expect.starts で確かめ、carry する記憶が空でない値で届く
 - escalate の四つの選択が動く
 - 指標は実在のツール（pytest、coverage、ruff、compileall）で測り、その値で選択肢から goal が外れることも確かめる
 - 記録再生で同一のスナップショットが得られる
@@ -78,8 +79,9 @@ def test_crossing_rollbacks_from_every_later_phase(tmp_path: Path) -> None:
 
 
 def test_every_rollback_edge_is_taken(tmp_path: Path) -> None:
-    """定義の上のすべてのロールバックの辺（13 本。自分自身への辺と、同じフェーズの中の plan_tasks → design を含む）を、
-    どれかのシナリオが通る。持ち帰る記憶が戻り先の開始時スナップショットに届くことは、各シナリオの expect.starts が確かめる。"""
+    """定義の上のすべてのロールバックの辺（12 本。自分自身への辺と、同じフェーズの中の plan_tasks → design を含む）を、
+    どれかのシナリオが通る。持ち帰る記憶が戻り先の開始時スナップショットに届くことは、下の
+    test_every_rollback_edge_has_its_carry_checked_at_the_next_start が確かめる。"""
     doc: Any = load_workflow_document(WORKFLOW)
     edges = {
         (stage["id"], rb["stage"], rb["state"])
@@ -93,8 +95,38 @@ def test_every_rollback_edge_is_taken(tmp_path: Path) -> None:
             match = re.fullmatch(r"rollback (\S+) -> (\S+) \[(\S+) \d+\]( crossing)?", line)
             if match:
                 taken.add((match[1], match[2], match[3]))
-    assert len(edges) == 13
+    assert len(edges) == 12
     assert taken == edges, edges - taken
+
+
+def test_every_rollback_edge_has_its_carry_checked_at_the_next_start() -> None:
+    """定義の上のすべてのロールバックの辺について、どれかのシナリオが、その辺で戻った直後の戻り先の訪問の開始時スナップ
+    ショットを expect.starts に持ち、carry するすべての記憶を空でない値で期待する。シナリオが期待どおりに動くこと（実行
+    記録の要約と開始時スナップショットの一致）は test_scenario が確かめるので、ここでは期待の側だけを読む。"""
+    doc: Any = load_workflow_document(WORKFLOW)
+    carry = {
+        (stage["id"], rb["stage"], rb["state"]): rb["carry"]
+        for phase in doc["workflow"]["phases"]
+        for stage in phase["stages"]
+        for rb in stage["rollback"]
+    }
+    checked: set[tuple[str, str, str]] = set()
+    for path in PATHS:
+        expect = load_scenario(path).expect
+        lines = expect.trace
+        for i, line in enumerate(lines):
+            match = re.fullmatch(r"rollback (\S+) -> (\S+) \[(\S+) \d+\]( crossing)?", line)
+            if not match:
+                continue
+            edge = (match[1], match[2], match[3])
+            start = next(x for x in lines[i + 1 :] if x.startswith(f"start {edge[1]}#"))
+            visit = start.removeprefix("start ")
+            if visit not in expect.starts:
+                continue
+            memory = expect.starts[visit].get("memory", {})
+            if all(memory.get(item) for item in carry[edge]):
+                checked.add(edge)
+    assert checked == set(carry), set(carry) - checked
 
 
 @pytest.mark.parametrize("name", ["happy_path_user_suspend", "construction_rollbacks"])

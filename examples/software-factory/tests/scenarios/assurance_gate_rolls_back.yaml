@@ -4,9 +4,9 @@ description: review は goal に達するが、assurance のゲートの分類�
 workflow: ../../workflow.yaml
 seed: 11
 inputs:
-  feature_request.md:
+  feature_request.md: &id008
     from: ../fixtures/inputs/feature_request.md
-  repo/:
+  repo/: &id009
     from: ../fixtures/inputs/repo/
 visits:
   intake#1:
@@ -18,17 +18,17 @@ visits:
     fixture: analyze/ok
     classify: *id001
     memory:
-      intake_questions: []
+      intake_questions: &id010 []
   design#1:
     fixture: design/ok
     classify: *id001
     memory:
-      requirement_gaps: []
+      requirement_gaps: &id011 []
   plan_tasks#1:
     fixture: plan_tasks/ok
     classify: *id001
     memory:
-      design_issues: []
+      design_issues: &id012 []
   implement#1:
     fixture: implement/ok
     classify: *id001
@@ -41,18 +41,17 @@ visits:
     memory:
       failing_tests: &id004 []
       coverage_gaps: &id005 []
-      test_defects: &id006 []
   acceptance#1:
     fixture: acceptance/ok
     classify: *id001
     memory:
-      unmet_requirements: &id007 []
-      requirement_gaps: &id008 []
+      unmet_requirements: &id006 []
+      requirement_gaps: &id007 []
   review#1:
     fixture: review/ok
     classify: *id001
     memory:
-      review_findings: &id009
+      review_findings: &id013
       - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
       design_issues: []
   implement#2:
@@ -67,13 +66,12 @@ visits:
     memory:
       failing_tests: *id004
       coverage_gaps: *id005
-      test_defects: *id006
   acceptance#2:
     fixture: acceptance/ok
     classify: *id001
     memory:
-      unmet_requirements: *id007
-      requirement_gaps: *id008
+      unmet_requirements: *id006
+      requirement_gaps: *id007
   review#2:
     fixture: review/ok
     classify: *id001
@@ -152,6 +150,27 @@ expect:
   - gate_pass release
   - complete
   - end completed
+  starts:
+    implement#2:
+      files:
+        feature_request.md: *id008
+        repo/: *id009
+        intake.md:
+          from: ../fixtures/intake/ok/intake.md
+        requirements.md:
+          from: ../fixtures/analyze/ok/requirements.md
+        design.md:
+          from: ../fixtures/design/ok/design.md
+        tasks.yaml:
+          from: ../fixtures/plan_tasks/ok/tasks.yaml
+      memory:
+        intake_questions: *id010
+        requirement_gaps: *id011
+        design_issues: *id012
+        review_findings: *id013
+      gates:
+      - discovery
+      - architecture
   options:
     phase:assurance#1:
     - goal
@@ -159,4 +178,4 @@ expect:
     - changes_requested
     - unknown
   memory:
-    review_findings: *id009
+    review_findings: *id013

@@ -14,8 +14,8 @@
 # metrics_fail は、その変種の成果物（上流は goal の変種）に実在の指標をかけた時に落ちる、ステージの goal の指標
 # （test_metrics.py が確かめる）。goal の変種は全部通る。
 #
-# variants には、どの分布（profiles）にも置かない変種もある（unit_test の defective）。確率的な実行には現れず、E2E の
-# カバレッジの誘発とシナリオが写す。
+# variants には、分布テストの分布（markov、divergent）に置かない変種もある（unit_test の defective）。確率的な実行には
+# 現れず、シナリオと、人がラベルを付ける材料の試しの実行（profiles の labeling）が写す。
 #
 # 分布テスト（expectations）、独立性検証、マルコフ合成の期待は、この表から導く。
 
@@ -81,10 +81,10 @@ variants:
         impl_violations: []
     unknown: {class: unknown, memory: {task_questions: [], impl_violations: []}}
   unit_test:
-    ok: {class: goal, memory: {failing_tests: [], coverage_gaps: [], test_defects: []}}
+    ok: {class: goal, memory: {failing_tests: [], coverage_gaps: []}}
     thin:
       class: tests_insufficient
-      memory: {failing_tests: [], coverage_gaps: [REQ-1、REQ-2、REQ-3 の受け入れ基準にテストが無い], test_defects: []}
+      memory: {failing_tests: [], coverage_gaps: [REQ-1、REQ-2、REQ-3 の受け入れ基準にテストが無い]}
       metrics_fail: [line_coverage]
     defect:
       # 実装の系統（families）ごとに、写すフィクスチャとクラスが分かれる
@@ -95,24 +95,23 @@ variants:
           memory:
             failing_tests: ["test_percent_discount_rounds_the_discount_down: 333 円の PCT10 が 299 円になる（期待 300 円）"]
             coverage_gaps: []
-            test_defects: []
           metrics_fail: [tests_pass]
         correct:
           fixture: defect_passed
           class: goal
-          memory: {failing_tests: [], coverage_gaps: [], test_defects: []}
-    # tests_defective の代表。どの分布（profiles）にも置かない（確率 0。確率的な実行には現れない）。往復 10 で tests_defective
-    # を tests_insufficient から分けた時、今の不足の代表（thin）は新しい境界でも不足だったので、分布と設計値を変えなかった
-    # （README）。E2E のカバレッジの誘発と、シナリオ unit_test_defective_self_rollback が写す。test_metrics.py が指標を確かめる。
-    # 要件に反する期待（REQ-2 の 0 円の下限に反して -200 円を期待する）のテストは、どちらの実装の系統でも落ちる
+          memory: {failing_tests: [], coverage_gaps: []}
+    # tests_insufficient の二つ目の代表で、テストの不備（要件に反する期待を持つテスト）を「## 未網羅」と記憶 coverage_gaps に
+    # 書く（thin は不足の代表）。分布テストの分布（markov、divergent）には置かない（確率 0）ので、分布、設計値、基準は変えない。
+    # 往復 10 で tests_defective の代表として足し、往復 11 で分割の取り消し（docs/review-findings.md の G）に合わせてこの形に
+    # した。シナリオ unit_test_defective_self_rollback と、人がラベルを付ける材料の試しの実行（profiles の labeling）が写し、
+    # test_metrics.py が指標を確かめる。REQ-2 の 0 円の下限に反して -200 円を期待するテストは、どちらの実装の系統でも落ちる
     defective:
-      class: tests_defective
+      class: tests_insufficient
       memory:
         failing_tests: []
-        coverage_gaps: []
-        test_defects: ["repo/tests/test_discount.py の test_amount_code_subtracts_the_whole_amount: 小計 300 円に OFF500 で -200 円を期待しているが、REQ-2 は支払額が 0 円を下回らない（受け入れ基準は 0 円）。期待が要件に反するので、このテストは落ちる"]
+        coverage_gaps: ["repo/tests/test_discount.py の test_amount_code_subtracts_the_whole_amount: 小計 300 円に OFF500 で -200 円を期待しているが、REQ-2 は支払額が 0 円を下回らない（受け入れ基準は 0 円）。期待が要件に反するので、このテストは落ちる"]
       metrics_fail: [tests_pass]
-    unknown: {class: unknown, memory: {failing_tests: [], coverage_gaps: [], test_defects: []}}
+    unknown: {class: unknown, memory: {failing_tests: [], coverage_gaps: []}}
   acceptance:
     ok: {class: goal, memory: {unmet_requirements: [], requirement_gaps: []}}
     unmet:
@@ -219,3 +218,36 @@ profiles:
     release:
       without_carry: {ok: 0.75, incomplete: 0.23, unknown: 0.02}
       with_carry: {ok: 0.97, incomplete: 0.02, unknown: 0.01}
+
+  # 人がラベルを付ける材料（docs/human-labeling.md）を作る試しの実行の分布（adopting.md 第15.1節。software_factory/labeling.py）。
+  # 分布テスト、独立性検証、マルコフ合成には使わない。往復 10 で変えた代表と、それが届く上流の組み合わせ（三つのペルソナ、
+  # goal の実装の三つの変種）を、少ない実行で踏むように訪問 1 の分布を寄せる。分布テストの分布に無い unit_test の defective
+  # も置く。訪問 2 以降は goal に寄せて、実行を acceptance まで進める
+  labeling:
+    intake:
+      first: {ok: 0.85, unknown: 0.15}
+      again: {ok: 1.0}
+    analyze:
+      first: {ok: 0.5, unclear: 0.35, unknown: 0.15}
+      again: {ok: 1.0}
+    design:
+      first: {ok: 0.6, gap: 0.25, unknown: 0.15}
+      again: {ok: 1.0}
+    plan_tasks:
+      first: {ok: 1.0}
+      again: {ok: 1.0}
+    implement:
+      first: {ok: 0.34, ok_b: 0.33, ok_fixed: 0.33}
+      again: {ok: 0.34, ok_b: 0.33, ok_fixed: 0.33}
+    unit_test:
+      first: {ok: 0.5, defective: 0.5}
+      again: {ok: 1.0}
+    acceptance:
+      first: {ok: 0.25, unmet: 0.25, misread: 0.25, unknown: 0.25}
+      again: {ok: 1.0}
+    review:
+      first: {ok: 1.0}
+      again: {ok: 1.0}
+    release:
+      without_carry: {ok: 1.0}
+      with_carry: {ok: 1.0}

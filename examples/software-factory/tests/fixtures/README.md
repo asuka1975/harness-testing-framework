@@ -7,9 +7,10 @@
 - unit\_test/<変種>/: unit\_test が書く repo/tests/test\_discount.py と test\_report.md
 - <ステージ>/<変種>/: ほかのステージの成果物
 
-確率的な本体の分布（tests/stochastic.yaml の profiles）に無いものもある。unit\_test/defective（tests\_defective の代表）は
-E2E のカバレッジの誘発とシナリオが写し、plan\_tasks/incomplete（design\_incomplete。上流の design/gap と組む）はシナリオ
-plan\_tasks\_design\_incomplete\_rollback だけが写す。
+分布テストの分布（tests/stochastic.yaml の profiles の markov と divergent）に無いものもある。unit\_test/defective
+（tests\_insufficient の二つ目の代表。要件に反する期待を持つテスト）はシナリオ unit\_test\_defective\_self\_rollback と、
+人がラベルを付ける材料の試しの実行（profiles の labeling）が写し、plan\_tasks/incomplete（design\_incomplete。上流の
+design/gap と組む）はシナリオ plan\_tasks\_design\_incomplete\_rollback だけが写す。
 
 コードを含むフィクスチャには、意図的に lint に反するもの、構文の誤り、失敗するテスト、同じ名前のモジュールの変種がある。
 tests/fixtures/ の下はリポジトリの検査（ruff、mypy、pytest の収集）から外れる（adopting.md 第11節）ので、そのまま置く。

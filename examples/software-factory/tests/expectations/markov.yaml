@@ -12,10 +12,10 @@
 # 往復 8 で、plan_tasks の design_incomplete の変種を設計値から外した（design の goal の後に記述どおりに当たる代表が無い。
 # tests/stochastic.yaml）。plan_tasks より後の評価の数と、完了の割合、訪問の回数が変わったので、すべての基準を設計値から
 # 導き直した（種は変えていない）。
-# 往復 10 で、unit_test に end_state tests_defective を足し、tests_insufficient を不足に絞った（分類体系の変更）。今の
-# tests_insufficient の代表（thin。受け入れ基準にテストが無く、カバレッジが 80% に届かない）は新しい境界でも不足なので、
-# tests_defective は確率的な本体の分布に置かず（確率 0）、設計値と基準は変えていない（unit_test の訪問 1 の
-# tests_insufficient 0.20 もそのまま）。あわせて、注記の数字の誤り（release の訪問 1 の SE の倍数、visits_variance）を直した。
+# 往復 10 で unit_test に足した end_state tests_defective は、往復 11 で人間の決定により取り消した（unit_test の記述は
+# 往復 10 の前の文に戻った）。どちらの時も tests_defective の代表は分布に置かず、unit_test の分布、設計値、基準は変えて
+# いない（訪問 1 の tests_insufficient 0.20 もそのまま）。往復 10 で注記の数字の誤り（release の訪問 1 の SE の倍数、
+# visits_variance）を、往復 11 で implement の訪問の回数の丸め（1.673）を直した。
 expectations: software-factory-markov
 description: markov の確率的な偽ステージ本体での、評価の結果の出現率、実行の最後の状態、訪問の回数
 workflow: ../../workflow.yaml
@@ -93,7 +93,7 @@ criteria:
     status: completed
     min: 0.62
     max: 0.77
-  # synthesize の厳密な値 1.674、訪問の回数の標準偏差 1.165（visits_variance 1.358）、SE 0.0583。下側 3.3 SE、上側 3.2 SE
+  # synthesize の厳密な値 1.673（1.67349）、訪問の回数の標準偏差 1.165（visits_variance 1.358）、SE 0.0583。下側 3.3 SE、上側 3.2 SE
   - kind: mean_visits
     target: implement
     min: 1.48

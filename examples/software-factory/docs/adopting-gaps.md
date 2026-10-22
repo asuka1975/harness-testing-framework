@@ -1,21 +1,27 @@
 # adopting.md の不足の記録（software-factory）
 
-software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。最初の版（30 項目、A1〜F2）を受けてフレームワークの側が直したので往復 1 で確かめ直し、そこで見つけた N1〜N7 を往復 2 で、往復 2 で見つけた N8、N9 を往復 3 で、往復 3 で見つけた N10 を往復 4 で、往復 4 で見つけた N11 を往復 5 で確かめ直した。往復 6 では、検証役による workflow.yaml の事前レビューと基準の確認の指摘（docs/review-findings.md）に対応し、そこで分かった不足を N12 に書いた。往復 7 で N12 を確かめた。往復 8 では、完了判定の指摘（review-findings.md の E）に対応し、そこで分かった不足を N13 に書いた。往復 9 で N13 を確かめた。往復 10 では、人間のレビューの回答と完了判定の二回目の指摘（review-findings.md の F）に対応し、そこで分かった不足を N14、N15 に書いた。
+software-factory を作る途中で、docs/adopting.md（と、それが指す公開 API の文書、examples/toy-minimal/）だけでは判断できなかったこと、足りなかったこと、回避したくなったことの記録。最初の版（30 項目、A1〜F2）を受けてフレームワークの側が直したので往復 1 で確かめ直し、そこで見つけた N1〜N7 を往復 2 で、往復 2 で見つけた N8、N9 を往復 3 で、往復 3 で見つけた N10 を往復 4 で、往復 4 で見つけた N11 を往復 5 で確かめ直した。往復 6 では、検証役による workflow.yaml の事前レビューと基準の確認の指摘（docs/review-findings.md）に対応し、そこで分かった不足を N12 に書いた。往復 7 で N12 を確かめた。往復 8 では、完了判定の指摘（review-findings.md の E）に対応し、そこで分かった不足を N13 に書いた。往復 9 で N13 を確かめた。往復 10 では、人間のレビューの回答と完了判定の二回目の指摘（review-findings.md の F）に対応し、そこで分かった不足を N14、N15 に書いた。往復 11 では、人間の決定（review-findings.md の G）に対応し、N14、N15 を確かめ（どちらも解消）、そこで分かった不足を N16 に書いた。
 
-読んだのは adopting.md、api.md、api-reference.md、examples/toy-minimal/、schema/workflow.schema.json、contract/ の文書と形式（contract.md、README.md、conformance/ の下のすべて、formats/ と trace と snapshot の schema）だけ。往復 2 と往復 3 では、これらの文書の変更を git の差分で見た（読んでよい文書に限る。往復 3 はコミット前の作業ツリーとの差分）。フレームワーク本体の実装（src/、tests/、scripts/、pyproject.toml、conftest.py の中身を含む）、plan.md、progress.md、decisions.md、reports/ は読んでいない。本体について知ったことは、公開の名前の signature と docstring、`scripts/check.sh` と本体のテスト（tests/test\_package.py だけ）を実行した時の出力、cProfile の出力（関数の名前と時間）からだけ。本体は直していない。回避策はこの例の中にだけ置いた。
+読んだのは adopting.md、api.md、api-reference.md、examples/toy-minimal/、schema/workflow.schema.json、contract/ の文書と形式（contract.md、README.md、conformance/ の下のすべて、formats/ と trace と snapshot の schema）だけ。往復 2 と往復 3 では、これらの文書の変更を git の差分で見た（読んでよい文書に限る。往復 3 はコミット前の作業ツリーとの差分）。往復 11 でも、往復 10 の前（08f79b4）からの adopting.md、changelog.md、contract/ の差分を見た。フレームワーク本体の実装（src/、tests/、scripts/、pyproject.toml、conftest.py の中身を含む）、plan.md、progress.md、decisions.md、reports/ は読んでいない。本体について知ったことは、公開の名前の signature と docstring、`scripts/check.sh` と本体のテスト（tests/test\_package.py だけ）を実行した時の出力、cProfile の出力（関数の名前と時間）からだけ。本体は直していない。回避策はこの例の中にだけ置いた。
 
 ## 未解消
 
-- **N14 クラスの粒度を、独立性検証の結果以外の理由で変えてよいかが、手引きに無い**（往復 10）
-  - adopting.md 第13節は「クラスの粒度は、この検証の結果でのみ変える。分類体系の変更は人間の承認が要る」と書く。第2.1節は end\_state を「どこへ戻れば直せるかが分かっている状態」とし、各クラスに戻り先が一つずつあるとする
-  - 往復 10 で人間が採った変更（unit\_test の tests\_insufficient から tests\_defective を分ける）は、独立性検証の violated から出たものではない。分けた二つは戻り先も同じ（unit\_test 自身）で、違うのは持ち帰る記憶と、不足と不備を分けて数えたいという運用の理由だけ。字義どおりに読むと、第13節はこの分け方を禁じる
-  - 人間の承認（F-1）があったので判断には困らなかったが、手引きだけでは「承認があっても第13節に反するのでは」と迷う。どちらとも読める点: (a) 第13節の「この検証の結果でのみ」は、確率的な振る舞い（下流の分布）を理由にした粒度の変更に限る話なのか、(b) 戻り先が同じで持ち帰る記憶や直し方が違うクラスを分けることは第2.1節の「クラスごとに戻り先が一つ」の範囲で許されるのか
-  - 分けた後に何を確かめ直すかも書かれていない。この例では、第15.1節の試しのラベル（新しい境界で）、E2E のカバレッジの (ステージ, クラス) の増加、新しいクラスを確率的な本体に置くかどうか（置けば設計値と基準を導き直す。置かなければ E2E とシナリオで踏む）、記憶の節と記憶の名前の追加、フェーズゲートの記述（最終ステージの成果物の節を分けたので、ゲートの goal の文も合わせた）を確かめた
-  - 回避はしていない（人間の承認で分けた）。手引きに、分類体系を変える理由の範囲と、変えた後に確かめることの一覧があるとよい
-- **N15 シナリオの files で、ディレクトリの参照とその下のファイルの鍵が重なる時の扱いが書かれていない**（往復 10）
-  - contract/conformance/README.md の「ファイルの内容」は、鍵が `/` で終わる参照はその下のすべてのファイルを置く、と書くが、同じ files にその下のファイルの鍵（`repo/src/shopcart/cart.py`）もある時に、どちらの内容になるか、シナリオの誤りになるかを書いていない
-  - 往復 10 のシナリオ unit\_test\_defective\_self\_rollback の expect.starts は、inputs の repo/ の上に implement が書き換えた repo/src/ のファイルが重なる。重なりに頼らないように、inputs をファイルごとに展開して書いた（software\_factory/scenarios.py の ok\_files\_by\_file）。軽い回避策で、例の中にある
-  - 試すと、`repo/` のディレクトリの参照と、その下のファイルの参照を同じ files に書いても誤りにならず、ファイルの鍵の内容になった（YAML の鍵の並びではディレクトリの鍵が先。後に書いた鍵が勝つのか、より具体的な鍵が勝つのかは、この試しでは分からない）。決まった規則なら文書に書いてほしい
+- **N16 変えた所に絞ってラベルを付け直す時に、コーパスのどの項目を人に渡すかが書かれていない**（往復 11）
+  - adopting.md 第13節は、クラスを変えた後に「第15.1節の手順で、変えた所の代表にラベルを付け直す」と書く。第15.1節の 1 は「全変種を踏む実行の集まりから…コーパスを作る。上流の違いで状態文書が変わるなら、それぞれが別の項目」で、確率的な実行に置かない代表は試しの実行で入れる、までを書く。どちらも、できたコーパスのどの項目を人に渡すかは書いていない
+  - 変えた成果物が上流のものだと、下流のほとんどの状態文書がそれを含む。この例の試しの実行（120 回）のコーパスは `unique_states=True` で 170 項目で、そのうち 162 項目が往復 10 で変えた代表のどれかを含む（REQ-3 を直した requirements.md は、それを reads に持つ 7 ステージとゲートの状態文書に入る）。全部を人に渡すと「全部の付け直し」に近い
+  - この例では、人間の決定（review-findings.md の G-6 の列挙: analyze、discovery のゲート、acceptance など）に沿って、(1) 変えた代表を状態文書に含み、(2) 記述がその内容を証拠に使う対象の、(3) 訪問 1 の評価から、(4) (対象, 印, 上流の違い) ごとに一つ（状態文書の短いもの）を選んだ（30 項目。README の「記述と代表の整合」、software\_factory/labeling.py）。手引きだけでは、(2) の「証拠に使う」の範囲、(3) 訪問 2 以降（持ち帰った問いの回答が加わる状態文書）を省いてよいか、(4) 同じ (対象, 印, 上流の違い) の項目を一つにまとめてよいかを決められなかった
+  - 小さなこと: `CorpusItem.source` は分類器の選択を含み、MarkerClassifier の下ではそれが印そのものになる。`save_corpus` で書いたコーパスを人に渡すと印が見える。第15.1節の 2 は「`unmarked(item.state)` と `item.options` だけを読んで」と書くので判断はできた（この例では、材料のコーパスの source から選択を除き、人には human-labeling.md だけを渡す）が、人に渡す形を作る時に source を見せないことを書くとよい
+  - 回避はしていない（選び方はこの例の判断）。手引きに、変えた所に絞る時の選び方の目安（対象、訪問、上流の違いの扱い）があるとよい
+
+## 解消済み（往復 11）
+
+- **N14 クラスの粒度を、独立性検証の結果以外の理由で変えてよいかが、手引きに無い**: 解消。adopting.md 第13節の「violated が出たら」の下に二つが足された（changelog.md の「未公開」の最後）。一つは「戻り先が同じで、運用の上で分けて数えたいだけ（たとえば、テストの不足とテストの誤り）なら、クラスは分けない。持ち帰る記憶の項目の中で区別し、記憶の中身で数える。クラスは下流の振る舞いに関する同値類で、集計のための分類ではない」。もう一つは、クラスを変えた後（分割、統合、記述の意味の改訂）に確かめることの一覧。読んで確かめた: 往復 10 で迷った二点は、どちらも一つ目で決まる。往復 10 の分割（戻り先が同じ unit\_test 自身で、違いは分けて数えたいことだけ）は書かれた例そのもので、手引きだけで「分けない」と判断できる。(a)「この検証の結果でのみ」が運用の理由を含むかは、集計の都合は理由にならないと明示されて決まった。(b) 戻り先が同じクラスを分けてよいかも、分けずに記憶の項目で区別すると決まった。分けた後に何を確かめるかは二つ目の一覧にある。往復 11 で、取り消し（記述を往復 10 の前の文に戻す、統合で記述の意味の改訂）に一覧を当てはめた
+  - 整合性検査（第3節）: tests/test\_definition.py が違反も警告も無いことを確かめる。rollback、carry、記憶の生成と消費は、記憶 test\_defects と tests\_defective の辺が無くなって往復 10 の前の形
+  - 記述の分け方と優先（第2.1節）、description の「訪問のたびに必ず書く」、フェーズゲート（第2.4節）: 人間が承認した往復 10 の前の文に一字も変えずに戻した（`git diff 08f79b4 -- examples/software-factory/workflow.yaml` が空）。最終ステージの成果物の節（test\_report.md の「## 不備」）を戻したので、construction のゲートの goal も戻した
+  - 偽の本体の代表（第12節）: tests\_insufficient は確率的な実行の代表 thin のまま。defective は tests\_insufficient の確率 0 の代表にし（不備を「## 未網羅」と coverage\_gaps に書く）、シナリオ unit\_test\_defective\_self\_rollback で空でない記憶を持って戻る辺を踏む。分布、設計値、基準は変えていない
+  - 独立性検証と E2E のカバレッジ（第14節）: E2E の (ステージ, クラス) は 31 → 30。独立性検証、入り方の検定、マルコフ合成は check.sh でやり直して通る（markov と divergent の分布を変えていないので値も往復 10 と同じ）
+  - 第15.1節の付け直し: 人に渡す材料（docs/human-labeling.md）に、defective を三つの実装の変種の後で読む unit\_test の 3 項目を入れた。分類器の検証のコーパスの人手のラベルと、トリアージの判定で tests\_defective を指すものは無い（この例のラベルと判定は、テストの実行の時に印から作る。examples/software-factory の中を tests\_defective で検索して、往復の記録の文書と、取り消しを述べる docstring と注記のほかに残りが無い）
+- **N15 シナリオの files で、ディレクトリの参照とその下のファイルの鍵が重なる時の扱いが書かれていない**: 解消。contract/conformance/README.md の「ファイルの内容」に「同じパスに鍵が重なる時（ディレクトリの鍵と、その下のファイルの鍵や、より深いディレクトリの鍵）は、より長い鍵（そのパスに最も具体的な鍵）の内容になる。鍵の並びにはよらない」が足され、changelog.md の「互換性に注意する変更」に、前は鍵の並びで後に書いたものになっていたことが載った。試した（スクラッチ）: inputs に repo/（inputs の repo）、repo/src/（implement の ok\_fixed の src）、repo/src/shopcart/discount.py（implement の ok の discount.py）の二つか三つを、並びを変えて 7 通り書き、`load_scenario` の結果を見た。どの並びでも discount.py は最も長い鍵（ファイル）の ok の内容、cart.py は repo/src/ の ok\_fixed の内容、ほかは repo/ の内容になった。回避（software\_factory/scenarios.py の ok\_files\_by\_file。inputs の repo/ をファイルごとに展開する）を外し、ok\_files が inputs の repo/ の参照に implement と unit\_test のフィクスチャのファイルの参照を重ねる形にした。シナリオ unit\_test\_defective\_self\_rollback の expect.starts と、往復 11 で足した construction\_rollbacks の unit\_test#2、release\_notes\_self\_rollback の release#2 の expect.starts はこの重ね方で書き、通る。作り直したシナリオの YAML の、往復 10 の前（08f79b4）にもあった 15 本との差は、足した expect.starts（と YAML の別名）だけ
 
 ## 解消済み（往復 9）
 

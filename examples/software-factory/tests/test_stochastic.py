@@ -25,6 +25,7 @@ from software_factory.stages.probabilistic import (
     TABLE,
     WORKFLOW_MODEL,
     choose_variant,
+    fixture_dir,
     run_set,
     runtime,
 )
@@ -47,6 +48,24 @@ def test_table_distributions_sum_to_one() -> None:
             for key, dist in keys.items():
                 assert math.isclose(sum(dist.values()), 1.0), (stage, key, dist)
                 assert set(dist) <= set(TABLE["variants"][stage]), (stage, key)
+
+
+def test_defective_tests_are_a_zero_probability_insufficient_variant() -> None:
+    """unit_test の変種 defective（REQ-2 の 0 円の下限に反する期待を持つテスト）は、tests_insufficient の代表で、分布テストの
+    分布（markov、divergent）には置かない（確率 0。分布、設計値、基準を変えない）。不備は記憶 coverage_gaps と test_report.md の「## 未網羅」に書く
+    （docs/review-findings.md の G-2）。シナリオ unit_test_defective_self_rollback と、人がラベルを付ける材料が写す。"""
+    spec = TABLE["variants"]["unit_test"]["defective"]
+    assert spec["class"] == "tests_insufficient"
+    assert spec["memory"]["failing_tests"] == []
+    assert spec["memory"]["coverage_gaps"]
+    for name in ("markov", "divergent"):
+        dists = TABLE["profiles"][name]["unit_test"].values()
+        assert all("defective" not in dist for dist in dists), name
+    report = (fixture_dir("unit_test", "defective") / "test_report.md").read_text("utf-8")
+    assert report.startswith("[[class unit_test=tests_insufficient]]\n")
+    assert report.split("## 未網羅\n", 1)[1].startswith(
+        "- test_amount_code_subtracts_the_whole_amount"
+    )
 
 
 def test_choice_depends_only_on_the_seed() -> None:

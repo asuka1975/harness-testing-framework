@@ -52,8 +52,7 @@ def _script(stage: str, variant: str, family: str = "rounds_total") -> dict[str,
 GOAL = {s.id: _script(s.id, "ok") for s in WORKFLOW_MODEL.stages}
 GOAL["intake"] = {**GOAL["intake"], "ask": list(QUESTIONS)}
 # (ステージ, クラス) → 誘発に使う変種。intake と review の unknown は誘発の手段を用意せず、注入で踏む。plan_tasks の
-# design_incomplete は、確率的な本体の代表を置かない（上流の goal の代表と両立しない。tests/stochastic.yaml）ので、注入で踏む。
-# unit_test の tests_defective の変種 defective は、確率的な本体の分布には置かず（確率 0）、こことシナリオで踏む
+# design_incomplete は、確率的な本体の代表を置かない（上流の goal の代表と両立しない。tests/stochastic.yaml）ので、注入で踏む
 INDUCED = {
     ("analyze", "needs_unclear"): "unclear",
     ("analyze", "unknown"): "unknown",
@@ -64,7 +63,6 @@ INDUCED = {
     ("implement", "quality_violation"): "lint",
     ("implement", "unknown"): "unknown",
     ("unit_test", "impl_defect"): "defect",
-    ("unit_test", "tests_defective"): "defective",
     ("unit_test", "tests_insufficient"): "thin",
     ("unit_test", "unknown"): "unknown",
     ("acceptance", "requirement_misread"): "misread",
@@ -86,7 +84,11 @@ def test_coverage_plan_reaches_every_stage_class(tmp_path: Path) -> None:
     report = run_coverage(plan, tmp_path, registry=REGISTRY, fixtures=FIXTURES, user=user)
     assert report.missing == []
     assert set(report.covered) == set(coverage_targets(WORKFLOW_MODEL))
+    assert len(coverage_targets(WORKFLOW_MODEL)) == 30
     assert {item.method for item in plan} == {"induce", "inject"}
+    # 誘発の台本を与えた目標は、注入ではなく誘発で踏む（実在の指標が誘発の成果物を測る）。goal は最初の全 goal の項目
+    induced = {(i.target.stage, i.target.outcome) for i in plan if i.method == "induce"}
+    assert {t for t in induced if t[1] != "goal"} == set(INDUCE)
     assert all(report.reached[item.target] for item in plan)
     assert set(user.asked) == set(QUESTIONS)
     assert len(user.asked) >= len(QUESTIONS) * len(plan)

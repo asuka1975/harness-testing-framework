@@ -4,9 +4,9 @@ description: release の CHANGELOG.md に REQ-3 が無く（実在の指標で g
 workflow: ../../workflow.yaml
 seed: 11
 inputs:
-  feature_request.md:
+  feature_request.md: &id002
     from: ../fixtures/inputs/feature_request.md
-  repo/:
+  repo/: &id003
     from: ../fixtures/inputs/repo/
 visits:
   intake#1:
@@ -18,7 +18,7 @@ visits:
     fixture: analyze/ok
     classify: *id001
     memory:
-      intake_questions: []
+      intake_questions: &id004 []
   design#1:
     fixture: design/ok
     classify: *id001
@@ -33,32 +33,31 @@ visits:
     fixture: implement/ok
     classify: *id001
     memory:
-      task_questions: []
-      impl_violations: []
+      task_questions: &id007 []
+      impl_violations: &id008 []
   unit_test#1:
     fixture: unit_test/ok
     classify: *id001
     memory:
-      failing_tests: []
-      coverage_gaps: []
-      test_defects: []
+      failing_tests: &id009 []
+      coverage_gaps: &id010 []
   acceptance#1:
     fixture: acceptance/ok
     classify: *id001
     memory:
-      unmet_requirements: []
-      requirement_gaps: []
+      unmet_requirements: &id011 []
+      requirement_gaps: &id005 []
   review#1:
     fixture: review/ok
     classify: *id001
     memory:
-      review_findings:
+      review_findings: &id012
       - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
-      design_issues: []
+      design_issues: &id006 []
   release#1:
     fixture: release/incomplete
     memory:
-      missing_notes:
+      missing_notes: &id013
       - REQ-3
     classify:
       choice: notes_incomplete
@@ -118,6 +117,49 @@ expect:
   - gate_pass release
   - complete
   - end completed
+  starts:
+    release#2:
+      files:
+        feature_request.md: *id002
+        repo/: *id003
+        intake.md:
+          from: ../fixtures/intake/ok/intake.md
+        requirements.md:
+          from: ../fixtures/analyze/ok/requirements.md
+        design.md:
+          from: ../fixtures/design/ok/design.md
+        tasks.yaml:
+          from: ../fixtures/plan_tasks/ok/tasks.yaml
+        impl_notes.md:
+          from: ../fixtures/implement/ok/impl_notes.md
+        repo/src/shopcart/cart.py:
+          from: ../fixtures/implement/ok/repo/src/shopcart/cart.py
+        repo/src/shopcart/discount.py:
+          from: ../fixtures/implement/ok/repo/src/shopcart/discount.py
+        repo/tests/test_discount.py:
+          from: ../fixtures/unit_test/ok/repo/tests/test_discount.py
+        test_report.md:
+          from: ../fixtures/unit_test/ok/test_report.md
+        verification.md:
+          from: ../fixtures/acceptance/ok/verification.md
+        review.json:
+          from: ../fixtures/review/ok/review.json
+      memory:
+        intake_questions: *id004
+        requirement_gaps: *id005
+        design_issues: *id006
+        task_questions: *id007
+        impl_violations: *id008
+        failing_tests: *id009
+        coverage_gaps: *id010
+        unmet_requirements: *id011
+        review_findings: *id012
+        missing_notes: *id013
+      gates:
+      - discovery
+      - architecture
+      - construction
+      - assurance
   options:
     stage:release#1:
     - notes_incomplete

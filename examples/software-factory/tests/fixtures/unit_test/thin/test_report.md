@@ -7,8 +7,5 @@
 ## 失敗
 （なし）
 
-## 不備
-（なし）
-
 ## 未網羅
 - REQ-1、REQ-2、REQ-3 の受け入れ基準にテストが無い（repo/src/shopcart/discount.py の大部分が実行されない）
