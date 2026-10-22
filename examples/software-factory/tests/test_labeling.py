@@ -16,7 +16,7 @@
   コーパスの側（source の number と並び）に持つ。同じ実行の項目は続けて並べない
 - 材料は、読み方のファイル（00-guide.md）と、対象ごとのファイルに分ける（後の対象とゲートの状態文書は前の対象の goal の
   成果物を含み、前の対象の印が推せるため。docs/review-findings.md の I-M2）。対象のファイルはワークフローの順で、ゲートは
-  そのフェーズの最終ステージの直後。前のファイルは、後の対象が書いた成果物を含まない。各ファイルの冒頭に、前のファイルを
+  そのフェーズの最終ステージの直後（手引き第15.1節の 2）。前のファイルは、後の対象が書いた成果物を含まない。各ファイルの冒頭に、前のファイルを
   付け終えるまで開かないこと、付け終えたラベルを後で変えないこと、ほかの項目やファイルと見比べないことを書く
 - 見せ方: 選択肢の記述と、対象の項目の過半（二つ以上）で同じ区切りは、対象のファイルの頭に一度だけ示す。項目の状態文書は、
   共通の区切りを見出しだけ（「（共通）」）にした形で、共通の区切りを戻すと印を除いた状態文書（印だけの行を落とし、区切りの
@@ -409,10 +409,17 @@ def test_material_is_split_into_files_in_the_order_of_the_targets(
     committed: list[CorpusItem], rendered: dict[str, str]
 ) -> None:
     """材料は、読み方のファイルと、対象ごとのファイルに分ける。対象のファイルはワークフローの順で、ゲートはそのフェーズの
-    最終ステージの直後。各ファイルの冒頭に、付ける順と、見比べないことを頼む（docs/review-findings.md の I-M2）。"""
+    最終ステージの直後（手引き第15.1節の 2 の「そのフェーズの最終ステージの項目の直後」）。各ファイルの冒頭に、付ける順と、
+    見比べないことを頼む（docs/review-findings.md の I-M2）。"""
     targets = {(i.scope, i.target) for i in committed}
     expected = _workflow_order(targets)
     assert list(labeling.ORDER) == _workflow_order(set(labeling.EVIDENCE))
+    # 手引きの字のとおり: ゲートのファイルの直前は、workflow.yaml のそのフェーズの最後のステージ（材料に対象があるかに
+    # よらない）のファイル。_workflow_order は対象にある最後のステージの後に置くので、この例でそれが同じことも確かめる
+    for k, (kind, gate) in enumerate(expected):
+        if kind == "phase":
+            phase = next(p for p in WORKFLOW_DOC["workflow"]["phases"] if p["id"] == gate)
+            assert k > 0 and expected[k - 1] == ("stage", phase["stages"][-1]["id"]), gate
     names = _target_files(rendered)
     assert names[0] > labeling.GUIDE and len(names) == len(expected)
     by_file = labeling.file_names(committed)

@@ -34,9 +34,9 @@ SHA-256 の順にし、同じ実行の項目を続けない（材料の文は、
 材料は、読み方のファイル（00-guide.md）と、対象ごとのファイル（01-intake.md から）に分ける（往復 16。
 docs/review-findings.md の I-M2）。ワークフローは goal でだけ進むので、後の対象とゲートの状態文書は前の対象の goal の
 成果物を含み、前の対象の項目の印が推せる。対象のファイルはワークフローの順（ORDER）で、ゲートはそのフェーズの最終
-ステージの直後に置く（最終ステージより前に置くと、ゲートの状態文書が最終ステージの goal の成果物を先に見せる。最後に回すと、
-後のフェーズの対象の状態文書が、ゲートの状態文書のファイルをすべて含み（フェーズを通った状態文書）、ゲートのラベルより先に
-見える）。各ファイルの冒頭に、前のファイルを付け終えるまで開かないこと、付け終えたラベルを後で変えないこと、ほかの項目や
+ステージの直後に置く（手引き第15.1節の 2。往復 17 で、手引きに足された文と合うことを確かめた。最終ステージより前に
+置くと、ゲートの状態文書が最終ステージの goal の成果物を先に見せる。最後に回すと、後のフェーズの対象の状態文書が、
+ゲートの状態文書のファイルをすべて含み（フェーズを通った状態文書）、ゲートのラベルより先に見える）。各ファイルの冒頭に、前のファイルを付け終えるまで開かないこと、付け終えたラベルを後で変えないこと、ほかの項目や
 ファイルと見比べないことを書く。
 
 コマンドは examples/software-factory/ で実行する（リポジトリの根では `No module named 'software_factory'` になる）。
@@ -177,7 +177,10 @@ def receives_carry(workflow: Workflow) -> set[tuple[str, str]]:
 
 
 def target_order(workflow: Workflow, targets: Collection[tuple[str, str]]) -> list[tuple[str, str]]:
-    """材料の対象の順: フェーズとステージのワークフローの順で、ゲートはそのフェーズの（対象にある）最終ステージの直後。"""
+    """材料の対象の順: フェーズとステージのワークフローの順で、ゲートはそのフェーズの（対象にある）最終ステージの直後
+    （手引き第15.1節の 2 の「そのフェーズの最終ステージの項目の直後」。最終ステージが対象に無い時は字に無いが、ゲートの
+    状態文書が前のステージの goal の成果物を含むことと、後のフェーズの状態文書がゲートの見るファイルを含むことから、
+    この位置になる。この例では、ゲートを渡すフェーズの最終ステージはどれも対象にある）。"""
     out: list[tuple[str, str]] = []
     for phase in workflow.phases:
         out += [("stage", s) for s in phase.stages if ("stage", s) in targets]
@@ -188,7 +191,7 @@ def target_order(workflow: Workflow, targets: Collection[tuple[str, str]]) -> li
     return out
 
 
-# 対象のファイルの順（docs/review-findings.md の I-M2）
+# 対象のファイルの順（docs/review-findings.md の I-M2 と、手引き第15.1節の 2）
 ORDER = tuple(target_order(WORKFLOW_MODEL, EVIDENCE))
 # 訪問 2 以降の項目も渡す対象（手引き第15.1節の「memory_in を持つステージと、そのステージを含むフェーズのゲートだけ」）。
 # acceptance と review は memory_in を持たないので訪問 1 だけ（そのフェーズ assurance にも memory_in を持つステージは無い）
