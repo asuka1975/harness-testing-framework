@@ -4,9 +4,9 @@ description: review が設計を直さなければ解消しない指摘を見つ
 workflow: ../../workflow.yaml
 seed: 11
 inputs:
-  feature_request.md: &id007
+  feature_request.md: &id010
     from: ../fixtures/inputs/feature_request.md
-  repo/: &id008
+  repo/: &id011
     from: ../fixtures/inputs/repo/
 visits:
   intake#1:
@@ -17,41 +17,85 @@ visits:
   analyze#1:
     fixture: analyze/ok
     classify: *id001
-  design#1: &id002
+    memory:
+      intake_questions: &id012 []
+  design#1:
     fixture: design/ok
     classify: *id001
-  plan_tasks#1: &id003
+    memory:
+      requirement_gaps: &id002 []
+  plan_tasks#1:
     fixture: plan_tasks/ok
     classify: *id001
-  implement#1: &id004
+    memory:
+      design_issues: &id003 []
+  implement#1:
     fixture: implement/ok
     classify: *id001
-  unit_test#1: &id005
+    memory:
+      task_questions: &id004 []
+      impl_violations: &id005 []
+  unit_test#1:
     fixture: unit_test/ok
     classify: *id001
-  acceptance#1: &id006
+    memory:
+      failing_tests: &id006 []
+      coverage_gaps: &id007 []
+  acceptance#1:
     fixture: acceptance/ok
     classify: *id001
+    memory:
+      unmet_requirements: &id008 []
+      requirement_gaps: &id009 []
   review#1:
     fixture: review/design_flaw
     memory:
-      design_issues: &id009
-      - 割引の種類を Discount の分岐で表しており、種類を足すたびに apply を直すことになる
       review_findings: []
+      design_issues: &id013
+      - 割引の種類を Discount の分岐で表しており、種類を足すたびに apply を直すことになる
     classify:
       choice: design_flaw
       confidence: 0.9
-  design#2: *id002
-  plan_tasks#2: *id003
-  implement#2: *id004
-  unit_test#2: *id005
-  acceptance#2: *id006
+  design#2:
+    fixture: design/ok
+    classify: *id001
+    memory:
+      requirement_gaps: *id002
+  plan_tasks#2:
+    fixture: plan_tasks/ok
+    classify: *id001
+    memory:
+      design_issues: *id003
+  implement#2:
+    fixture: implement/ok
+    classify: *id001
+    memory:
+      task_questions: *id004
+      impl_violations: *id005
+  unit_test#2:
+    fixture: unit_test/ok
+    classify: *id001
+    memory:
+      failing_tests: *id006
+      coverage_gaps: *id007
+  acceptance#2:
+    fixture: acceptance/ok
+    classify: *id001
+    memory:
+      unmet_requirements: *id008
+      requirement_gaps: *id009
   review#2:
     fixture: review/ok
     classify: *id001
+    memory:
+      review_findings:
+      - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
+      design_issues: []
   release#1:
     fixture: release/ok
     classify: *id001
+    memory:
+      missing_notes: []
 gates:
   discovery#1: *id001
   architecture#1: *id001
@@ -126,15 +170,16 @@ expect:
   starts:
     design#2:
       files:
-        feature_request.md: *id007
-        repo/: *id008
+        feature_request.md: *id010
+        repo/: *id011
         intake.md:
           from: ../fixtures/intake/ok/intake.md
         requirements.md:
           from: ../fixtures/analyze/ok/requirements.md
       memory:
-        design_issues: *id009
+        intake_questions: *id012
+        design_issues: *id013
       gates:
       - discovery
   memory:
-    design_issues: *id009
+    design_issues: []

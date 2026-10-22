@@ -1,1 +1,1 @@
-{"marker": "[[class review=goal]]", "findings": [{"path": "repo/src/shopcart/discount.py", "blocking": false, "comment": "parse_code の docstring にコードの形式の例があると読みやすい"}]}
+{"marker": "[[class review=goal]]", "reviewed": ["repo/src/shopcart/discount.py", "repo/src/shopcart/cart.py", "repo/tests/test_discount.py"], "findings": [{"path": "repo/src/shopcart/discount.py", "blocking": false, "comment": "parse_code の docstring にコードの形式の例があると読みやすい"}]}

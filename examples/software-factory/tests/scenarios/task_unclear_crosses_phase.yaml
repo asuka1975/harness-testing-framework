@@ -4,9 +4,9 @@ description: implement がタスクの曖昧さを記憶 task_questions に書�
 workflow: ../../workflow.yaml
 seed: 11
 inputs:
-  feature_request.md: &id003
+  feature_request.md: &id004
     from: ../fixtures/inputs/feature_request.md
-  repo/: &id004
+  repo/: &id005
     from: ../fixtures/inputs/repo/
 visits:
   intake#1:
@@ -17,36 +17,62 @@ visits:
   analyze#1:
     fixture: analyze/ok
     classify: *id001
+    memory:
+      intake_questions: &id006 []
   design#1:
     fixture: design/ok
     classify: *id001
-  plan_tasks#1: &id002
+    memory:
+      requirement_gaps: &id007 []
+  plan_tasks#1:
     fixture: plan_tasks/ok
     classify: *id001
+    memory:
+      design_issues: &id002 []
   implement#1:
     fixture: implement/unclear
     memory:
-      task_questions: &id005
+      task_questions: &id008
       - 'T2: 割引を小計に適用するのか、商品ごとに適用するのかが tasks.yaml から決められない'
+      impl_violations: &id003 []
     classify:
       choice: task_unclear
       confidence: 0.9
-  plan_tasks#2: *id002
+  plan_tasks#2:
+    fixture: plan_tasks/ok
+    classify: *id001
+    memory:
+      design_issues: *id002
   implement#2:
     fixture: implement/ok
     classify: *id001
+    memory:
+      task_questions: []
+      impl_violations: *id003
   unit_test#1:
     fixture: unit_test/ok
     classify: *id001
+    memory:
+      failing_tests: []
+      coverage_gaps: []
   acceptance#1:
     fixture: acceptance/ok
     classify: *id001
+    memory:
+      unmet_requirements: []
+      requirement_gaps: []
   review#1:
     fixture: review/ok
     classify: *id001
+    memory:
+      review_findings:
+      - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
+      design_issues: []
   release#1:
     fixture: release/ok
     classify: *id001
+    memory:
+      missing_notes: []
 gates:
   discovery#1: *id001
   architecture#1: *id001
@@ -106,8 +132,8 @@ expect:
   starts:
     plan_tasks#2:
       files:
-        feature_request.md: *id003
-        repo/: *id004
+        feature_request.md: *id004
+        repo/: *id005
         intake.md:
           from: ../fixtures/intake/ok/intake.md
         requirements.md:
@@ -115,7 +141,9 @@ expect:
         design.md:
           from: ../fixtures/design/ok/design.md
       memory:
-        task_questions: *id005
+        intake_questions: *id006
+        requirement_gaps: *id007
+        task_questions: *id008
       gates:
       - discovery
   options:

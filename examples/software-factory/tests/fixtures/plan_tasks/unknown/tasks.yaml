@@ -1,7 +1,13 @@
 # [[class plan_tasks=unknown]]
+# 二つのタスクが同じ repo/src/shopcart/cart.py を paths に持ち、どちらのタスクがどの変更を受け持つかが決まらない
 tasks:
   - id: T1
-    title: 全部やる
-    requirements: [REQ-1, REQ-2, REQ-3, REQ-4]
+    title: 割引コードと支払額
+    requirements: [REQ-1, REQ-2, REQ-3]
     paths: [repo/src/shopcart/discount.py, repo/src/shopcart/cart.py]
+    tests: [repo/tests/test_discount.py]
+  - id: T2
+    title: コード無しの支払額
+    requirements: [REQ-4]
+    paths: [repo/src/shopcart/cart.py]
     tests: [repo/tests/test_discount.py]

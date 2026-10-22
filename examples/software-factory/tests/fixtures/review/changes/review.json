@@ -1,1 +1,1 @@
-{"marker": "[[class review=changes_requested]]", "findings": [{"path": "repo/src/shopcart/cart.py", "blocking": true, "comment": "Cart.total が parse_code の ValueError をそのまま上げており、呼び出し側が無効なコードと数量の誤りを区別できない。専用の例外にする"}]}
+{"marker": "[[class review=changes_requested]]", "reviewed": ["repo/src/shopcart/discount.py", "repo/src/shopcart/cart.py", "repo/tests/test_discount.py"], "findings": [{"path": "repo/src/shopcart/cart.py", "blocking": true, "comment": "Cart.total が parse_code の ValueError をそのまま上げており、呼び出し側が無効なコードと数量の誤りを区別できない。専用の例外にする"}]}

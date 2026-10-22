@@ -1,0 +1,175 @@
+# 検証役の指摘（workflow.yaml の事前レビューと、分布テストの基準の確認）
+
+人間が workflow.yaml をレビューする前に、第三者の検証役が二つの確認をした。指摘を、公開の文書（adopting.md、契約、スキーマ、公開 API の文書）とこの例自身の語だけで書き直したものをここに置く。
+
+- workflow.yaml の事前レビュー: 直してから人間に出すべき（高 2、中 8、低 9）
+- 分布テストの基準の確認: 承認（中 2、低 4）。基準の中心、E[n]、標準誤差は独立な計算と一致した
+
+高と中は直す。低は任意（直すか、直さない理由を adopting-gaps.md か README に書く）。分類体系の変更（end\_state の追加・分割・統合）は避け、要る時は提案として書く。
+
+フレームワークの側も、これを受けて手引きを直した（changelog.md の「未公開」の最後の三項目）: adopting.md 第2.1節（memory\_out の記憶は訪問のたびに書く）、第4節（指標の結果を覚える時に異常終了を覚えない）、第12節（割合が 0 か 1 に近い基準の幅）。
+
+## A. workflow.yaml の事前レビュー（高と中）
+
+
+この節は、workflow.yaml、adopting.md、契約（contract/contract.md）、スキーマの語だけで書いている。
+
+### 高
+
+**1. implement と design の記憶が、持ち帰った古い値のまま分類器に見える**
+
+- 記憶はスナップショットに含まれる（契約 5）。carry で重ねた記憶は戻り先の開始時スナップショットに入り（契約 2.3）、その後のステージにも残る（スキーマの memory\_in の説明「前のステージの memory\_out」）。ステージが memory\_out の項目を書かなければ、状態文書（契約 2.4）の記憶の欄にはその残った値が出る
+- implement の description は「タスクの記述が曖昧で実装を決められない時は、その問いを記憶 task\_questions に書いて」としか書いていない。task\_unclear で plan\_tasks に戻ると、次の implement の開始時スナップショットには前の問いが入っている。問いが解けて実装した訪問で task\_questions を書かないと、状態文書に前の問いが出る。task\_unclear の「task\_questions に問いが列挙されていればこの状態とし、goal と quality\_violation に優先する」が記憶だけで成り立ち、task\_unclear に分類されうる。この辺は max 1 なので、そこで escalate（max\_exceeded）になる。参照ランタイムで、前の問いが状態文書に出ることを確かめた
+- 同じことが、implement の impl\_violations（quality\_violation で自分自身に戻った後。その後に implement へ戻るたびにも入る）と、design の requirement\_gaps（requirements\_gap か acceptance の requirement\_misread で analyze へ戻った後）で起きる。analyze、plan\_tasks、unit\_test、acceptance、review、release の記憶は「無ければ空の一覧」と書かれているので起きない
+- 直し方: implement の task\_questions と impl\_violations、design の requirement\_gaps にも「（無ければ空の一覧）」を書く。task\_unclear の優先の条件を「記憶 task\_questions と impl\_notes.md の『## 問い』の両方に問いが列挙されていれば」にする。impl\_notes.md は implement の writes で、implement の開始時スナップショットには無い（戻りはそのステージかそれより前の開始時スナップショットを復元する）ので、古い値が出ない。偽のステージ本体が記憶を毎回書き、MarkerClassifier が記憶を読まないと、テストではこの問題が見えない
+
+**2. plan\_tasks の goal が、代表の成果物で満たせない**
+
+- plan\_tasks の goal は「各タスクの paths と tests が design.md の『## 構成』のファイルに収まり」を求める。design の「## 構成」は「変えるファイルと役割」で、goal の代表の design.md も repo/src/ のファイルしか挙げていない。一方、代表の tasks.yaml の tests は repo/tests/test\_discount.py である。分類器は記述そのものを選択肢として読む（契約 2.2）ので、goal を選べない。design\_incomplete（タスクにすべての要件を割り当てられない）にも当たらず、unknown になる
+- 直し方: goal を「各タスクの paths が design.md の『## 構成』のファイルに収まり、tests が repo/tests/ の下にあり、タスクどうしで paths が重ならない」にする
+
+### 中
+
+**3. implement で指標が落ちた時に当たる end\_state が無い所がある**
+
+- 既存のテスト（tests\_pass）が落ちた時と、repo/src/ の変更が design.md の構成から外れた時は、どの end\_state にも当たらず unknown になる
+- quality\_violation は「違反の内容が記憶 impl\_violations と impl\_notes.md の『## 違反』に列挙されている」を条件にする。分類器は指標の値を見ない（契約 2.4 の状態文書はファイルと memory\_out だけ）。本体が違反に気づかずに指標だけが落ちた場合は unknown になる。選ばれても carry が空になる（adopting.md 2.1「戻り先が直すのに使う情報は、記憶に書かせ、その記憶を証拠として記述に書く」）
+- 直し方: description に「終える前に、ビルド、既存のテスト、lint、paths に照らした変更の範囲を自分で確かめ、違反を記憶 impl\_violations と impl\_notes.md の『## 違反』に書く（無ければ空の一覧）」と書く。quality\_violation の列挙に「repo/tests/ の既存のテストを落とす」と「design.md の構成から外れている」を足す（既存のクラスの境界を広げる。end\_state の追加ではない）。それでも impl\_violations が空なら unknown になることを、意図として README に書く
+
+**4. unit\_test でテストの側の不備が unknown に落ちる**
+
+- repo/tests/ の lint（lint\_errors）、tasks.yaml の tests の外のファイル（out\_of\_scope\_changes）、要件に反する期待のテストは、impl\_defect にも tests\_insufficient にも当たらない。tests\_insufficient の「行カバレッジが 80% に届かない」は、指標の値を見ない分類器には判定できない
+- 直し方: description に、終える前に pytest、行カバレッジ、lint、範囲を自分で確かめて記憶に書くことを足す。tests\_insufficient を「unit\_test 自身が直すべき不足か不備がある（テストの無い受け入れ基準、実行されない箇所、lint の違反、tests に無いファイル、要件に反する期待）」に広げる（境界の変更）。別案として、テストの不備の end\_state を足して unit\_test 自身に戻す方法もあるが、これは分類体系の変更（end\_state の追加）になる
+
+**5. 四つのフェーズゲートの不合格が unknown に落ちることが書かれていない**
+
+- discovery、architecture、construction、delivery の最終ステージの end\_state は、goal の時には空になる記憶を証拠にするので、ゲートでは選ばれない。ゲートの不合格はすべて unknown になる。adopting.md 2.4 の注意に沿った選択だが、workflow.yaml にも README にも書かれていない。四つのゲートの指標は、ステージの goal がすでに満たしていて、goal 到達扱いで続行した後にだけ落ちる
+- 直し方: README に「フェーズゲートの落ち方」を書く。end\_state で戻すのは assurance だけ（changes\_requested）であること、ほかの四つは unknown で人に戻ること、ゲートに固有の定性の条件（discovery の回答の反映、architecture の構成とタスクの対応、delivery の review.json との整合）を明記する
+
+**6. review の goal の「paths と tests の変更を見た結果があり」が観測できない**
+
+- review.json は指摘だけを持ち、指摘の無いパスを見たかは書かれない。代表の review.json は一つのファイルへの指摘だけである
+- 直し方: review.json の形を `{"reviewed": [パス], "findings": [...]}` にし、goal を「reviewed が tasks.yaml の paths と tests をすべて含み、修正を要する指摘が一つも無い」にする。指標にしてもよい
+
+**7. テストへの修正を要する指摘が unknown に落ちる**
+
+- changes\_requested は repo/src/ の修正で解消する指摘に限られる。review は tests の変更も見るのに、repo/tests/ の修正で解消する指摘はどこにも当たらない。unit\_test は review\_findings を受け取らないので、implement に戻って unit\_test が書き直す時にも指摘が届かない
+- 直し方: changes\_requested を「repo/src/ か repo/tests/ の修正で解消する」に広げる（境界の変更）。指摘は、implement が書き unit\_test が読む impl\_notes.md で渡す。implement は持ち帰った review\_findings のうちテストに関するもの（と failing\_tests のテスト）を impl\_notes.md の「## テストへの依頼」に書き写し、unit\_test はそれに応えるテストを書く。unit\_test の memory\_in に review\_findings や failing\_tests を足す方法は、整合性検査が拒む（memory\_in の項目を、carry も前のステージも生成しないため）
+
+**8. changes\_requested が、修正を要する指摘が無くても成り立つ**
+
+- 「修正を要する指摘が、すべて repo/src/ の修正で解消する」は、修正を要する指摘が無い時にも成り立つ。ステージでもゲートでも goal と重なる読みが残る
+- 直し方: 「review.json に修正を要する指摘が一つ以上あり、そのすべてが…」にし、ゲートの条件は「フェーズ assurance の評価では、修正を要する指摘が無くても…」と書き分ける
+
+**9. 要件の id の照合が、日本語の文に続く id を数えない**
+
+- design\_covers\_requirements と changelog\_covers\_requirements の実装は、「REQ-1は」「REQ-1の」「REQ-1と」の REQ-1 を数えない。design の description は「## 対応」の行の形を決めていないので、自然な書き方で goal が選択肢から外れる。本体は割り当てたつもりなので記憶に列挙せず、unknown になる
+- 直し方: 照合を英数字の境界だけで切る（例 `(?<![A-Za-z0-9_-])REQ-1(?![0-9])`）。design と release の description に行の書き方を決める
+
+**10. クラスの代表の成果物（フィクスチャ）が記述と合わない**
+
+- requirement\_unmet の代表の verification.md は、REQ-2 の要件にも受け入れ基準にも無い振る舞い（コードは一回の支払いに一回）を不合格にしている。記述の上では要件の欠落（requirement\_misread）か unknown である。plan\_tasks の unknown の代表の tasks.yaml は、記述の上では goal を満たす
+- MarkerClassifier は成果物の印を読むので、テストはこの食い違いを捕まえない。分類器の検証（adopting.md 第15節）のラベルに使うと、ラベルが記述と食い違う
+- 直し方: requirement\_unmet の代表を、要件の記述に反する振る舞いにする。たとえば支払額を切り捨てる実装は REQ-1（割引額の 1 円未満は切り捨てる）に反し、小計 333 円に PCT10 で 299 円を返すが、単体テストがこの場合を確かめなければ acceptance で初めて見つかる。あわせて requirement\_unmet の「受け入れ基準に反する」を「要件の記述か受け入れ基準に反する」に広げる。plan\_tasks の unknown の代表を、goal にも design\_incomplete にも当たらない成果物（例: タスクどうしで paths が重なる）にする
+
+## B. 分布テストの基準の確認（中）
+
+
+基準（tests/expectations/ の三つ）は、設計値から正しく導かれている。中心、E[n]、標準誤差は、`synthesize` の `evaluations`、`visit_outcomes`、`visits_variance` と独立な計算の両方と一致した。基準はそのまま使える。次の二点は改善として勧める。
+
+### 1. release の訪問 2 以降の goal の基準 [0.90, 1.0] は、正規近似の幅が合わない
+
+- p = 0.97、条件に合う評価の数の期待値 E[n] = 65.1 なので、外れる側の期待件数は約 2 件しかない。二項分布が歪む
+  - 注記の「下側 3.3 SE」なら、落ちる確率は約 0.05% のはず
+  - 二項分布で厳密に計算すると約 0.37%
+  - markov.yaml 全体で正しい基準のどれかが落ちる確率（約 1.2%）の、3 分の 1 がこの基準から来ている
+- `ExpectationReport.lines()` の Wilson の 95% 区間の幅も、約 4 割の実行で基準の幅 0.10 を超える。adopting.md 第12節の読み方では「回数が足りない」にあたる
+- 次のどれかにするとよい
+  - min を 0.88 にする（落ちる確率 0.06%、ほかの基準と同じ水準。markov_shifted.yaml の [0.65, 0.85] とは重ならない）
+  - runs を 800 にする
+- 一般に、E[n]·min(p, 1−p) が小さい（目安として 10 未満）基準は、標準誤差の倍数ではなく、二項分布の裾の確率から幅を決める
+
+### 2. 例の指標が、ツールの異常終了の結果を覚えてしまい、一度の環境の不調で正しい基準が落ちる
+
+- software_factory/metrics.py は、ツールの結果を指標名、引数、内容のハッシュで覚える。adopting.md 第4節が許す使い方だが、子プロセスが異常終了した時の値も覚える
+  - たとえば `build_passes` と `tests_pass` は、終了コードが 0 でなければ False を返して覚える
+  - メモリの逼迫などで一度でも異常終了すると、同じ内容の評価はその後ずっと goal が選択肢から外れ、印の goal が unknown になる
+- 実際に、markov_gated.yaml の既定の種で、ほかの検証と同時に走らせた一回の実行が、四つの基準のうち三つで落ちた（完了 0.265）。同じ種の実行は、基準をかけたほかの 6 回（tests/test_stochastic.py を含む）すべて通った
+- 子プロセスを一度だけ異常終了させると、同じ形の失敗（markov.yaml で完了 0.258、12 個のうち 5 個が通らない）を再現できた
+- 次の二つを直すとよい
+  - 指標: 終了コードが負、シグナル、時間切れの時は、結果を覚えずに `MetricError` を上げる。意味の決まった終了コード（0 と 1 など）の結果だけを覚える
+  - 検査: 分布テストに使う実行の集まり（ゲートを揺らす集まりも含めて）で、次が一つも無いことを確かめる
+    - 本体の例外
+    - 指標の測定の失敗
+    - tests/stochastic.yaml の metrics_fail が空の変種（印が goal）なのに goal が選択肢から外れた評価
+  - 今の test_bodies_keep_the_contract は、ゲートを揺らさない集まりの例外と警告しか見ないので、この失敗を見分けられない
+
+## C. workflow.yaml の事前レビュー（低、任意）
+
+
+#### L-1 analyze の requirement\_count の min 3 は、要件分析の基準として不自然
+
+依頼によっては要件が一つか二つで足りる。その時は goal が選択肢から外れ、needs\_unclear（問いが要る）にも当たらず unknown になる。この依頼では四つになるので動くが、手本として読む人は誤解する。min 1 にするか、README に「この依頼に合わせた値」と書く。
+
+#### L-2 持ち帰った記憶への対応が、戻り先の goal で観測できず、連鎖で失われる
+
+- intake は持ち帰った intake\_questions を尋ねるが、memory\_in は状態文書に入らない。尋ねたかを goal で判定できない。intake.md に「## 持ち帰った問い」の節を設け、goal に「その節の問いにすべて回答がある」を足すと観測できる
+- acceptance → analyze（requirement\_gaps）→ needs\_unclear → intake → analyze と連鎖すると、intake の開始時スナップショットには requirement\_gaps が無いので、再び analyze に来た時には消えている。依頼に根拠の無い食い違いは依頼者に尋ねるしかない（analyze の goal は根拠を求める）ので、これが想定の経路である。analyze の description に「持ち帰った食い違いを依頼者に尋ねる時は、その内容を intake\_questions に含める」と書いておくとよい
+
+#### L-3 quality\_violation の「paths に無いファイルを変えている」は差で、分類器には見えない。paths が狭すぎる場合の行き先も決まっていない
+
+分類器は repo/src/ の今の内容しか見ず、どれが変わったかは分からない（既存の \_\_init\_\_.py はどのタスクの paths にも無い）。指標と impl\_violations が頼りなので、記述は「…変更の範囲の違反が記憶 impl\_violations に列挙されている」を主にする書き方がよい。また、tasks.yaml の paths が狭すぎて実装できない時は、implement 自身へ戻しても直らない。description に「paths の外のファイルを変えないと実装できない時は、変えずに task\_questions に書く（task\_unclear）」と書く。
+
+#### L-4 blocking\_findings が真偽値でない blocking を数える
+
+`if f["blocking"]` は文字列の `"false"` も修正要と数える。真偽値でなければ MetricError にする。
+
+#### L-5 changelog\_covers\_requirements は CHANGELOG.md のどこに id があっても数える
+
+「未対応: REQ-3」のような行でも REQ-3 を載せたと数える。最新の版の見出しの下だけを数えるか、description に書き方を決める。
+
+#### L-6 release がパッケージの版を上げず、版を上げ忘れると unknown になる
+
+release は repo/ を書かないので、リリースした repo/src/shopcart/\_\_init\_\_.py の \_\_version\_\_ は古い版のままで、release.json の版と食い違う。実際のリリースとしては不自然である。release.json を「リリースの記録」として版の更新を範囲外にするなら、README に書く。含めるなら、release の writes に \_\_init\_\_.py を足し、version\_bumped を view.baseline() と比べる形にする。また、版を上げていない状態は notes\_incomplete に当たらず unknown になる。自分で直せる不足なので、notes\_incomplete の記述に含めてもよい（境界の変更）。
+
+#### L-7 design が全要件を割り当てたうえで問いを残すと unknown になる
+
+暫定の解釈で割り当て、「## 要件への問い」にも書くのは自然な振る舞いである。goal（問いが無い）にも requirements\_gap（割り当てていない）にも当たらない。requirements\_gap を「割り当てていないか、割り当てたが『## 要件への問い』に問いがある」に広げ、「goal に優先する」を書く（境界の変更）。
+
+#### L-8 戻りで成果物が捨てられることを前提にした書き方が無い
+
+- impl\_defect → implement は implement の開始時スナップショットを復元するので、欠陥を見つけたテストも捨てられる。unit\_test は failing\_tests を受け取らないので、書き直す unit\_test はそのテストを回帰テストとして書き直せない。unit\_test の memory\_in に failing\_tests を足す案は、整合性検査が `memory_unsupplied` で拒む（複製の上で確かめた。failing\_tests は unit\_test 自身の memory\_out で、carry は implement にしか運ばない）。M-5 と同じく、implement が「持ち帰った failing\_tests のテストを impl\_notes.md の『## テストへの依頼』に書き写す」形にする
+- review や acceptance から implement へ戻ると、implement は実装前のコードから書き直す。持ち帰る記憶（review\_findings、unmet\_requirements、failing\_tests）は、捨てられるコードの行番号ではなく、パス、関数、期待する振る舞いで書くべきである。また implement の開始時スナップショットには、前の carry の記憶も残っている。コードを一から書き直すので、古い指摘もまだ有効である。これらを README か各 description に書いておくと、本体を作る人が誤解しない
+
+#### L-9 冗長な指標と曖昧な文
+
+acceptance の tests\_pass は unit\_test の goal と construction のゲートが保証しており、強制通過の後にしか落ちない。delivery の goal の「review.json の結果に合い」は、何と何が合うのか分からない（修正要の指摘が残っていない、のことなら assurance のゲートがすでに保証している）。construction の goal の「repo/ の変更全体」は分類器には見えず、out\_of\_scope\_changes だけが判定する。
+
+## D. 分布テストの基準の確認（低、任意）
+
+
+**L1 ずらした基準 analyze needs_unclear [0.0, 0.17] が、正しい [0.17, 0.33] と端 0.17 を共有する**
+
+- 観測値がちょうど 0.17 なら、正しい基準もずらした基準も通る。確率は 1.6e-10 で実害は無い
+- 「すぐ外側」の意図に合わせ、max を 0.16 にするとよい（設計値から 4.1 SE）
+
+**L2 release の訪問 1 の notes_incomplete [0.15, 0.31] は 3.198 SE で、注記の規則「3.2 倍以上をとり、0.01 の単位で外側に丸めた」をわずかに下回る**
+
+- p ± 3.2 SE は [0.14995, 0.31005] で、外側に丸めると [0.14, 0.32] になる
+- 落ちる確率は、今の幅で 0.141%、[0.14, 0.32] で 0.034%
+- ほかに、注記の倍数に丸めの差がある。acceptance の「3.6」は、正確な SE では 3.54。status_rate の「両側 3.4」は、上側が 3.52
+- 幅を規則どおりに直すか、規則の書き方を「およそ 3.2 倍」に改める
+
+**L3 markov_gated.yaml には、ずらした基準が無い。四つのうち二つ（status_rate と mean_visits）は、ゲートを揺らさない本体も通す**
+
+- ゲートを揺らさない本体（完了 0.6885、訪問の回数 1.660）をこの二つにかけると、status_rate は 99%、mean_visits は 57% の確率で通る
+- ゲートの分布が効いているかを確かめているのは、ゲートの二つの基準だけ。ゲートの束縛が抜ければ割合が 0 になるので、それは落とせる
+- markov_gated の「ずらした基準」を足すとよい。例:
+  - ゲートの訪問 1 の changes_requested [0.35, 0.50]（上へ約 5.7 SE）と [0.0, 0.10]（下へ約 3.8 SE）
+  - status [0.75, 0.90]（上へ 3.8 SE）
+- 注記には、二つの基準が揺らす前後を見分けないことを書くとよい
+
+**L4 test_correct_expectations_follow_the_design は、幅の下限（3 SE 以上）だけを確かめ、上限を確かめない**
+
+- 正しい基準の幅を広げても（たとえば [0.0, 1.0]）、このテストは通る。ずらした基準は固定の値なので、正しい幅とずらした幅が重なっても気づかない
+- 幅が 5 SE 以下であること、または正しい幅とずらした幅が重ならないことも確かめるとよい

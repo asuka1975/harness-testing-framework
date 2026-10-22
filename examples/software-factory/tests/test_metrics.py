@@ -9,6 +9,7 @@
 """
 
 import json
+import subprocess
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -156,11 +157,35 @@ def test_verified_and_changelog_coverage() -> None:
         {
             "requirements.md": REQUIREMENTS,
             "verification.md": verification.encode(),
-            "CHANGELOG.md": "REQ-1、REQ-2、REQ-4".encode(),
+            "CHANGELOG.md": "# Changelog\n\n## 0.2.0\n- REQ-1、REQ-2、REQ-4\n".encode(),
         }
     )
     assert REGISTRY.measure("verified_requirements", view, {}) == 0.5
     assert REGISTRY.measure("changelog_covers_requirements", view, {}) == 0.75
+
+
+def test_requirement_ids_followed_by_japanese_are_counted() -> None:
+    """id の直後に日本語の文が続いても数え、REQ-10 は REQ-1 と数えない。CHANGELOG.md は最新の版の変更の行だけを数える。"""
+    design = "## 対応\n- REQ-1は Discount.apply\n- REQ-2の分岐\n- REQ-30 と REQ-4\n"
+    changelog = (
+        "# Changelog\n\n## 0.2.0\n- 百分率の割引（REQ-1）\n- REQ-2として定額\n未対応: REQ-3\n\n"
+        "## 0.1.0\n- REQ-4 の古い変更\n"
+    )
+    view = DictView(
+        {
+            "requirements.md": REQUIREMENTS,
+            "design.md": design.encode(),
+            "CHANGELOG.md": changelog.encode(),
+        }
+    )
+    assert REGISTRY.measure("design_covers_requirements", view, {}) == 0.75
+    assert REGISTRY.measure("changelog_covers_requirements", view, {}) == 0.5
+    with pytest.raises(MetricError):
+        REGISTRY.measure(
+            "changelog_covers_requirements",
+            DictView({**view.files, "CHANGELOG.md": b"- REQ-1\n"}),
+            {},
+        )
 
 
 def test_out_of_scope_changes_counts_additions_changes_and_deletions() -> None:
@@ -195,6 +220,9 @@ def test_measurement_failure_raises_metric_error() -> None:
     view = DictView({"review.json": b"not json", "tasks.yaml": b"tasks: 1\n"})
     with pytest.raises(MetricError):
         REGISTRY.measure("blocking_findings", view, {"path": "review.json"})
+    text_blocking = json.dumps({"findings": [{"path": "a", "blocking": "false", "comment": "c"}]})
+    with pytest.raises(MetricError):
+        REGISTRY.measure("blocking_findings", DictView({"review.json": text_blocking.encode()}), {})
     with pytest.raises(MetricError):
         REGISTRY.measure("task_paths_valid", view, {"tasks": "tasks.yaml"})
     with pytest.raises(MetricError):
@@ -214,3 +242,34 @@ def test_tool_results_are_remembered_by_content() -> None:
     broken = files | {"repo/src/shopcart/extra.py": b"import os\n"}
     assert REGISTRY.measure("lint_errors", DictView(broken), {"paths": ["src"]}) == 1
     assert len(metrics._RESULTS) == 2
+
+
+@pytest.mark.parametrize("name", ["build_passes", "tests_pass", "line_coverage"])
+@pytest.mark.parametrize("returncode", [-9, 3, 4])
+def test_abnormal_tool_exit_is_an_error_and_is_not_remembered(
+    name: str, returncode: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ツールが異常に終わった時（シグナル、意味の決まっていない終了コード）は MetricError で、結果を覚えない。"""
+
+    def crashed(command: list[str], cwd: Path, src: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, returncode, "", "killed")
+
+    metrics._RESULTS.clear()
+    monkeypatch.setattr(metrics, "_run", crashed)
+    with pytest.raises(MetricError):
+        REGISTRY.measure(name, DictView(inputs()), {})
+    assert metrics._RESULTS == {}
+
+
+def test_collection_error_means_the_tests_do_not_pass(monkeypatch: pytest.MonkeyPatch) -> None:
+    """pytest の中断（終了コード 2）は、テストの収集が失敗した時だけ「通らない」として覚える。"""
+
+    def collection_error(
+        command: list[str], cwd: Path, src: str
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, 2, "Interrupted: 1 error during collection", "")
+
+    metrics._RESULTS.clear()
+    monkeypatch.setattr(metrics, "_run", collection_error)
+    assert REGISTRY.measure("tests_pass", DictView(inputs()), {}) is False
+    assert len(metrics._RESULTS) == 1

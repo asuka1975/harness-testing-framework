@@ -14,9 +14,11 @@ visits:
     classify: &id001
       choice: goal
       confidence: 0.9
-  analyze#1: &id002
+  analyze#1:
     fixture: analyze/ok
     classify: *id001
+    memory:
+      intake_questions: &id002 []
   design#1:
     fixture: design/gap
     memory:
@@ -25,28 +27,51 @@ visits:
     classify:
       choice: requirements_gap
       confidence: 0.9
-  analyze#2: *id002
+  analyze#2:
+    fixture: analyze/ok
+    classify: *id001
+    memory:
+      intake_questions: *id002
   design#2:
     fixture: design/ok
     classify: *id001
+    memory:
+      requirement_gaps: []
   plan_tasks#1:
     fixture: plan_tasks/ok
     classify: *id001
+    memory:
+      design_issues: []
   implement#1:
     fixture: implement/ok
     classify: *id001
+    memory:
+      task_questions: []
+      impl_violations: []
   unit_test#1:
     fixture: unit_test/ok
     classify: *id001
+    memory:
+      failing_tests: []
+      coverage_gaps: []
   acceptance#1:
     fixture: acceptance/ok
     classify: *id001
+    memory:
+      unmet_requirements: []
+      requirement_gaps: []
   review#1:
     fixture: review/ok
     classify: *id001
+    memory:
+      review_findings:
+      - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
+      design_issues: []
   release#1:
     fixture: release/ok
     classify: *id001
+    memory:
+      missing_notes: []
 gates:
   discovery#1: *id001
   discovery#2: *id001
@@ -114,4 +139,4 @@ expect:
         requirement_gaps: *id005
       gates: []
   memory:
-    requirement_gaps: *id005
+    requirement_gaps: []

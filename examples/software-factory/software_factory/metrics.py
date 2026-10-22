@@ -7,6 +7,11 @@
 
 同じ内容には同じ値を返すので、ツールの結果は、指標名、引数、ファイルの内容のハッシュで覚えておく（adopting.md 第4節）。
 分布テストでは同じコードベースの状態が何千回も評価されるため。tasks.yaml の読み込みも、内容ごとに覚える。
+
+覚えるのは、意味の決まった終了コード（compileall と import は 0 と 1、pytest は 0、1、5 と収集の失敗による 2、ruff は 0 と
+1）の結果だけ。
+ツールが異常に終わった時（シグナルや負の終了コード、ほかの終了コード、時間切れ、起動できない）は MetricError を送出し、
+覚えない（一度の環境の不調が、その後の同じ内容の評価をすべて狂わせないように）。
 """
 
 import functools
@@ -132,14 +137,39 @@ def _pytest(tests: str) -> list[str]:
     return ["-m", "pytest", "-q", "-p", "no:cacheprovider", "-p", "no:pytest_cov", tests]
 
 
+def _outcome(
+    result: subprocess.CompletedProcess[str], meaning: Mapping[int, bool], what: str
+) -> bool:
+    """意味の決まった終了コードを真偽値にする。それ以外（異常終了）は MetricError（_remember は覚えない）。"""
+    if result.returncode not in meaning:
+        detail = (result.stderr or result.stdout).strip()[-300:]
+        raise MetricError(f"{what} が異常に終わった（終了コード {result.returncode}）: {detail}")
+    return meaning[result.returncode]
+
+
+# 終了コードの意味。pytest の 5 はテストが一件も無い（「一件以上あって全部通る」を満たさない）
+_EXIT_PYTHON = {0: True, 1: False}
+_EXIT_PYTEST = {0: True, 1: False, 5: False}
+
+
+def _pytest_outcome(result: subprocess.CompletedProcess[str], what: str) -> bool:
+    """pytest の終了コードを真偽値にする。2 は中断で、テストの収集が失敗した時（実装が import できないなど）だけ
+    「通らない」とし、それ以外の中断は異常終了として MetricError にする。"""
+    if result.returncode == 2 and "during collection" in result.stdout:
+        return False
+    return _outcome(result, _EXIT_PYTEST, what)
+
+
 def build_passes(view: SnapshotView, args: Mapping[str, JSONValue]) -> bool:
     """src の下のすべての .py を byte-compile でき、すべてのモジュールを import できる。"""
     root, src = _str(args, "root", "repo"), _str(args, "src", "src")
 
     def compute(tree: Path) -> bool:
-        if _run([sys.executable, "-m", "compileall", "-q", src], tree, src).returncode != 0:
+        compiled = _run([sys.executable, "-m", "compileall", "-q", src], tree, src)
+        if not _outcome(compiled, _EXIT_PYTHON, "compileall"):
             return False
-        return _run([sys.executable, "-c", _IMPORT_ALL, src], tree, src).returncode == 0
+        imported = _run([sys.executable, "-c", _IMPORT_ALL, src], tree, src)
+        return _outcome(imported, _EXIT_PYTHON, "import")
 
     return bool(_remember("build_passes", args, _tree(view, root), compute))
 
@@ -153,7 +183,7 @@ def tests_pass(view: SnapshotView, args: Mapping[str, JSONValue]) -> bool:
     )
 
     def compute(tree: Path) -> bool:
-        return _run([sys.executable, *_pytest(tests)], tree, src).returncode == 0
+        return _pytest_outcome(_run([sys.executable, *_pytest(tests)], tree, src), "pytest")
 
     return bool(_remember("tests_pass", args, _tree(view, root), compute))
 
@@ -168,11 +198,13 @@ def line_coverage(view: SnapshotView, args: Mapping[str, JSONValue]) -> float:
 
     def compute(tree: Path) -> float:
         data = ["--data-file", ".software-factory-coverage"]
-        _run(
+        measured = _run(
             [sys.executable, "-m", "coverage", "run", *data, f"--source={src}", *_pytest(tests)],
             tree,
             src,
         )
+        # テストの成否は問わないが、pytest が異常に終わった時は測れない
+        _pytest_outcome(measured, "coverage run")
         report = _run(
             [sys.executable, "-m", "coverage", "json", *data, "-q", "-o", "coverage.json"],
             tree,
@@ -298,7 +330,10 @@ def requirements_with_criteria(view: SnapshotView, args: Mapping[str, JSONValue]
 
 
 def _mentioned(ids: list[str], text: str) -> float:
-    return sum(1 for i in ids if re.search(rf"\b{re.escape(i)}\b", text)) / len(ids)
+    """ids のうち text に現れるものの割合。id の前後は英数字の境界だけで切る（「REQ-1は」の REQ-1 も数え、REQ-10 は
+    REQ-1 と数えない）。"""
+    found = [i for i in ids if re.search(rf"(?<![A-Za-z0-9_-]){re.escape(i)}(?![0-9])", text)]
+    return len(found) / len(ids)
 
 
 def design_covers_requirements(view: SnapshotView, args: Mapping[str, JSONValue]) -> float:
@@ -365,15 +400,24 @@ def verified_requirements(view: SnapshotView, args: Mapping[str, JSONValue]) -> 
 def blocking_findings(view: SnapshotView, args: Mapping[str, JSONValue]) -> float:
     try:
         review = json.loads(_text(view, _str(args, "path", "review.json")))
-        return float(sum(1 for f in review["findings"] if f["blocking"]))
+        blocking = [f["blocking"] for f in review["findings"]]
     except (ValueError, KeyError, TypeError) as e:
         raise MetricError(f"review.json の形が違う: {e}") from e
+    if not all(isinstance(b, bool) for b in blocking):
+        raise MetricError("review.json の blocking が真偽値でない")
+    return float(sum(1 for b in blocking if b))
 
 
 def changelog_covers_requirements(view: SnapshotView, args: Mapping[str, JSONValue]) -> float:
-    """requirements.md の要件のうち、CHANGELOG.md が挙げるものの割合。"""
+    """requirements.md の要件のうち、CHANGELOG.md の最新の版（最初の「## 」の見出しの節）の「- 」で始まる変更の行が
+    挙げるものの割合。"""
     ids = _requirement_ids(view, args)
-    return _mentioned(ids, _text(view, _str(args, "changelog", "CHANGELOG.md")))
+    text = _text(view, _str(args, "changelog", "CHANGELOG.md"))
+    m = re.search(r"^## [^\n]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+    if m is None:
+        raise MetricError("CHANGELOG.md に版の見出し（## ）が無い")
+    lines = "\n".join(line for line in m.group(1).splitlines() if line.startswith("- "))
+    return _mentioned(ids, lines)
 
 
 def _semver(text: str) -> tuple[int, int, int]:

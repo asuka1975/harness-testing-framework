@@ -1,1 +1,1 @@
-{"marker": "[[class review=design_flaw]]", "findings": [{"path": "repo/src/shopcart/discount.py", "blocking": true, "comment": "design.md が割引の種類を Discount の分岐で表しており、種類を足すたびに apply を直すことになる。種類ごとの型に分ける設計にする"}]}
+{"marker": "[[class review=design_flaw]]", "reviewed": ["repo/src/shopcart/discount.py", "repo/src/shopcart/cart.py", "repo/tests/test_discount.py"], "findings": [{"path": "repo/src/shopcart/discount.py", "blocking": true, "comment": "design.md が割引の種類を Discount の分岐で表しており、種類を足すたびに apply を直すことになる。種類ごとの型に分ける設計にする"}]}

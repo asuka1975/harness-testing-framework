@@ -16,12 +16,18 @@ visits:
   analyze#1:
     fixture: analyze/ok
     classify: *id001
+    memory:
+      intake_questions: []
   design#1:
     fixture: design/ok
     classify: *id001
+    memory:
+      requirement_gaps: []
   plan_tasks#1:
     fixture: plan_tasks/ok
     classify: *id001
+    memory:
+      design_issues: []
   implement#1:
     raise: stage_error
 gates:

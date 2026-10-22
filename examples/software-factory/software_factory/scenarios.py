@@ -16,6 +16,7 @@ import yaml
 
 from software_factory.stages.deterministic import FIXTURES as FX
 from software_factory.stages.deterministic import SCENARIOS as OUT
+from software_factory.stages.probabilistic import TABLE, WORKFLOW_MODEL
 
 GENERATED: dict[str, str] = {}
 
@@ -69,7 +70,30 @@ ORDER = [
     "release",
 ]
 FIX = {s: f"{s}/ok" for s in ORDER}
+# 偽の本体は、訪問のたびに memory_out のすべての項目を書く（adopting.md 第2.1節）。台本が書かない項目は、goal の変種
+# （tests/stochastic.yaml の ok）の値を書く。書かないと、持ち帰った前の値が状態文書に残る
+MEMORY_OUT = {s.id: s.memory_out for s in WORKFLOW_MODEL.stages}
+OK_MEMORY: dict[str, dict[str, Any]] = {
+    s: dict(TABLE["variants"][s]["ok"].get("memory", {})) for s in ORDER
+}
 OK_VISIT = {s: {"fixture": f, "classify": GOAL} for s, f in FIX.items()}
+
+
+def with_memory_out(stage: str, spec: dict[str, Any]) -> dict[str, Any]:
+    """台本に、書いていない memory_out の項目を goal の変種の値で足す（例外で終わる訪問はそのまま）。"""
+    if "raise" in spec or not MEMORY_OUT[stage]:
+        return spec
+    return {**spec, "memory": OK_MEMORY[stage] | dict(spec.get("memory", {}))}
+
+
+def ok_memory(*stages: str) -> dict[str, Any]:
+    """各ステージの goal の訪問が順に書いた記憶（開始時スナップショットに残る上流の記憶）。"""
+    out: dict[str, Any] = {}
+    for s in stages:
+        out |= OK_MEMORY[s]
+    return out
+
+
 PHASE_OF = {
     "intake": "discovery",
     "analyze": "discovery",
@@ -105,7 +129,7 @@ class Run:
         self.count[stage] = self.count.get(stage, 0) + 1
         key = f"{stage}#{self.count[stage]}"
         self.trace.append(f"start {key}")
-        self.visits[key] = spec if spec is not None else OK_VISIT[stage]
+        self.visits[key] = with_memory_out(stage, spec if spec is not None else OK_VISIT[stage])
         return key
 
     def eval(self, stage: str, outcome: str) -> None:
@@ -206,7 +230,8 @@ write(
         "starts": {
             "intake#2": {"files": INPUTS, "memory": {"intake_questions": OPEN_Q}, "gates": []}
         },
-        "memory": {"intake_questions": OPEN_Q},
+        # 問いが解けた analyze#2 は空の一覧を書くので、持ち帰った問いは最後の記憶に残らない
+        "memory": {"intake_questions": []},
     },
     user=[{"answer": "50% まで"}, {"answer": "0 円にする。マイナスにはしない"}],
 )
@@ -239,12 +264,16 @@ write(
                 "gates": [],
             }
         },
-        "memory": {"requirement_gaps": GAPS},
+        # design#2 と acceptance が空の一覧を書くので、持ち帰った食い違いは最後の記憶に残らない
+        "memory": {"requirement_gaps": []},
     },
 )
 
 # --- 4. 検証が要件の不合格を見つけ、フェーズ境界を越えて実装に戻る ---
-UNMET = ["REQ-2: 小計 1200 円に OFF500 を二回続けて適用すると、二回目も割り引かれる"]
+UNMET = [
+    "REQ-1: 小計 333 円に PCT10 を適用すると支払額が 299 円になる（割引額の 1 円未満を切り捨てれば 300 円）。"
+    "repo/src/shopcart/discount.py の Discount.apply が支払額を切り捨てている"
+]
 r = Run()
 r.through("intake", "unit_test")
 r.start(
@@ -260,18 +289,19 @@ r.line("rollback acceptance -> implement [requirement_unmet 1] crossing")
 r.through("implement")
 write(
     "acceptance_unmet_crosses_phase",
-    "acceptance が REQ-2 の不合格を見つけ、記憶 unmet_requirements を持って assurance から construction の implement に戻る。"
+    "acceptance が REQ-1 の不合格を見つけ、記憶 unmet_requirements を持って assurance から construction の implement に戻る。"
     "construction のゲートを評価し直し、単体テストもやり直す（フェーズ境界越え、ゲートの再評価、実在の指標による再評価）",
     r,
     {
         "starts": {
             "implement#2": {
                 "files": ok_files("intake", "analyze", "design", "plan_tasks"),
-                "memory": {"unmet_requirements": UNMET},
+                "memory": ok_memory("intake", "analyze", "design", "plan_tasks")
+                | {"unmet_requirements": UNMET},
                 "gates": ["discovery", "architecture"],
             }
         },
-        "memory": {"unmet_requirements": UNMET},
+        "memory": {"unmet_requirements": []},
     },
 )
 
@@ -329,16 +359,19 @@ write(
         "starts": {
             "implement#2": {
                 "files": before_impl,
-                "memory": {"impl_violations": VIOL},
+                "memory": ok_memory("intake", "analyze", "design", "plan_tasks")
+                | {"impl_violations": VIOL},
                 "gates": ["discovery", "architecture"],
             },
             "implement#3": {
                 "files": before_impl,
-                "memory": {"impl_violations": VIOL, "failing_tests": FAILING},
+                # implement#2 の開始時スナップショット（持ち帰った impl_violations を含む）に failing_tests を重ねる
+                "memory": ok_memory("intake", "analyze", "design", "plan_tasks")
+                | {"impl_violations": VIOL, "failing_tests": FAILING},
                 "gates": ["discovery", "architecture"],
             },
         },
-        "memory": {"failing_tests": FAILING},
+        "memory": {"failing_tests": [], "impl_violations": []},
     },
 )
 
@@ -404,12 +437,14 @@ write(
         "starts": {
             "implement#2": {
                 "files": before_impl,
-                "memory": {"review_findings": FINDINGS},
+                "memory": ok_memory("intake", "analyze", "design", "plan_tasks")
+                | {"review_findings": FINDINGS},
                 "gates": ["discovery", "architecture"],
             }
         },
         "options": {"stage:release#1": ["notes_incomplete", "unknown"]},
-        "memory": {"review_findings": FINDINGS},
+        # review#2 も goal の時に修正を要しない指摘を書く
+        "memory": {"review_findings": FINDINGS, "design_issues": []},
     },
     operator=[{"kind": "rollback", "stage": "implement", "carry": ["review_findings"]}],
 )
@@ -477,7 +512,7 @@ write(
         "starts": {
             "plan_tasks#2": {
                 "files": ok_files("intake", "analyze", "design"),
-                "memory": {"task_questions": TASK_Q},
+                "memory": ok_memory("intake", "analyze", "design") | {"task_questions": TASK_Q},
                 "gates": ["discovery"],
             }
         },
@@ -509,11 +544,12 @@ write(
         "starts": {
             "design#2": {
                 "files": ok_files("intake", "analyze"),
-                "memory": {"design_issues": ISSUES},
+                "memory": ok_memory("intake", "analyze") | {"design_issues": ISSUES},
                 "gates": ["discovery"],
             }
         },
-        "memory": {"design_issues": ISSUES},
+        # plan_tasks#2 と review#2 が空の一覧を書くので、持ち帰った設計の問題は最後の記憶に残らない
+        "memory": {"design_issues": []},
     },
 )
 

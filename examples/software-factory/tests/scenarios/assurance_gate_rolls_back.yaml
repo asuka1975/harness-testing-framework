@@ -17,37 +17,73 @@ visits:
   analyze#1:
     fixture: analyze/ok
     classify: *id001
+    memory:
+      intake_questions: []
   design#1:
     fixture: design/ok
     classify: *id001
+    memory:
+      requirement_gaps: []
   plan_tasks#1:
     fixture: plan_tasks/ok
     classify: *id001
-  implement#1: &id002
+    memory:
+      design_issues: []
+  implement#1:
     fixture: implement/ok
     classify: *id001
-  unit_test#1: &id003
+    memory:
+      task_questions: &id002 []
+      impl_violations: &id003 []
+  unit_test#1:
     fixture: unit_test/ok
     classify: *id001
-  acceptance#1: &id004
+    memory:
+      failing_tests: &id004 []
+      coverage_gaps: &id005 []
+  acceptance#1:
     fixture: acceptance/ok
     classify: *id001
+    memory:
+      unmet_requirements: &id006 []
+      requirement_gaps: &id007 []
   review#1:
     fixture: review/ok
     classify: *id001
     memory:
-      review_findings: &id005
+      review_findings: &id008
       - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
       design_issues: []
-  implement#2: *id002
-  unit_test#2: *id003
-  acceptance#2: *id004
+  implement#2:
+    fixture: implement/ok
+    classify: *id001
+    memory:
+      task_questions: *id002
+      impl_violations: *id003
+  unit_test#2:
+    fixture: unit_test/ok
+    classify: *id001
+    memory:
+      failing_tests: *id004
+      coverage_gaps: *id005
+  acceptance#2:
+    fixture: acceptance/ok
+    classify: *id001
+    memory:
+      unmet_requirements: *id006
+      requirement_gaps: *id007
   review#2:
     fixture: review/ok
     classify: *id001
+    memory:
+      review_findings:
+      - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
+      design_issues: []
   release#1:
     fixture: release/ok
     classify: *id001
+    memory:
+      missing_notes: []
 gates:
   discovery#1: *id001
   architecture#1: *id001
@@ -121,4 +157,4 @@ expect:
     - changes_requested
     - unknown
   memory:
-    review_findings: *id005
+    review_findings: *id008

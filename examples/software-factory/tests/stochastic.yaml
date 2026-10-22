@@ -2,7 +2,8 @@
 #
 # 本体は訪問ごとに、文脈の種（context.seed）だけを乱数の源にして変種を一つ選び、フィクスチャ
 # （tests/fixtures/<ステージ>/<変種>/）を作業領域に写し、変種の記憶を書く。成果物の先頭の印
-# [[class <ステージ>=<クラス>]] を MarkerClassifier が読む。
+# [[class <ステージ>=<クラス>]] を MarkerClassifier が読む。memory_out の記憶は、どの変種も訪問のたびにすべて書く（問題が
+# 無ければ空の一覧。adopting.md 第2.1節。test_stochastic.py が確かめる）。
 #
 # 分布の鍵（condition）:
 # - first / again: 訪問 1 / 訪問 2 以降の分布
@@ -98,7 +99,7 @@ variants:
     unmet:
       class: requirement_unmet
       memory:
-        unmet_requirements: ["REQ-2: 小計 1200 円に OFF500 を二回続けて適用すると、二回目も割り引かれる"]
+        unmet_requirements: ["REQ-1: 小計 333 円に PCT10 を適用すると支払額が 299 円になる（割引額の 1 円未満を切り捨てれば 300 円）。repo/src/shopcart/discount.py の Discount.apply が支払額を切り捨てている"]
         requirement_gaps: []
       metrics_fail: [verified_requirements]
     misread:

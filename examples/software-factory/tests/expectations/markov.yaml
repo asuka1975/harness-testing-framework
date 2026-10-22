@@ -1,10 +1,14 @@
 # 基準は tests/stochastic.yaml の markov の設計値から導いた。中心は設計値の割合、幅は設計値の両側に、既定の回数（400）での
-# 標準誤差のおよそ 3.2 倍以上をとり、0.01 の単位で外側に丸めた（0 と 1 で切る）。
+# 標準誤差の 3.2 倍以上をとり、0.01 の単位で外側に丸めた（0 と 1 で切る）。
+# 外れる側の期待件数 E[n]·min(p, 1−p) が 10 に届かない基準（release の訪問 2 以降の goal）は、二項分布が歪むので、正規近似
+# ではなく二項分布の裾の確率（n = E[n]）から、誤って落ちる確率がほかの基準と同じ水準（0.1% 程度）になるように幅を決めた
+# （adopting.md 第12節）。
 # 標準誤差は sqrt(p(1-p)/E[n])。E[n] は条件に合う評価の数の期待値で、設計値の MarkovModel（software_factory/design.py の
 # design_model）に synthesize をかけた evaluations（訪問の区分ごとの評価の回数の期待値）の 400 倍。p は visit_outcomes から出る
 # 設計値の割合と同じ。status_rate と mean_visits の中心も synthesize の厳密な値。mean_visits の標準誤差は、同じ予測の
 # visits_variance（一回の実行の中での訪問の回数の分散）から sqrt(分散 / 400)。
-# test_stochastic.py の test_correct_expectations_follow_the_design が、各基準が設計値の両側に 3 SE 以上あることを確かめる
+# test_stochastic.py の test_correct_expectations_follow_the_design が、各基準が設計値の両側に 3 SE 以上 5 SE 以下あること
+# （0 と 1 で切る側を除く）と、上の歪む基準の二項分布の裾の確率が 0.1% 以下であることを確かめる
 expectations: software-factory-markov
 description: markov の確率的な偽ステージ本体での、評価の結果の出現率、実行の最後の状態、訪問の回数
 workflow: ../../workflow.yaml
@@ -48,7 +52,7 @@ criteria:
     outcome: tests_insufficient
     min: 0.12
     max: 0.28
-  - kind: outcome_rate     # 設計値 0.10、E[n] 313.8、SE 0.0169。両側 3.6 SE
+  - kind: outcome_rate     # 設計値 0.10、E[n] 313.8、SE 0.0169。両側 3.5 SE
     target: acceptance
     visit: 1
     outcome: requirement_unmet
@@ -60,19 +64,25 @@ criteria:
     outcome: changes_requested
     min: 0.07
     max: 0.21
-  - kind: outcome_rate     # 設計値 0.23（carry を受けない最初の訪問）、E[n] 283.0、SE 0.0250。両側 3.2 SE
+  # 設計値 0.23（carry を受けない最初の訪問）、E[n] 283.0、SE 0.0250。3.2 SE は [0.14995, 0.31005] で、外側に丸めて両側 3.6 SE
+  # （前の [0.15, 0.31] は 3.198 SE で規則をわずかに下回っていた）
+  - kind: outcome_rate
     target: release
     visit: 1
     outcome: notes_incomplete
-    min: 0.15
-    max: 0.31
-  - kind: outcome_rate     # 設計値 0.97（carry を受けた再進入）、E[n] 65.1、SE 0.0211。下側 3.3 SE（上側は 1 で切る）
+    min: 0.14
+    max: 0.32
+  # 設計値 0.97（carry を受けた再進入）、E[n] 65.1、SE 0.0211。外れる側の期待件数は 65.1 × 0.03 ≈ 2 で二項分布が歪むので、
+  # 二項分布（n = 65、p = 0.97）の下側の裾から決めた: min 0.90 では観測値が下に外れる確率が 0.33%、0.88 では 0.07%
+  # （正規近似の「3.3 SE」が示す約 0.05% より、0.90 は大きく外れていた）。0.88 は下側 4.3 SE。上側は 1 で切る。
+  # markov_shifted.yaml の [0.65, 0.85] とは重ならない
+  - kind: outcome_rate
     target: release
     from_visit: 2
     outcome: goal
-    min: 0.90
+    min: 0.88
     max: 1.0
-  - kind: status_rate      # synthesize の厳密な値 0.6885、SE 0.0232。両側 3.4 SE
+  - kind: status_rate      # synthesize の厳密な値 0.6885、SE 0.0232。下側 3.4 SE、上側 3.5 SE
     status: completed
     min: 0.61
     max: 0.77

@@ -4,9 +4,9 @@ description: implement の lint 違反（実在の ruff）で自分自身に戻�
 workflow: ../../workflow.yaml
 seed: 11
 inputs:
-  feature_request.md: &id002
+  feature_request.md: &id004
     from: ../fixtures/inputs/feature_request.md
-  repo/: &id003
+  repo/: &id005
     from: ../fixtures/inputs/repo/
 visits:
   intake#1:
@@ -17,16 +17,23 @@ visits:
   analyze#1:
     fixture: analyze/ok
     classify: *id001
+    memory:
+      intake_questions: &id006 []
   design#1:
     fixture: design/ok
     classify: *id001
+    memory:
+      requirement_gaps: &id007 []
   plan_tasks#1:
     fixture: plan_tasks/ok
     classify: *id001
+    memory:
+      design_issues: &id008 []
   implement#1:
     fixture: implement/lint
     memory:
-      impl_violations: &id004
+      task_questions: &id002 []
+      impl_violations: &id009
       - 'lint: repo/src/shopcart/discount.py に使っていない import と長すぎる行がある'
     classify:
       choice: quality_violation
@@ -34,19 +41,22 @@ visits:
   implement#2:
     fixture: implement/ok
     classify: *id001
+    memory:
+      task_questions: *id002
+      impl_violations: &id003 []
   unit_test#1:
     fixture: unit_test/thin
     memory:
+      failing_tests: []
       coverage_gaps:
       - REQ-1、REQ-2、REQ-3 の受け入れ基準にテストが無い
-      failing_tests: []
     classify:
       choice: tests_insufficient
       confidence: 0.9
   unit_test#2:
     fixture: unit_test/defect_found
     memory:
-      failing_tests: &id006
+      failing_tests: &id011
       - 'test_percent_discount_rounds_the_discount_down: 333 円の PCT10 が 299 円になる（期待 300 円）'
       coverage_gaps: []
     classify:
@@ -55,18 +65,33 @@ visits:
   implement#3:
     fixture: implement/ok_fixed
     classify: *id001
+    memory:
+      task_questions: *id002
+      impl_violations: *id003
   unit_test#3:
     fixture: unit_test/defect_passed
     classify: *id001
+    memory:
+      failing_tests: []
+      coverage_gaps: []
   acceptance#1:
     fixture: acceptance/ok
     classify: *id001
+    memory:
+      unmet_requirements: []
+      requirement_gaps: []
   review#1:
     fixture: review/ok
     classify: *id001
+    memory:
+      review_findings:
+      - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
+      design_issues: []
   release#1:
     fixture: release/ok
     classify: *id001
+    memory:
+      missing_notes: []
 gates:
   discovery#1: *id001
   architecture#1: *id001
@@ -128,9 +153,9 @@ expect:
   - end completed
   starts:
     implement#2:
-      files: &id005
-        feature_request.md: *id002
-        repo/: *id003
+      files: &id010
+        feature_request.md: *id004
+        repo/: *id005
         intake.md:
           from: ../fixtures/intake/ok/intake.md
         requirements.md:
@@ -140,17 +165,24 @@ expect:
         tasks.yaml:
           from: ../fixtures/plan_tasks/ok/tasks.yaml
       memory:
-        impl_violations: *id004
+        intake_questions: *id006
+        requirement_gaps: *id007
+        design_issues: *id008
+        impl_violations: *id009
       gates:
       - discovery
       - architecture
     implement#3:
-      files: *id005
+      files: *id010
       memory:
-        impl_violations: *id004
-        failing_tests: *id006
+        intake_questions: *id006
+        requirement_gaps: *id007
+        design_issues: *id008
+        impl_violations: *id009
+        failing_tests: *id011
       gates:
       - discovery
       - architecture
   memory:
-    failing_tests: *id006
+    failing_tests: []
+    impl_violations: []

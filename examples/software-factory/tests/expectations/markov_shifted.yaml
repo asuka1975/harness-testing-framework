@@ -10,7 +10,7 @@ bindings: {profile: markov}
 criteria:
   - {kind: outcome_rate, target: intake, visit: 1, outcome: unknown, min: 0.08, max: 0.20}                     # 上へ 5.9 SE
   - {kind: outcome_rate, target: analyze, visit: 1, outcome: needs_unclear, min: 0.36, max: 0.50}              # 上へ 5.0 SE
-  - {kind: outcome_rate, target: analyze, visit: 1, outcome: needs_unclear, min: 0.0, max: 0.17}               # すぐ外側（下）、3.6 SE
+  - {kind: outcome_rate, target: analyze, visit: 1, outcome: needs_unclear, min: 0.0, max: 0.16}               # すぐ外側（下。正しい基準と端を共有しない）、4.1 SE
   - {kind: outcome_rate, target: implement, visit: 1, outcome: goal, min: 0.84, max: 1.0}                      # 上へ 5.0 SE
   - {kind: outcome_rate, target: implement, from_visit: 2, outcome: goal, min: 0.70, max: 0.83}                # 下へ 4.2 SE
   - {kind: outcome_rate, target: unit_test, visit: 1, outcome: impl_defect, min: 0.03, max: 0.13}              # 下へ 3.9 SE

@@ -44,6 +44,40 @@ inputs は feature_request.md と repo/（変更前のコードベース）。
 
 writes（repo/src/、repo/tests/）の外を変えるのは契約違反で、評価の前に escalate される。out\_of\_scope\_changes はそれより狭い、タスクの範囲を測る。
 
+結果を覚えるのは、意味の決まった終了コード（compileall と import は 0 と 1、pytest は 0、1、5 と収集の失敗による 2、ruff は 0 と 1）の時だけ。ツールが異常に終わった時（シグナル、ほかの終了コード、時間切れ）は MetricError にして覚えない（adopting.md 第4節）。分布テストに使う実行の集まりに測定の失敗が一度も無いことを、tests/test\_stochastic.py で確かめる。
+
+要件の id の照合（design\_covers\_requirements、changelog\_covers\_requirements）は、id の前後を英数字の境界だけで切る（「REQ-1は」も数え、REQ-10 は REQ-1 と数えない）。changelog\_covers\_requirements は、最新の版の見出しの下の「- 」で始まる変更の行だけを数える。
+
+## フェーズゲートの落ち方
+
+ゲートは、フェーズの最終ステージが goal に達した直後に評価する（adopting.md 第2.4節）。
+
+- end\_state で自動に戻すのは assurance のゲートだけ。review の changes\_requested は、goal の時にも修正を要しない指摘を記憶 review\_findings に書くので、ゲートから選ばれても持ち帰るものがある
+- discovery（analyze）、architecture（plan\_tasks）、construction（unit\_test）、delivery（release）の最終ステージの end\_state は、goal の時には空になる記憶を証拠にするので、ゲートでは選ばれない。この四つのゲートの不合格は unknown になり、人に戻る
+- 四つのゲートの指標は、最終ステージかそれより前のステージの goal の指標がすでに満たしている。ゲートで指標が落ちるのは、運用者が goal 到達扱いで続行した後だけ
+- ゲートに固有の定性の条件（これに反するとゲートは unknown。assurance は changes\_requested で戻る）
+  - discovery: intake.md の回答（利用者、割引の種類と上限、無効なコードの扱い）が、すべて requirements.md の要件か受け入れ基準に反映されている
+  - architecture: design.md の構成と tasks.yaml のタスクが対応し、すべての要件が「## 対応」とタスクの requirements の両方で扱われている
+  - construction: impl\_notes.md と test\_report.md に未解決の違反、問い、失敗、未網羅が無い
+  - assurance: review.json の修正を要しない指摘も、verification.md の結果と合わせて、リリースしてよい
+  - delivery: CHANGELOG.md と release.json が、合格したすべての要件を挙げて互いに一致する
+
+## 記述の意図と、直さなかったこと
+
+ワークフロー定義の事前レビュー（docs/review-findings.md）を受けて決めたこと。
+
+- **implement の指標が落ちても、記憶 impl\_violations が空なら unknown になる。** implement は終える前にビルド、既存のテスト、lint、変更の範囲、設計との一致を自分で確かめて違反を書く。気づかずに指標だけが落ちた状態は、戻り先が直すための情報が無いので、人に戻すのが正しい（意図どおり）
+- **memory\_out の記憶は訪問のたびに書く（問題が無ければ空の一覧）。** 書かないと、持ち帰った前の値が状態文書に残る（adopting.md 第2.1節）。task\_unclear は、記憶 task\_questions と impl\_notes.md の「## 問い」の両方を条件にする。impl\_notes.md は implement の開始時スナップショットに無いので、前の値が残らない
+- **持ち帰る記憶は、行番号ではなく、パス、関数、期待する振る舞いで書く。** implement に戻ると repo/src/ は実装の前に戻り、unit\_test のテストも捨てられる。implement は持ち帰った failing\_tests のテストと、repo/tests/ に関する review\_findings を impl\_notes.md の「## テストへの依頼」に書き写し、unit\_test がそれに応える。unit\_test の memory\_in に failing\_tests や review\_findings を足す案は、整合性検査が拒む（unit\_test 自身か前のステージが生成しない記憶を受け取れない）。implement の開始時スナップショットには前の持ち帰りの記憶も残るが、コードを一から書き直すので、それもまだ有効な指摘として扱う
+- **analyze の requirement\_count の min 3 は、この依頼（四つの要件）に合わせた値。** 要件が一つか二つで足りる依頼では、goal が選択肢から外れて unknown になる。ほかの依頼に使う時は min 1 にする
+- **intake が持ち帰った問いを尋ねたかは、goal では観測しない。** 持ち帰った問いは intake.md の「## 質問と回答」に、ほかの質問と同じ形で書くので、回答の有無は観測できる。尋ねた問いと持ち帰った問いの対応は、memory\_in が状態文書に入らないので観測できない。この例の偽の本体は必ず尋ねる（tests/test\_personas.py）。実際の本体では、intake.md に「## 持ち帰った問い」の節を設け、goal に「その節の問いにすべて回答がある」を足すとよい。acceptance → analyze → intake と連鎖すると、intake の開始時スナップショットに requirement\_gaps は無いので、analyze は依頼者に尋ねるしかない食い違いを intake\_questions に含める（analyze の description に書いた）
+- **release はパッケージの版を上げない。** release.json はリリースの記録で、repo/src/shopcart/\_\_init\_\_.py の \_\_version\_\_ の更新は範囲外（release の description に書いた）。版を上げていない状態は notes\_incomplete に含めず unknown のままにする。含めると、release の unknown の代表（版も変更の記録も欠けている）が notes\_incomplete の記述に当たり、代表と記述が食い違うため
+- **acceptance の tests\_pass は残す。** unit\_test の goal と construction のゲートが保証するので、goal 到達扱いで続行した後にしか落ちない。検証のステージが、自分の結果の前提（テストが通る）を測る指標として残した
+
+分類体系の変更の提案（人間の承認を待つ。今の定義は変えていない）:
+
+- unit\_test のテストの不備（lint の違反、tests に無いファイル、要件に反する期待）は、tests\_insufficient の境界を広げて含めた。別案として、テストの不備の end\_state（たとえば tests\_defective）を足して unit\_test 自身に戻す方法がある。不足（テストが無い）と不備（テストが誤っている）を分けて数えたい時に採る
+
 ## 確率的な本体の仕掛け
 
 - carry を受けた再進入で分布が変わる: release は、記憶 missing\_notes を受けたかで分布を選ぶ（goal 0.75 → 0.97）。release に戻る辺は自分自身への一本だけで、運用者が中止で答える実行では「訪問 2 以降」と一致する

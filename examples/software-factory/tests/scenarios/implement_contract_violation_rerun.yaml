@@ -16,33 +16,57 @@ visits:
   analyze#1:
     fixture: analyze/ok
     classify: *id001
+    memory:
+      intake_questions: []
   design#1:
     fixture: design/ok
     classify: *id001
+    memory:
+      requirement_gaps: []
   plan_tasks#1:
     fixture: plan_tasks/ok
     classify: *id001
+    memory:
+      design_issues: []
   implement#1:
     fixture: implement/ok
     files:
       requirements.md: |
         書き換えた要件
     classify: *id001
+    memory:
+      task_questions: &id002 []
+      impl_violations: &id003 []
   implement#2:
     fixture: implement/ok
     classify: *id001
+    memory:
+      task_questions: *id002
+      impl_violations: *id003
   unit_test#1:
     fixture: unit_test/ok
     classify: *id001
+    memory:
+      failing_tests: []
+      coverage_gaps: []
   acceptance#1:
     fixture: acceptance/ok
     classify: *id001
+    memory:
+      unmet_requirements: []
+      requirement_gaps: []
   review#1:
     fixture: review/ok
     classify: *id001
+    memory:
+      review_findings:
+      - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
+      design_issues: []
   release#1:
     fixture: release/ok
     classify: *id001
+    memory:
+      missing_notes: []
 gates:
   discovery#1: *id001
   architecture#1: *id001

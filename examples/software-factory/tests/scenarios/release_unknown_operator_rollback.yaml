@@ -4,9 +4,9 @@ description: release の成果物の版が上がっておらず（実在の指�
 workflow: ../../workflow.yaml
 seed: 11
 inputs:
-  feature_request.md: &id005
+  feature_request.md: &id009
     from: ../fixtures/inputs/feature_request.md
-  repo/: &id006
+  repo/: &id010
     from: ../fixtures/inputs/repo/
 visits:
   intake#1:
@@ -17,26 +17,41 @@ visits:
   analyze#1:
     fixture: analyze/ok
     classify: *id001
+    memory:
+      intake_questions: &id011 []
   design#1:
     fixture: design/ok
     classify: *id001
+    memory:
+      requirement_gaps: &id012 []
   plan_tasks#1:
     fixture: plan_tasks/ok
     classify: *id001
-  implement#1: &id002
+    memory:
+      design_issues: &id013 []
+  implement#1:
     fixture: implement/ok
     classify: *id001
-  unit_test#1: &id003
+    memory:
+      task_questions: &id002 []
+      impl_violations: &id003 []
+  unit_test#1:
     fixture: unit_test/ok
     classify: *id001
-  acceptance#1: &id004
+    memory:
+      failing_tests: &id004 []
+      coverage_gaps: &id005 []
+  acceptance#1:
     fixture: acceptance/ok
     classify: *id001
+    memory:
+      unmet_requirements: &id006 []
+      requirement_gaps: &id007 []
   review#1:
     fixture: review/ok
     classify: *id001
     memory:
-      review_findings: &id007
+      review_findings: &id014
       - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
       design_issues: []
   release#1:
@@ -44,15 +59,38 @@ visits:
     classify:
       choice: null
       confidence: 0.0
-  implement#2: *id002
-  unit_test#2: *id003
-  acceptance#2: *id004
+    memory:
+      missing_notes: &id008 []
+  implement#2:
+    fixture: implement/ok
+    classify: *id001
+    memory:
+      task_questions: *id002
+      impl_violations: *id003
+  unit_test#2:
+    fixture: unit_test/ok
+    classify: *id001
+    memory:
+      failing_tests: *id004
+      coverage_gaps: *id005
+  acceptance#2:
+    fixture: acceptance/ok
+    classify: *id001
+    memory:
+      unmet_requirements: *id006
+      requirement_gaps: *id007
   review#2:
     fixture: review/ok
     classify: *id001
+    memory:
+      review_findings:
+      - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
+      design_issues: []
   release#2:
     fixture: release/ok
     classify: *id001
+    memory:
+      missing_notes: *id008
 gates:
   discovery#1: *id001
   architecture#1: *id001
@@ -130,8 +168,8 @@ expect:
   starts:
     implement#2:
       files:
-        feature_request.md: *id005
-        repo/: *id006
+        feature_request.md: *id009
+        repo/: *id010
         intake.md:
           from: ../fixtures/intake/ok/intake.md
         requirements.md:
@@ -141,7 +179,10 @@ expect:
         tasks.yaml:
           from: ../fixtures/plan_tasks/ok/tasks.yaml
       memory:
-        review_findings: *id007
+        intake_questions: *id011
+        requirement_gaps: *id012
+        design_issues: *id013
+        review_findings: *id014
       gates:
       - discovery
       - architecture
@@ -150,4 +191,5 @@ expect:
     - notes_incomplete
     - unknown
   memory:
-    review_findings: *id007
+    review_findings: *id014
+    design_issues: []

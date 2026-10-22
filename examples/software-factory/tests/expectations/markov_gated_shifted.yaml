@@ -1,0 +1,15 @@
+# markov_gated.yaml の設計値から外れた基準。どの基準も落ちなければならない（ゲートの分布が効いていることの確認）。
+# 注記は、設計値が幅からどれだけ離れているか（markov_gated.yaml と同じ E[n] での SE の倍数）。
+expectations: software-factory-markov-gated-shifted
+description: markov の本体と assurance のゲートの分布の設計値から外れた基準
+workflow: ../../workflow.yaml
+runs: 400
+seed: 50000
+bindings:
+  profile: markov
+  gates:
+    assurance: {goal: 0.8, changes_requested: 0.2}
+criteria:
+  - {kind: outcome_rate, scope: phase, target: assurance, visit: 1, outcome: changes_requested, min: 0.35, max: 0.50}  # 上へ 5.7 SE
+  - {kind: outcome_rate, scope: phase, target: assurance, visit: 1, outcome: changes_requested, min: 0.0, max: 0.10}   # 下へ 3.8 SE
+  - {kind: status_rate, status: completed, min: 0.75, max: 0.90}                                                        # 上へ 3.8 SE

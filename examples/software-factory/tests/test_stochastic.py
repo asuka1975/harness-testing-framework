@@ -4,22 +4,34 @@
 - 変種の選び方の経験分布が、設計値（tests/stochastic.yaml）に近い
 - release の分布は carry を受けたかで変わり、それは訪問の区分と一致する
 - 本体は契約を守る（多数の実行で、契約違反、本体の例外、範囲外のファイルの警告が一度も無い）
+- 本体は訪問のたびに memory_out のすべての記憶を書く（tests/stochastic.yaml のすべての変種と、すべてのシナリオの訪問）
+- 分布テストに使う実行の集まりに、指標の測定の失敗が一度も無く、印が goal の評価ではいつも goal が選択肢にある
+  （ツールの異常終了などで goal が選択肢から外れると、印の goal が黙って unknown になり、分布が狂う）
 - 正しい expectations（ゲートがいつも goal の markov.yaml と、assurance のゲートを実行の種で揺らす markov_gated.yaml）が
-  通り、ずらした expectations の基準はすべて落ちる
-- 正しい expectations の各基準は、設計値を中に含み、幅が設計値の両側に標準誤差の 3 倍以上ある（0 と 1 で切る側を除く）。
-  標準誤差の分母 E[n] と訪問の回数の分散は、設計値の MarkovModel の synthesize の evaluations と visits_variance から
-  厳密に出す
+  通り、ずらした expectations（markov_shifted.yaml、markov_gated_shifted.yaml）の基準はすべて落ちる
+- 正しい expectations の各基準は、設計値を中に含み、幅が設計値の両側に標準誤差の 3 倍以上 5 倍以下ある（0 と 1 で切る側を
+  除く）。外れる側の期待件数が 10 に届かない基準は、二項分布の裾の確率が 0.1% 以下。標準誤差の分母 E[n] と訪問の回数の
+  分散は、設計値の MarkovModel の synthesize の evaluations と visits_variance から厳密に出す
 """
 
 import math
 from pathlib import Path
+from typing import Any
 
 import pytest
 from software_factory.design import expected_count
-from software_factory.stages.probabilistic import TABLE, choose_variant, run_set, runtime
+from software_factory.stages.deterministic import SCENARIOS
+from software_factory.stages.probabilistic import (
+    TABLE,
+    WORKFLOW_MODEL,
+    choose_variant,
+    run_set,
+    runtime,
+)
 
 from harness_testing_framework.runtime import BlobStore
 from harness_testing_framework.testing.e2e import Prediction
+from harness_testing_framework.testing.harness import load_scenario, marked_class
 from harness_testing_framework.testing.stages import (
     RunSet,
     evaluate_expectations,
@@ -110,10 +122,32 @@ def test_correct_expectations_follow_the_design(
             p = prediction.mean_visits[c["target"]]
             se = math.sqrt(prediction.visits_variance[c["target"]] / runs)
         assert c["min"] <= p <= c["max"], c
-        assert c["min"] == 0.0 or p - c["min"] >= 3 * se, (c, p, se)
-        assert (c["kind"] == "outcome_rate" and c["max"] == 1.0) or c["max"] - p >= 3 * se, c
+        lower, upper = c["min"] != 0.0, not (c["kind"] == "outcome_rate" and c["max"] == 1.0)
+        assert not lower or 3 * se <= p - c["min"] <= 5 * se, (c, p, se)
+        assert not upper or 3 * se <= c["max"] - p <= 5 * se, (c, p, se)
+        if c["kind"] == "outcome_rate" and runs * n * min(p, 1 - p) < 10:
+            # 二項分布が歪む基準: 正規近似ではなく、裾の確率で誤って落ちる確率を確かめる（adopting.md 第12節）
+            assert _outside(round(runs * n), p, c["min"], c["max"]) <= 0.001, c
+            checked.add("binomial")
         checked.add(c["kind"])
-    assert checked == {"outcome_rate", "status_rate", "mean_visits"}
+    assert {"outcome_rate", "status_rate", "mean_visits"} <= checked
+
+
+def _outside(n: int, p: float, low: float, high: float) -> float:
+    """二項分布 B(n, p) の割合 X/n が [low, high] の外に出る確率。"""
+    return sum(
+        math.comb(n, k) * p**k * (1 - p) ** (n - k)
+        for k in range(n + 1)
+        if not low <= k / n <= high
+    )
+
+
+@pytest.mark.parametrize("name", ["markov_gated_shifted.yaml"])
+def test_every_shifted_gated_criterion_fails(
+    name: str, gated_runs: tuple[RunSet, BlobStore]
+) -> None:
+    report = evaluate_expectations(load_expectations(EXPECTATIONS / name), gated_runs[0])
+    assert not any(r.passed for r in report.results), report.lines()
 
 
 def test_every_shifted_criterion_fails(markov: tuple[RunSet, BlobStore]) -> None:
@@ -123,13 +157,57 @@ def test_every_shifted_criterion_fails(markov: tuple[RunSet, BlobStore]) -> None
     assert not any(r.passed for r in report.results), report.lines()
 
 
-def test_bodies_keep_the_contract(markov: tuple[RunSet, BlobStore]) -> None:
+@pytest.mark.parametrize("name", ["markov", "gated"])
+def test_bodies_keep_the_contract(
+    name: str, markov_runs: tuple[RunSet, BlobStore], gated_runs: tuple[RunSet, BlobStore]
+) -> None:
     """契約違反（宣言外のパスや記憶）、本体の例外、範囲外のファイルを捨てた警告が、どの実行にも無い。"""
-    for run in markov[0].runs:
+    runs = (markov_runs if name == "markov" else gated_runs)[0]
+    for run in runs.runs:
         for event in run.events:
             assert event["event"] != "warning", (run.seed, event)
             if event["event"] == "stage_end":
                 assert event["error"] is None, (run.seed, event)
+
+
+@pytest.mark.parametrize("name", ["markov", "gated"])
+def test_metrics_never_fail_to_measure_and_goal_marks_keep_goal(
+    name: str, markov_runs: tuple[RunSet, BlobStore], gated_runs: tuple[RunSet, BlobStore]
+) -> None:
+    """分布テストに使う実行の集まりで、指標の測定の失敗（ツールの異常終了を含む）が一度も無く、印が goal の評価
+    （tests/stochastic.yaml の metrics_fail が空の変種）ではいつも goal が選択肢にある。"""
+    runs, store = markov_runs if name == "markov" else gated_runs
+    goal_marked = 0
+    for run in runs.runs:
+        for event in run.evaluations():
+            metrics: Any = event["metrics"]
+            errors = {k: v["error"] for k, v in metrics.items() if "error" in v}
+            assert errors == {}, (run.seed, event["seq"], errors)
+            classification: Any = event["classification"]
+            if event["scope"] != "stage" or classification is None:
+                continue
+            state = store.get(str(classification["state"])).decode("utf-8")
+            if marked_class(state) == "goal":
+                goal_marked += 1
+                assert "goal" in classification["options"], (run.seed, event["seq"], metrics)
+    assert goal_marked > 1000
+
+
+def test_every_body_writes_every_memory_out_item() -> None:
+    """memory_out の記憶は訪問のたびに書く（問題が無ければ空の一覧）。書かないと、持ち帰った前の値が状態文書に残り、
+    問いが解けていても同じ end_state に分類されうる（adopting.md 第2.1節）。確率的な本体の変種と、シナリオの台本の
+    すべての訪問（例外で終わるものを除く）を確かめる。"""
+    memory_out = {s.id: set(s.memory_out) for s in WORKFLOW_MODEL.stages}
+    for stage, variants in TABLE["variants"].items():
+        for name, spec in variants.items():
+            specs = spec["by_family"].values() if "by_family" in spec else [spec]
+            for one in specs:
+                assert set(one.get("memory", {})) == memory_out[stage], (stage, name)
+    for path in sorted(SCENARIOS.glob("*.yaml")):
+        for key, visit in load_scenario(path).visits.items():
+            stage = key.split("#")[0]
+            if "raise" not in visit:
+                assert set(visit.get("memory", {})) == memory_out[stage], (path.name, key)
 
 
 def test_release_distribution_follows_the_carry(

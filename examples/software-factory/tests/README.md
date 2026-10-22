@@ -5,7 +5,8 @@
   ファイルは、フィクスチャを `{from: パス}` で参照する。software\_factory/scenarios.py が作る
 - stochastic.yaml: 確率的な偽の本体の設計値（変種、クラス、記憶、落ちる指標、分布）
 - expectations/: 分布テストの基準。markov.yaml は通るはずのもの、markov\_shifted.yaml はすべて落ちるはずのもの、markov\_gated.yaml は
-  assurance のゲートを実行の種で揺らす実行で通るはずのもの（bindings.gates にゲートの分布）
+  assurance のゲートを実行の種で揺らす実行で通るはずのもの（bindings.gates にゲートの分布）、markov\_gated\_shifted.yaml は
+  その実行ですべて落ちるはずのもの
 - conftest.py: 多数の実行の集まりと、設計値の MarkovModel の予測を、テストの間で共有する
 
 分布テスト、独立性検証、マルコフ合成の回数は、環境変数 `HTF_RUNS` で増やせる（減らせない）。

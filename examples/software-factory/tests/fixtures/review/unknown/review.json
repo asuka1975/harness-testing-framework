@@ -1,1 +1,1 @@
-{"marker": "[[class review=unknown]]", "findings": [{"path": "repo/", "blocking": false, "comment": "どこを見ればよいか判断できない"}]}
+{"marker": "[[class review=unknown]]", "reviewed": [], "findings": [{"path": "repo/", "blocking": false, "comment": "どこを見ればよいか判断できない"}]}

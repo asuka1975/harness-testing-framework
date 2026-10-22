@@ -1,12 +1,12 @@
 scenario: acceptance_unmet_crosses_phase
-description: acceptance が REQ-2 の不合格を見つけ、記憶 unmet_requirements を持って assurance から construction の implement
+description: acceptance が REQ-1 の不合格を見つけ、記憶 unmet_requirements を持って assurance から construction の implement
   に戻る。construction のゲートを評価し直し、単体テストもやり直す（フェーズ境界越え、ゲートの再評価、実在の指標による再評価）
 workflow: ../../workflow.yaml
 seed: 11
 inputs:
-  feature_request.md: &id004
+  feature_request.md: &id006
     from: ../fixtures/inputs/feature_request.md
-  repo/: &id005
+  repo/: &id007
     from: ../fixtures/inputs/repo/
 visits:
   intake#1:
@@ -17,38 +17,70 @@ visits:
   analyze#1:
     fixture: analyze/ok
     classify: *id001
+    memory:
+      intake_questions: &id008 []
   design#1:
     fixture: design/ok
     classify: *id001
+    memory:
+      requirement_gaps: &id009 []
   plan_tasks#1:
     fixture: plan_tasks/ok
     classify: *id001
-  implement#1: &id002
+    memory:
+      design_issues: &id010 []
+  implement#1:
     fixture: implement/ok
     classify: *id001
-  unit_test#1: &id003
+    memory:
+      task_questions: &id002 []
+      impl_violations: &id003 []
+  unit_test#1:
     fixture: unit_test/ok
     classify: *id001
+    memory:
+      failing_tests: &id004 []
+      coverage_gaps: &id005 []
   acceptance#1:
     fixture: acceptance/unmet
     memory:
-      unmet_requirements: &id006
-      - 'REQ-2: 小計 1200 円に OFF500 を二回続けて適用すると、二回目も割り引かれる'
+      unmet_requirements: &id011
+      - 'REQ-1: 小計 333 円に PCT10 を適用すると支払額が 299 円になる（割引額の 1 円未満を切り捨てれば 300 円）。repo/src/shopcart/discount.py
+        の Discount.apply が支払額を切り捨てている'
       requirement_gaps: []
     classify:
       choice: requirement_unmet
       confidence: 0.9
-  implement#2: *id002
-  unit_test#2: *id003
+  implement#2:
+    fixture: implement/ok
+    classify: *id001
+    memory:
+      task_questions: *id002
+      impl_violations: *id003
+  unit_test#2:
+    fixture: unit_test/ok
+    classify: *id001
+    memory:
+      failing_tests: *id004
+      coverage_gaps: *id005
   acceptance#2:
     fixture: acceptance/ok
     classify: *id001
+    memory:
+      unmet_requirements: []
+      requirement_gaps: []
   review#1:
     fixture: review/ok
     classify: *id001
+    memory:
+      review_findings:
+      - （修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい
+      design_issues: []
   release#1:
     fixture: release/ok
     classify: *id001
+    memory:
+      missing_notes: []
 gates:
   discovery#1: *id001
   architecture#1: *id001
@@ -111,8 +143,8 @@ expect:
   starts:
     implement#2:
       files:
-        feature_request.md: *id004
-        repo/: *id005
+        feature_request.md: *id006
+        repo/: *id007
         intake.md:
           from: ../fixtures/intake/ok/intake.md
         requirements.md:
@@ -122,9 +154,12 @@ expect:
         tasks.yaml:
           from: ../fixtures/plan_tasks/ok/tasks.yaml
       memory:
-        unmet_requirements: *id006
+        intake_questions: *id008
+        requirement_gaps: *id009
+        design_issues: *id010
+        unmet_requirements: *id011
       gates:
       - discovery
       - architecture
   memory:
-    unmet_requirements: *id006
+    unmet_requirements: []
