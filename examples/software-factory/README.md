@@ -14,7 +14,7 @@ harness-testing-framework の利用者として、docs/adopting.md だけを手�
 - tests/: テスト、フィクスチャ、シナリオ、expectations（tests/README.md）
 - docs/progress.md: 作業ログ
 - docs/adopting-gaps.md: adopting.md だけでは判断できなかったこと、足りなかったこと、回避したくなったこと
-- docs/human-labeling.md: 人がラベルを付ける材料（30 項目。docs/human-labeling.corpus.jsonl がそのコーパス）
+- docs/human-labeling.md: 人がラベルを付ける材料（45 項目。docs/human-labeling.corpus.jsonl がそのコーパス）
 
 ## 構成
 
@@ -86,21 +86,31 @@ writes（repo/src/、repo/tests/）の外を変えるのは契約違反で、評
 
 ここまでは、エージェントが付けた試しのラベルで、人手のラベルではない。ラベルを付けたエージェントはフィクスチャを作った本人で、記述にも代表にも先入観がある。
 
-**往復 11: 人が付けるラベルの材料（docs/human-labeling.md、30 項目）。** 人間の決定（docs/review-findings.md の G）で、往復 10 で代表を変えた所は、人が印を除いて読んでラベルを付ける（全部の付け直しはしない）。software\_factory/labeling.py が、試しの実行（tests/stochastic.yaml の profiles の labeling。訪問 1 の分布を寄せ、分布テストの分布に無い unit\_test の defective も置いた。120 回、種 90000）のコーパス（`build_corpus(..., unique_states=True)` で 170 項目）から、次の項目を選ぶ。
+**人が付けるラベルの材料（docs/human-labeling.md、45 項目）。** 人間の決定（docs/review-findings.md の G）で、往復 10 で代表を変えた所は、人が印を除いて読んでラベルを付ける（全部の付け直しはしない）。往復 11 で作り（30 項目）、往復 12 で、項目の選び方を手引き第15.1節に足された目安（変えた所に絞ってラベルを付け直す時の、対象、訪問、まとめ方）に合わせた。software\_factory/labeling.py が、試しの実行（tests/stochastic.yaml の profiles の labeling。分布を寄せ、分布テストの分布に無い unit\_test の defective も置いた。240 回、種 90000）のコーパス（`build_corpus(..., unique_states=True)` で 203 項目。181 項目が変えた代表を含む）から、次の規則で選ぶ。
 
-- 往復 10 で変えた代表（REQ-3 に利用者と入力の場所をまとめた requirements.md、design/ok の design.md、acceptance/misread の verification.md、vague\_founder の回答、往復 11 で tests\_insufficient の確率 0 の代表にした unit\_test/defective）のどれかを状態文書に含む評価のうち、記述がその内容を証拠に使う対象の訪問 1 のもの（162 項目が変えた代表を含むが、requirements.md は下流のほとんどの状態文書に入るので、対象と訪問で絞った）
-- (対象, 印, 上流の違い) ごとに一つ。上流の違いは、intake.md を読む対象では依頼者のペルソナ、unit\_test では goal の実装の変種（ok、ok\_b、ok\_fixed）。同じ組の中では状態文書の短いもの（持ち帰った問いへの回答などのほかの違いが少ないもの）。acceptance は分布テストの主経路の実装（ok、ok\_b）の後のものに限る（requirement\_unmet の代表は REQ-1 の誤りを見つけるので、正しい実装 ok\_fixed とは組まない）
+- 変えた代表と変えた所: REQ-3 に利用者と入力の場所（購入者がレジの画面で入力する）をまとめ、「## 利用者」の節を外した requirements.md、「## 対応」の REQ-3 に画面は repo/ の外でコードを文字列で受け取ると書いた design/ok の design.md、「## 依頼との食い違い」の根拠を REQ-3 にした acceptance/misread の verification.md、「割り引く額の端数は切り捨て」にした vague\_founder の回答、往復 11 で tests\_insufficient の確率 0 の代表にした unit\_test/defective
+- 対象: 選択肢の記述（ゲートはフェーズの goal）が、変えた所を判断の根拠にする対象。項目は、その対象が根拠にする変えた代表のどれかを状態文書に含む評価
+  - requirements.md: 要件の根拠を見る analyze と discovery のゲート、要件の構成要素への割り当てと受け持つ構成要素の欠けを見る design、plan\_tasks、architecture のゲート、要件と依頼や回答の食い違いを見る acceptance。design.md: 「## 対応」を見る design と architecture のゲート、要件を受け持つ構成要素の欠けを見る plan\_tasks。verification.md: acceptance。回答: intake.md を読む intake、analyze、discovery のゲート、acceptance。defective: unit\_test
+  - 渡さない対象: implement（記述は tasks.yaml、impl\_notes.md、design.md の「## 構成」で判断する）、unit\_test と construction のゲートの requirements.md（テストの期待と結果を、受け入れ基準と要件の振る舞いに照らす。REQ-3 の受け入れ基準と振る舞いは変えておらず、変えたのは誰がどこで入力するかで、テストが期待も否定もできない）、review（design.md の構成とインターフェースは、review.json の指摘を分ける時だけ使う）、release、assurance と delivery のゲート（verification.md の合格と要件の id で判断する。どちらも変えていない）
+  - 往復 11 との違い: plan\_tasks と architecture のゲートを足した（往復 11 は design.md を design だけの根拠とし、requirements.md も plan\_tasks とそのゲートに渡していなかった）
+- 訪問: 訪問 1 を渡す。持ち帰った記憶を受け取るステージ（memory\_in があり、記述が「持ち帰った…があれば」とその扱いを書く。intake、analyze、design、plan\_tasks、unit\_test）と、そういうステージを持つフェーズのゲート（discovery、architecture。ゲートの状態文書はフェーズの全体で、ゲートの訪問は最終ステージの訪問）では、訪問 2 以降も渡す。acceptance は持ち帰った記憶を受け取らず、記述も触れないので訪問 1 だけ（往復 11 はすべて訪問 1 だけだった）
+- まとめ方: (対象, 訪問の区分, 印, 上流の違い) ごとに一つ。上流の違いは、intake.md を読む対象では依頼者のペルソナ、unit\_test では goal の実装の変種（ok、ok\_b、ok\_fixed）。訪問 1 では状態文書の短いもの（持ち帰った問いへの回答などのほかの違いが少ないもの）。訪問 2 以降では、見出しのほかは訪問 1 の項目と同じ状態文書を除き（記述の当てはまり方が同じなので訪問 1 の項目で代える）、持ち帰った問いの回答を含むもの（応答の入った状態文書）を先に、その中で短いもの。手引きの目安の組 (対象, 印, 上流の違い) に訪問の区分を足したのは、短い一つで代えると訪問 2 以降が訪問 1 の項目に置き換わるため
+  - この例の偽の本体は入り直しても同じ代表を写すので、訪問 2 以降の状態文書が訪問 1 と違うのは、持ち帰った問い（キャンペーンの後も使えるか、同じ購入者が何回使えるか）とペルソナの回答（どれも未定）が intake.md に入る intake、analyze、discovery のゲートだけ。design、plan\_tasks、architecture のゲートは、試しの実行でどのクラスの訪問 2 以降も出るが、見出しのほかは訪問 1 と同じ（テストで確かめる）。unit\_test の defective は訪問 1 にしか写らない
+  - acceptance は分布テストの主経路の実装（ok、ok\_b）の後のものに限る（requirement\_unmet の代表は REQ-1 の誤りを見つけるので、正しい実装 ok\_fixed とは組まない）
 
-| 対象 | 項目 | 内訳 |
-| --- | --- | --- |
-| intake | 2 | vague\_founder の回答の goal と unknown |
-| analyze | 7 | goal と needs\_unclear を三つのペルソナで 6、vague\_founder の回答の unknown 1 |
-| discovery のゲート | 3 | 三つのペルソナ |
-| design | 3 | goal、requirements\_gap、unknown |
-| unit\_test | 3 | defective（要件に反する期待を持つテスト）を、goal の実装の三つの変種の後で |
-| acceptance | 12 | goal、requirement\_unmet、requirement\_misread、unknown を三つのペルソナで |
+| 対象 | 訪問 1 | 訪問 2 以降 | 内訳 |
+| --- | --- | --- | --- |
+| intake | 2 | 2 | vague\_founder の回答の goal と unknown（訪問 2 以降は持ち帰った問いと回答を含む） |
+| analyze | 7 | 7 | goal と needs\_unclear を三つのペルソナで 6、vague\_founder の回答の unknown 1（訪問 2 以降は持ち帰った問いと回答を含む） |
+| discovery のゲート | 3 | 3 | 三つのペルソナ（訪問 2 以降は持ち帰った問いと回答を含む） |
+| design | 3 | 0 | goal、requirements\_gap、unknown |
+| plan\_tasks | 2 | 0 | goal、unknown |
+| architecture のゲート | 1 | 0 | 一つ（ゲートの上流に違いが無い） |
+| unit\_test | 3 | 0 | defective（要件に反する期待を持つテスト）を、goal の実装の三つの変種の後で |
+| acceptance | 12 | 0 | goal、requirement\_unmet、requirement\_misread、unknown を三つのペルソナで |
+| 合わせて | 33 | 12 | 45 項目（ステージ 38、ゲート 7） |
 
-human-labeling.md には、項目ごとに id、対象と訪問、印を除いた状態文書、選択肢（id と記述）、空の「ラベル:」があり、冒頭に読み方（印を探さず、選択肢の記述だけで選ぶ。迷った時は unknown と書き、理由を添える）がある。人がラベルを付けたら、`python -m software_factory.labeling labels --labeler <名前>` で docs/human-labels.jsonl（contract/formats/label.schema.json の形）を作り、`python -m software_factory.labeling compare` で `oracle_report(MarkerClassifier(), corpus, labels)` と、印と食い違う項目を出す。ラベルのファイルが無い間、compare はそのことを報告して 1 で終わる。tests/test\_labeling.py が、材料が試しの実行から作り直したものと一致すること、30 の組をすべて含むこと、印が無いこと、ラベルの読み取りと比べ方を確かめる。人が手で書くのは human-labeling.md の「ラベル:」の行だけで、埋めた後もテストは通る（「ラベル:」を空にして作り直したものと比べる）。代表、ペルソナ、記述を変えたら `python -m software_factory.labeling write` で作り直す。write は埋めた「ラベル:」を空にし、項目の id は実行記録の内容のハッシュから決まるので変わりうる。ラベルを受け取った後に作り直す時は、ラベルを付け直す範囲を決めてから。
+human-labeling.md には、項目ごとに id、対象と訪問、印を除いた状態文書、選択肢（id と記述）、空の「ラベル:」があり、冒頭に読み方（印を探さず、選択肢の記述だけで選ぶ。迷った時は unknown と書き、理由を添える。訪問 2 以降の状態文書に持ち帰った記憶そのものは入らない。比べる時のコーパスは印を含むのでラベルを付け終えるまで開かない）と、選んだ規則がある。人に渡すのは human-labeling.md だけで、コーパス（docs/human-labeling.corpus.jsonl）の source からは分類器の選択（印と同じ）を除いてある（手引き第15.1節の 2）。人がラベルを付けたら、`python -m software_factory.labeling labels --labeler <名前>` で docs/human-labels.jsonl（contract/formats/label.schema.json の形）を作り、`python -m software_factory.labeling compare` で `oracle_report(MarkerClassifier(), corpus, labels)` と、印と食い違う項目を出す。ラベルのファイルが無い間、compare はそのことを報告して 1 で終わる。tests/test\_labeling.py が、材料が試しの実行から作り直したものと一致すること、45 の組をすべて一つずつ含むこと、訪問 2 以降を見る対象が workflow.yaml の memory\_in から決まること、design、plan\_tasks、architecture のゲートの訪問 2 以降が訪問 1 と同じ状態文書であること、印が無いこと、ラベルの読み取りと比べ方を確かめる。人が手で書くのは human-labeling.md の「ラベル:」の行だけで、埋めた後もテストは通る（「ラベル:」を空にして作り直したものと比べる）。代表、ペルソナ、記述を変えたら `python -m software_factory.labeling write` で作り直す。write は埋めた「ラベル:」を空にし、項目の id は実行記録の内容のハッシュから決まるので変わりうる。ラベルを受け取った後に作り直す時は、ラベルを付け直す範囲を決めてから。
 
 **試しのコーパスに出ない代表（plan\_tasks/incomplete）。** シナリオ plan\_tasks\_design\_incomplete\_rollback だけが写す代表で、試しの実行にも出ない（上流の design/gap を運用者が goal 到達扱いで通した後にしか組まない）。第15.1節の手順のとおり、そのシナリオで分類器が見る plan\_tasks の訪問 1 の状態文書（design/gap の design.md と組むもの）を、印を除いて記述だけで読んだ。design.md の「## 構成」は discount.py だけで REQ-3 と REQ-4 を受け持つ構成要素も変えるファイルも無く、tasks.yaml は REQ-1 と REQ-2 だけを割り当て、欠けている点が tasks.yaml の先頭の注記と記憶 design\_issues の両方にある。選択肢（design\_incomplete、unknown。指標で goal は外れる）のうち design\_incomplete に当たり、印と食い違わない（往復 11。エージェントが読んだもので、人手のラベルではない。人に渡す材料には入れていない）
 
@@ -123,11 +133,11 @@ human-labeling.md には、項目ごとに id、対象と訪問、印を除い�
    - 不足と不備を分けて数えることは、記述を変えずに coverage\_gaps の項目の書き方で区別してよい（第13節。必須ではない）。この例ではしていない（数える使い道が今は無いので、偽の本体の記憶の値は往復 10 の前のまま）
    - 代表 tests/fixtures/unit\_test/defective/（REQ-2 の 0 円の下限に反して、小計 300 円に OFF500 で -200 円を期待するテスト。どちらの実装の系統でも実在の pytest で落ちる）は、tests\_insufficient の確率 0 の代表として残した。往復 10 の前の tests\_insufficient には、要件に反する期待を持つテストの代表が無かった。不備は「## 未網羅」と記憶 coverage\_gaps に書き、「## 失敗」は（なし）にした（「## 失敗」と記憶 failing\_tests は、repo/src/ の欠陥を示した失敗の証拠で、impl\_defect の条件になる）。分布テストの分布には置かないので、分布、設計値、基準は変わらない。シナリオ unit\_test\_defective\_self\_rollback が、tests\_insufficient で空でない coverage\_gaps を持って unit\_test に戻り、それが訪問 2 の開始時スナップショットに届くことを確かめる（expect.starts）
 5. **主経路が REQ-1 に反するコードをリリースすること（玩具の意図）は、読んだうえで良い。** markov の goal の実装（ok、ok\_b）は小計 333 円に PCT10 で 299 円にする（割引額の切り捨てなら 300 円）。受け入れ基準と単体テストの ok の代表はこの場合を確かめないので、主経路はこの既知の欠陥を持ったままリリースする
-6. **往復 10 で代表を変えた所は、人が印を除いて読んでラベルを付ける（全部の付け直しはしない）。** 材料は docs/human-labeling.md の 30 項目（上の「記述と代表の整合」）
+6. **往復 10 で代表を変えた所は、人が印を除いて読んでラベルを付ける（全部の付け直しはしない）。** 材料は docs/human-labeling.md の 45 項目（上の「記述と代表の整合」。往復 12 で選び方を手引き第15.1節の目安に合わせ、30 項目から増えた）
 
 ### まだのこと
 
-- 第15.1節の人手のラベル（人間がする）。材料は docs/human-labeling.md（30 項目）。受け取ったら `python -m software_factory.labeling compare` で印と比べ、食い違いがあれば代表か記述を直す（記述を直すのは人間の承認の後）
+- 第15.1節の人手のラベル（人間がする）。材料は docs/human-labeling.md（45 項目）。受け取ったら `python -m software_factory.labeling compare` で印と比べ、食い違いがあれば代表か記述を直す（記述を直すのは人間の承認の後）
 
 ### 第三者の事前レビューの低（往復 11。review-findings.md の G-5）への対応
 
