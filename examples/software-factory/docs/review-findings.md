@@ -218,3 +218,57 @@ acceptance の tests\_pass は unit\_test の goal と construction のゲート
 - **E-L4:** tests/test\_oracle.py の揺れる分類器のテストは、一致率を `approx(0.75, abs=0.05)` で確かめている。値は 95/127 に決まる。直し方の案: `1 - ceil(len(corpus) / 4) / len(corpus)` と一致することを確かめる
 - **E-L5:** 本体が memory\_out を毎回書くことを、本体の振る舞いではなく設計値の表（tests/stochastic.yaml）でだけ確かめている。空の記憶を書かない変更をしても、テストが落ちない。直し方の案: 分布テストの実行の集まりで、各評価の終了時スナップショットの記憶が、そのステージの memory\_out をすべてその訪問の値で持つことを確かめる
 - **E-L6:** markov とゲートを揺らす実行の全状態に violated が無いことを、補正の無い alpha 0.01 の検定 5〜7 個で求めている。既定の種では通るが、種か回数を変えると、正しい本体でも数 % の確率で落ちる（`entry_dependence` は、markov の 20 通りの種の基点で 1 回、ゲートを揺らす実行の 12 通りで 1 回 violated になった）。直し方の案: 確かめる状態を絞る（仕込んだ所と、入り方の多い implement だけ）か、多重性を見込んだ alpha にする。「HTF\_RUNS を増やすと偶然に落ちうる」ことを注記する
+
+## F. 人間のレビューの回答と、完了判定の二回目の指摘
+
+人間が README の「人間のレビューで確かめてほしいこと」と、完了判定の二回目（正常）が人間に渡した事項をレビューした。回答と、それに合わせて直すことをここに置く。完了判定の二回目の指摘は低だけで、ここに公開の文書の語で書き直した。
+
+### 人間の回答
+
+1. plan\_tasks の design\_incomplete は**残す**。記述は変えない。確率的な本体に代表を置かず、E2E のカバレッジの注入で踏む今の形のまま
+2. 利用者役が変えた記述（往復 8 の unit\_test の goal と assurance のゲートの goal、往復 6 の end\_state の範囲の拡大）は**承認**
+3. ペルソナの設計（三人とも要件の値を答え、曖昧さは analyze が尋ね返す問いでだけ入る）は**承認**
+4. 分類体系の提案（unit\_test のテストの不備を、end\_state tests\_defective として tests\_insufficient から分ける）を**採る**
+5. 主経路が REQ-1 に反するコードをリリースすること（玩具の意図）は、**読んだうえで良い**
+
+まだ答えが無いもの: 第15.1節の手順で人がラベルを付け直すこと。これは人間がする（人手のラベル）。
+
+### 直すこと
+
+**F-1. unit\_test に end\_state tests\_defective を足す（分類体系の変更。人間が採った）**
+
+- 今の tests\_insufficient は「不足か不備」をまとめている。これを分ける
+  - 不足（tests\_insufficient に残す）: requirements.md の受け入れ基準のうちテストの無いもの、repo/src/ の実行されない箇所（行カバレッジが 80% に届かない）、impl\_notes.md の「## テストへの依頼」のうちテストの無いもの
+  - 不備（tests\_defective）: テストが誤っている。repo/tests/ の lint の違反、tasks.yaml のタスクの tests に無いファイルの変更、requirements.md の要件に反する期待を持つテスト
+  - 上の振り分けは README の提案に沿った案で、境界は利用者役が決めてよい。決めた境界と理由を README に書く
+- tests\_defective の戻り先は unit\_test 自身（自分自身へのロールバック）。carry、記憶の名前、max は利用者役が決める。不足と不備を分けて数えられるように、持ち帰る記憶と test\_report.md の節を分けるかも決める
+- 二つが同時にある時の優先、impl\_defect との優先を記述に書き、goal、impl\_defect、tests\_insufficient、tests\_defective、unknown が MECE になるようにする。unit\_test の description（何を記憶に書くか）も合わせる
+- 確率的な本体の今の tests\_insufficient の代表（フィクスチャ）のうち、新しい境界では不備に当たるものがあるかを確かめる
+  - あれば、その変種を tests\_defective に移す。分布が変わるので、tests/stochastic.yaml、設計値のモデル（software\_factory/design.py）、expectations の基準と注記を導き直す
+  - 無ければ、確率的な実行には tests\_defective が現れない。E2E のカバレッジで踏み（すべての (ステージ, end\_state) を踏む）、空でない記憶を持って unit\_test に戻るシナリオを一本足す（expect.starts で unit\_test の訪問 2 の記憶を確かめる）
+- 第15.1節の試しのラベルを、新しい境界でやり直す（unit\_test の項目）。tests\_defective の代表があれば含める
+- README の構成の表、遷移の被覆、「人間のレビューで確かめてほしいこと」を合わせる
+
+**F-2. README に人間の回答を書く**
+
+- 「人間のレビューで確かめてほしいこと」を、回答を受けた形に書き直す（何が決まったか、何がまだか）
+- 1（design\_incomplete）には、判断の材料として次の経路を書き足す。記述の上では、implement の task\_unclear（タスクの paths の外のファイルを変えないと実装できない）から plan\_tasks に戻り、そのファイルが design.md の「## 構成」に無いと分かる経路で、design の goal を正しく満たした後でも design\_incomplete は起きうる。今の README の「design の goal が運用者の goal 到達扱いか分類の誤りで通った後にしか起きない」は言い過ぎなので直す（tests/stochastic.yaml の plan\_tasks の注記も同じ）。確率的な本体に代表を置かない理由（上流の goal の代表と両立しない）はそのまま
+
+**F-3. plan\_tasks から design へ、空でない design\_issues を持って戻るシナリオを足す**
+
+- 今、この辺（design\_incomplete、carry design\_issues、max 2）を通るのは E2E のカバレッジの注入の一回だけで、そこで持ち帰る design\_issues は空の一覧。空でない design\_issues が design の開始時スナップショットに届くことを確かめるテストが無い
+- 台本で plan\_tasks を design\_incomplete に分類し、空でない design\_issues を持って design に戻るシナリオを一本足す（expect.starts で design の訪問 2 の記憶を確かめる）
+
+### 低（任意。直すか、直さない理由を README に書く）
+
+- **F-L1. 基準の根拠の注記の数字の誤り。** 基準の値はどれも正しい
+  - tests/expectations/markov.yaml の release の訪問 1 の [0.15, 0.31] の「両側 3.6 SE」は 3.21 SE（前の [0.14, 0.32] の時の値のまま）。「3.21 SE（規則の 3.2 SE をわずかに上回る）。誤って落ちる確率 0.135%」のように書く
+  - mean\_visits の「visits\_variance 1.360、標準偏差 1.166」は 1.358、1.165
+  - tests/expectations/markov\_shifted.yaml の mean\_visits [1.95, 2.50] の「上へ 4.8 SE」は 4.74
+  - software\_factory/design.py の docstring の visits\_variance は「一回の実行の中での訪問の回数の分散」のまま。api-reference.md の `Prediction` と手引き第12節の言い方（実行ごとの訪問の回数の、実行の間での分散。一度も訪れない実行は 0 と数える）に合わせる
+  - F-1 で基準を導き直すなら、そこで合わせて直す
+- **F-L2. implement に絞った二つの独立性の確かめに、多重性の補正が無い。** tests/test\_independence.py の入り方の検定（`entry_dependence`）の verdict が not\_detected であることと、tests/test\_e2e.py の markov の implement=goal の訪問 1 → 1 が not\_detected であることは、補正の無い alpha 0.01 のまま。種の基点を変えて 200 回ずつ試すと、正しい本体でもどちらかが落ちたのは markov の集まりで 8/200（4%）、ゲートを揺らす集まりで 6/200（3%）。docstring は全状態の確かめについてだけ「補正の無い alpha 0.01 で数 % 落ちる」と書いている。直し方の案: 絞った確かめを「violated でない」ではなく「p 値が 0.001 以上」のようにする（仕込んだ所の検出は divergent で p = 0.0005 程度なので、この確かめを厳しくしても検出の確かめには響かない）。または、`HTF_RUNS` や種を変えると数 % の確率で落ちうることを tests/README.md に書く
+- **F-L3. 第15.1節の試しで、字義どおりに読むと揺れる点が二つと、README の表の古い行**
+  - (1) discovery のゲートの goal は、回答を「requirements.md の要件か受け入れ基準に」反映することを求めるが、利用者は「## 利用者」の節にあり、要件でも受け入れ基準でもない。README の 4 は「requirements.md に反映」と言い換えている。**代表の側で直す**（利用者を、受け入れ基準のある要件として書くなど）。discovery の goal の記述を変えるのは新しい記述の改訂で、人間の承認が要るので、ここでは採らない
+  - (2) vague\_founder の「端数は切り捨て」は何を切り捨てるかを言わず、REQ-1 の「割引額の 1 円未満は切り捨てる」の根拠が薄い。「割り引く額の端数は切り捨て」のようにする
+  - README の「フェーズゲートの落ち方」の assurance の行は、ゲートの goal に足した「判断は verification.md と review.json に基づき、このゲートで repo/ のコードを改めて検証しない」を反映していない。workflow.yaml の文に合わせる
