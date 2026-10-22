@@ -8,6 +8,7 @@
 
 - `compare_prediction` が返す量に、ゲートの評価の結果ごとの回数（`gate:<フェーズ>=<結果>`）を足した。返す量の種類を固定の集合で確かめているテストは、`gate` を足す必要がある
 - 公開の範囲を明記した。`StageContext` は、`stage_id`、`visit`、`workspace`、`seed`、`read_memory`、`write_memory`、`user_io`、`llm` だけが公開で、ほかの名前（`dir(context)` で見えるもの）はランタイムの内部。`RunState` は、`to_json`、`from_json`、`current`、`pending` だけが公開で、ほかの属性はランタイムの内部（読み書きしない）
+- シナリオの形式: `inputs` と `expect.starts` の `files` で、ディレクトリの参照とその下のファイル（またはより深いディレクトリ）の鍵が重なる時は、より長い鍵の内容になる（contract/conformance/README.md の「ファイルの内容」）。前は鍵の並びで後に書いたものになり、ファイルの鍵の後にそれを覆うディレクトリの鍵を書いたシナリオでは、ディレクトリの側の内容になっていた
 
 ### 足したもの
 

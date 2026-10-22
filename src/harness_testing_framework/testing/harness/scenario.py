@@ -87,9 +87,11 @@ def conformance_scenarios() -> list[Path]:
 
 def _contents(path: Path, files: Mapping[str, Any]) -> dict[str, str]:
     """ファイルの内容の対応を読む。{from: パス} はシナリオのファイルからの相対パスで、鍵が / で終わるなら
-    そのディレクトリの下のすべてのファイルを、鍵の下の相対パスに置く（README.md）。"""
+    そのディレクトリの下のすべてのファイルを、鍵の下の相対パスに置く。同じパスに鍵が重なる時は、より長い
+    （具体的な）鍵の内容になる。鍵の並びにはよらない（README.md）。"""
     out: dict[str, str] = {}
-    for key, value in files.items():
+    # パスを覆う鍵はそのパスの前置きなので、短い鍵から置いて長い鍵で上書きすれば、最も具体的な鍵が勝つ
+    for key, value in sorted(files.items(), key=lambda item: len(item[0])):
         if isinstance(value, str):
             out[key] = value
             continue

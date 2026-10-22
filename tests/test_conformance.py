@@ -155,7 +155,8 @@ def _scenario_with_refs(tmp_path: Path, inputs: dict[str, Any], starts: dict[str
     }
     path = tmp_path / "scenarios" / "refs.yaml"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.safe_dump(doc, allow_unicode=True), encoding="utf-8")
+    # 鍵の並びを保つ（重なりの規則が並びによらないことを確かめるため）
+    path.write_text(yaml.safe_dump(doc, allow_unicode=True, sort_keys=False), encoding="utf-8")
     return path
 
 
@@ -168,6 +169,27 @@ def test_file_and_directory_references_are_read_relative_to_the_scenario(tmp_pat
     refs = {"in.txt": {"from": "../files/in.txt"}, "d/": {"from": "../files/dir/"}}
     scenario = load_scenario(_scenario_with_refs(tmp_path, refs, refs))
     expanded = {"in.txt": "入力", "d/a.txt": "A", "d/sub/b.txt": "B"}
+    assert dict(scenario.inputs) == expanded
+    assert scenario.expect.starts["s1#1"]["files"] == expanded
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_more_specific_key_wins_where_references_overlap(tmp_path: Path, reverse: bool) -> None:
+    files = tmp_path / "files"
+    (files / "dir" / "sub").mkdir(parents=True)
+    (files / "other").mkdir()
+    (files / "dir" / "a.txt").write_text("A", encoding="utf-8")
+    (files / "dir" / "sub" / "b.txt").write_text("B", encoding="utf-8")
+    (files / "other" / "b.txt").write_text("B2", encoding="utf-8")
+    refs: dict[str, Any] = {
+        "d/": {"from": "../files/dir/"},
+        "d/sub/": {"from": "../files/other/"},
+        "d/a.txt": "上書き",
+    }
+    if reverse:
+        refs = dict(reversed(refs.items()))
+    scenario = load_scenario(_scenario_with_refs(tmp_path, refs, refs))
+    expanded = {"d/a.txt": "上書き", "d/sub/b.txt": "B2"}
     assert dict(scenario.inputs) == expanded
     assert scenario.expect.starts["s1#1"]["files"] == expanded
 
