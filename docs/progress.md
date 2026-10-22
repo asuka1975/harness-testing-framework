@@ -6,8 +6,8 @@
 
 現在のマイルストーン: F4（software factory）。利用者セッションの成果物を取り込み（af2e0d0）、adopting-gaps.md の 30 項目を本体で直した（D-11、bd2591f）。往復 1 の利用者役の判定は解消 27、一部 1、直さないもの 2（a8c7468）。新しい不足 N1〜N7 を直した（D-12、1412a8d）。往復 2 で N1〜N7 は解消（115720c）、新しい N8、N9 を直し（D-13）、往復 3 で解消（a2d1b2a）。往復 3 の N10 は changelog.md で直した（D-14、a583f19）。往復 4 の N11（changelog の書き漏らし）を直し（9c7b4cd）、往復 5 で adopting-gaps.md の「未解消」が空になった（87f03d5）。検証役二人の結果: workflow.yaml の事前レビューは「直してから出すべき」（高 2、中 8、低 9）、分布テストの基準は承認（中 2、低 5）。指摘を examples/software-factory/docs/review-findings.md にまとめ、往復 6 で利用者役が高と中をすべて直した（cd0b6ba）。往復 6 の N12 を本体で直し（D-16、ef46fe8）、往復 7 で「未解消」が空になった（32b4d68）。F4 の完了判定の一回目は準正常（reports/f4-completion.md）。本体の側の低を直し（f93fd31）、例の側は往復 8 で直った（d2ebc85）。往復 8 の N13 を直し（6220773）、往復 9 で「未解消」が空（115149b）。完了判定の二回目は正常（reports/f4-completion-2.md）。人間のレビューの回答を D-17 に記録した（design\_incomplete は残す、記述の変更とペルソナの設計を承認、tests\_defective を足す、主経路の欠陥は玩具の意図でよい）。往復 10（077cc91）で利用者役が tests\_defective を足し、例の側の低を直した。新しい不足のうち N15 は本体で直し（7547a75）、N14 は計画書 第2節の固定された設計判断と矛盾するので人間に聞く（D-18）。検証役の事前レビュー（reports/f4-unit-test-review.md）は「人間に出してよい（中の二つを添えて）」。人間の指示で Codex の GPT-6-Astra（推論 max）に敵対的レビューを頼み（reports/f4-astra-review.md）、その高の指摘を受けて N14 の推奨を (a) から (b) に変えた。人間の決定（D-19）: N14 は (b)（分割を取り消す）、人手のラベルは往復 10 で変えた代表だけ今回付ける、第5.8節と第6節 F4 に注記した。
 
-1. 利用者役の往復 17: N19 の解消の確かめ。続いて、検証役が往復 16 の材料を最後に確かめる（差し戻しは上限に達したので、準正常なら人間に判断を求める）
-2. 【人間】docs/human-labeling.md の項目にラベルを付ける（D-19 の 4a）。受け取ったら JSON Lines にして印と比べ、食い違いがあれば代表か記述を直す
+1. 利用者役の往復 18: 材料の最後の確かめ（reports/f4-delta-review-3.md、正常）の例の側の低（review-findings.md の J）
+2. 【人間】examples/software-factory/docs/human-labeling/ の 10 のファイル（66 項目）に、00-guide.md を読んでから番号の順にラベルを付ける（D-19 の 4a）。受け取ったら JSON Lines にして印と比べ、食い違いがあれば代表か記述を直す
 3. 【人間ゲート】最後の workflow.yaml の承認。済んだら F4 を締める
 4. F4 の後: F5（v1.0、adopting.md の完成版、雛形、CI の段階、分類体系の版の管理、maintenance.md）
 5. F4・F5 に持ち越す制限
@@ -106,6 +106,8 @@ F3 のタスク（テストランナー群。すべて LLM なし）。
 - 往復 15（68c284f）: N18 は解消。回避を外し、材料の文はバイト単位で同じ
 - 材料の確かめ直し（reports/f4-delta-review-2.md）: 準正常。比べる相手の名指しと、後の対象から前の対象の印が推せる性質（中 2）。本体の側を直し、読み方の方針の二つを外した（D-24。差分の確かめの差し戻しの二回目で、第5.3節の上限）
 - 往復 16: 材料を対象の順の 10 のファイルに分けた（66 項目、約 10.4 万文字）。check.sh は 689 passed。新しい不足 N19 を手引き第15.1節で直した（D-25）
+- 往復 17（bc9527e）: N19 は解消。adopting-gaps.md の「未解消」は無し。check.sh は 689 passed
+- 材料の最後の確かめ（reports/f4-delta-review-3.md）: 正常。高と中は無い。盲検のエージェントのラベルで κ 0.981。本体の側の低を直した（D-26）。例の側の低は review-findings.md の J で渡した
 - v0.1 の公開（人間の承認による）
   - version を 0.1.0 にし、README を v0.1 の内容に合わせた。契約 第11節に残っていた「（下書き）」を消した
   - git tag `v0.1.0` と GitHub Release を作った（https://github.com/asuka1975/harness-testing-framework/releases/tag/v0.1.0）。Release の説明に D-1〜D-9 の要点を書いた
