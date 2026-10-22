@@ -1,18 +1,19 @@
 """人がラベルを付ける材料（docs/human-labeling.md）と、受け取ったラベルを印と比べる仕組み（adopting.md 第15.1節）。
 
 往復 10 で代表を変えた所を、人が印を除いて読み、選択肢の記述だけでラベルを付ける（docs/review-findings.md の G-6）。
-項目の選び方は、手引き第15.1節の「変えた所に絞ってラベルを付け直す時」の目安（対象、訪問、まとめ方）に従う（往復 12）。
+項目の選び方は、手引き第15.1節の「変えた所に絞ってラベルを付け直す時」の目安（対象、訪問、まとめ方）に従う（往復 12。
+往復 13 で、改められた目安に合わせて対象に review を足し、まとめ方を目安の字のとおりにした）。
 
-- 対象（EVIDENCE）: 選択肢の記述（ゲートはフェーズの goal）が、変えた代表の変えた所を判断の根拠にする対象。項目は、その
-  対象が根拠にする変えた代表（CHANGED）のどれかを状態文書に含む評価
-- 訪問（AGAIN）: 訪問 1 を渡す。持ち帰った記憶を受け取るステージ（memory_in があり、記述がその扱いを書く）と、そういう
-  ステージを持つフェーズのゲートでは、訪問 2 以降も渡す
-- まとめ方: (対象, 訪問の区分, 印, 上流の違い) ごとに一つ。上流の違いは、intake.md を読む対象ではペルソナ、unit_test では
-  goal の実装の変種。訪問 1 では状態文書の短いもの。訪問 2 以降では、見出しのほかは訪問 1 の項目と同じ状態文書（応答が
-  現れていないもの）を除き、持ち帰った問いの回答を含むもの（応答の入った状態文書）を先に、その中で短いもの。この例の偽の
-  本体は入り直しても同じ代表を写すので、訪問 2 以降で訪問 1 と違う状態文書になるのは、持ち帰った問いの回答が intake.md に
-  入る intake、analyze、discovery のゲートだけ（design、plan_tasks、architecture のゲートの訪問 2 以降は、見出しのほかは
-  訪問 1 と同じ）
+- 対象（EVIDENCE）: 記述（ステージの goal と end_state、フェーズの goal）が、変えた代表の変えた所（成果物の全体ではない）を
+  判断の根拠にしうる対象。項目は、その対象が根拠にしうる変えた代表（CHANGED）のどれかを状態文書に含む評価
+- 訪問（AGAIN）: 訪問 1 を渡す。訪問 2 以降も渡すのは、memory_in を持つステージと、そのステージを含むフェーズのゲートだけ。
+  見出しのほかは訪問 1 の項目と同じ状態文書は除く
+- まとめ方: (対象, 訪問の区分, 印, 上流の違い) ごとに一つ、状態文書の短いもの。上流の違いは、intake.md を読む対象では
+  ペルソナ、unit_test では goal の実装の変種、ほかの対象（review を含む）には無い。この例の偽の本体は入り直しても同じ代表を
+  写すので、訪問 2 以降で訪問 1 と違う状態文書になるのは、持ち帰った問いの回答が intake.md に入る intake、analyze、
+  discovery のゲートだけ（design、plan_tasks、architecture のゲートの訪問 2 以降は、見出しのほかは訪問 1 と同じなので除く）。
+  除いた後に残る訪問 2 以降の状態文書は、どれも持ち帰った問いの回答を含む（往復 12 は、それを含むものを先に選んだが、
+  目安どおりに短いものを選んでも同じ項目になるので、往復 13 で外した）
 
 確率的な実行の分布に無い代表（unit_test の defective）と、訪問 2 以降の各クラスも届くように、試しの実行は
 tests/stochastic.yaml の profiles の labeling（分布を寄せたもの）で走らせる。
@@ -78,19 +79,25 @@ CHANGED: dict[str, tuple[str, ...]] = {
     # 往復 11 で tests_insufficient の確率 0 の代表にした、要件に反する期待を持つテスト
     "tests": (_fixture("unit_test", "defective", "test_report.md"),),
 }
-# 対象（scope, id）→ 選択肢の記述（ゲートはフェーズの goal）がその変えた所を判断の根拠にする、変えた代表。並びは
-# human-labeling.md の並び。変えた所は、requirements.md の REQ-3 の文（購入者がレジの画面で入力する。外した「## 利用者」の
-# 節の中身）、design.md の「## 対応」の REQ-3、verification.md の「## 依頼との食い違い」、vague_founder の回答、defective の
-# テストと「## 未網羅」。
+# 対象（scope, id）→ 記述（ステージの goal と end_state、フェーズの goal）がその変えた所を判断の根拠にしうる、変えた代表。
+# 並びは human-labeling.md の並び。変えた所は、requirements.md の REQ-3 の文のうち誰がどこで入力するかの句（購入者がレジの
+# 画面で入力する。外した「## 利用者」の節の中身。REQ-3 の振る舞いと受け入れ基準は変えていない）、design.md の「## 対応」の
+# REQ-3 の、画面は repo/ の外でコードを文字列で受け取るという句、verification.md の「## 依頼との食い違い」、vague_founder の
+# 回答、defective のテストと「## 未網羅」。変えた所の区切りは、成果物の節や要件より細かい句にした（手引きの「直した節、
+# 要件、回答など」の「など」として。REQ-3 を一つの変えた所とすると、要件の記述に照らす unit_test も対象になるが、変えた句は
+# テストが期待も否定もできない）
 # - requirements.md: 要件の根拠（analyze、discovery）、要件の構成要素への割り当てと受け持つ構成要素の欠け（design、
 #   plan_tasks、architecture）、要件と依頼や回答の食い違い（acceptance）を判断する記述
 # - design.md: 「## 対応」を判断に使う記述（design の goal、architecture）。plan_tasks は「## 構成」に要件を受け持つ構成要素が
-#   欠けているかを判断するので、REQ-3 の画面の部分を「## 対応」がどう受け持つかを読む
+#   欠けているかを判断するので、REQ-3 の画面の部分を「## 対応」がどう受け持つかを読みうる。review の design_flaw と
+#   changes_requested の境界は、修正を要する指摘が design.md の構成かインターフェースを変えなければ解消しないかで、変えた句
+#   （コードを文字列で受け取る、画面は repo/ の外）はインターフェースと境界を述べるので、その判断の根拠になりうる（往復 13 で
+#   足した。往復 12 は「review は「## 対応」に触れない」として外したが、記述は節を名指さず、design_flaw の代表の指摘も
+#   「## 対応」にある割引の種類の分岐を根拠にする）
 # 渡さない対象: implement（記述は tasks.yaml、impl_notes.md、design.md の「## 構成」で判断し、要件の文にも「## 対応」にも
 # 触れない）、unit_test と construction の requirements.md（テストの期待と結果を、受け入れ基準と要件の振る舞いに照らす。
-# REQ-3 の受け入れ基準と振る舞いは変えておらず、変えたのは誰がどこで入力するかで、テストが期待も否定もできない）、review
-# （design.md の構成とインターフェースは review.json の指摘を分ける時だけ使い、「## 対応」に触れない）、release、assurance、
-# delivery（verification.md の合格と要件の id で判断する。どちらも変えていない）
+# REQ-3 の受け入れ基準と振る舞いは変えておらず、変えたのは誰がどこで入力するかで、テストが期待も否定もできない）、release、
+# assurance、delivery（verification.md の合格、review.json と要件の id で判断する。どれも変えた所を含まない）
 EVIDENCE: dict[tuple[str, str], tuple[str, ...]] = {
     ("stage", "intake"): ("answer",),
     ("stage", "analyze"): ("requirements", "answer"),
@@ -100,6 +107,7 @@ EVIDENCE: dict[tuple[str, str], tuple[str, ...]] = {
     ("phase", "architecture"): ("requirements", "design"),
     ("stage", "unit_test"): ("tests",),
     ("stage", "acceptance"): ("requirements", "verification", "answer"),
+    ("stage", "review"): ("design",),
 }
 
 
@@ -112,8 +120,8 @@ def receives_carry(workflow: Workflow) -> set[tuple[str, str]]:
     return out
 
 
-# 訪問 2 以降の項目も渡す対象（手引き第15.1節の「記述が持ち帰った記憶やその応答に触れる対象」）。acceptance は持ち帰った
-# 記憶を受け取らず、記述も触れないので訪問 1 だけ
+# 訪問 2 以降の項目も渡す対象（手引き第15.1節の「memory_in を持つステージと、そのステージを含むフェーズのゲートだけ」）。
+# acceptance と review は memory_in を持たないので訪問 1 だけ（そのフェーズ assurance にも memory_in を持つステージは無い）
 AGAIN = {target for target in EVIDENCE if target in receives_carry(WORKFLOW_MODEL)}
 # 持ち帰った問い（analyze の needs_unclear の代表が intake に持ち帰る）。訪問 2 以降の intake.md には、その回答が入る
 CARRIED_QUESTIONS = (AFTER, REUSE)
@@ -186,7 +194,7 @@ def same_as_first(corpus: Sequence[CorpusItem]) -> set[str]:
 
 
 def wanted(item: CorpusItem) -> bool:
-    """往復 10 で変えた代表を、選択肢の記述がその変えた所を根拠にする対象で含む評価か（訪問 2 以降は AGAIN の対象だけ）。"""
+    """往復 10 で変えた代表を、記述がその変えた所を根拠にしうる対象で含む評価か（訪問 2 以降は AGAIN の対象だけ）。"""
     target = (item.scope, item.target)
     evidence = EVIDENCE.get(target)
     if evidence is None or (again(item) and target not in AGAIN):
@@ -197,16 +205,15 @@ def wanted(item: CorpusItem) -> bool:
 
 
 def select(corpus: Sequence[CorpusItem]) -> list[CorpusItem]:
-    """(対象, 訪問の区分, 印, 上流の違い) ごとに一項目。訪問 1 では、上流の違い（ペルソナ、実装の変種）のほかの違いが少ない
-    ように状態文書の短いものを選ぶ。訪問 2 以降では、見出しのほかは訪問 1 の項目と同じ状態文書を除き（記述の当てはまり方が
-    同じなので、訪問 1 の項目で代える）、持ち帰った問いの回答を含むもの（応答の入った状態文書）を先に、その中で短いものを
-    選ぶ。並びは EVIDENCE の対象の順、訪問の区分の順、その中は項目の id の順（印の順にならない）。出どころ（source）から
-    分類器の選択（印）を除く。"""
+    """(対象, 訪問の区分, 印, 上流の違い) ごとに一項目。訪問 2 以降の、見出しのほかは訪問 1 の項目と同じ状態文書は除く
+    （記述の当てはまり方が同じなので、訪問 1 の項目で代える）。組の中では、上流の違い（ペルソナ、実装の変種）のほかの違いが
+    少ないように状態文書の短いものを選ぶ。並びは EVIDENCE の対象の順、訪問の区分の順、その中は項目の id の順（印の順に
+    ならない）。出どころ（source）から分類器の選択（印）を除く。"""
     chosen: dict[tuple[str, str, bool, str | None, str], CorpusItem] = {}
     repeated = same_as_first(corpus)
 
-    def rank(item: CorpusItem) -> tuple[bool, int, str]:
-        return (again(item) and not responded(item), len(item.state), item.item)
+    def rank(item: CorpusItem) -> tuple[int, str]:
+        return (len(item.state), item.item)
 
     for item in corpus:
         if not wanted(item) or item.item in repeated:
@@ -246,7 +253,7 @@ def _target(item: CorpusItem) -> str:
     return f"ステージ {item.target} の訪問 {visit_of(item)}"
 
 
-HEADER = """# 人がラベルを付ける材料（往復 12）
+HEADER = """# 人がラベルを付ける材料（往復 13）
 
 往復 10 で代表（偽の本体が写す成果物と、ペルソナの回答）を変えた所を、記述だけで分類してもらうための材料
 （adopting.md 第15.1節、docs/review-findings.md の G-6）。`python -m software_factory.labeling write` が作る。手で書くのは
@@ -271,12 +278,13 @@ HEADER = """# 人がラベルを付ける材料（往復 12）
 
 手引き第15.1節の「変えた所に絞ってラベルを付け直す時」の目安で選んだ。
 
-- 対象: 選択肢の記述（ゲートはフェーズの goal）が、変えた代表の変えた所を判断の根拠にする対象。項目は、その対象が根拠に
-  する変えた代表のどれかを状態文書に含む評価
-- 訪問: 訪問 1 を渡す。持ち帰った記憶を受け取るステージと、そういうステージを持つフェーズのゲートでは、訪問 2 以降も渡す
-- まとめ方: (対象, 訪問の区分, クラス, 上流の違い) ごとに一つ（上流の違いは、intake.md を読む対象では依頼者のペルソナ、
-  unit\\_test では実装の変種）。訪問 2 以降は、訪問 1 の項目と見出しのほかが同じ状態文書を除く（design、plan\\_tasks、
-  architecture のゲートの訪問 2 以降はすべてそうなので、項目が無い）
+- 対象: 記述（ステージの goal と end\\_state、フェーズの goal）が、変えた代表の変えた所を判断の根拠にしうる対象。項目は、
+  その対象が根拠にしうる変えた代表のどれかを状態文書に含む評価
+- 訪問: 訪問 1 を渡す。訪問 2 以降も渡すのは、memory\\_in を持つステージと、そのステージを含むフェーズのゲートだけ。
+  訪問 1 の項目と見出しのほかが同じ状態文書は除く（design、plan\\_tasks、architecture のゲートの訪問 2 以降はすべてそう
+  なので、項目が無い）
+- まとめ方: (対象, 訪問の区分, クラス, 上流の違い) ごとに一つ、状態文書の短いもの（上流の違いは、intake.md を読む対象では
+  依頼者のペルソナ、unit\\_test では実装の変種）
 
 {counts}
 

@@ -3,9 +3,10 @@
 - 材料のコーパス（docs/human-labeling.corpus.jsonl）と human-labeling.md は、試しの実行から作り直したものと一致する
   （フィクスチャ、ペルソナ、記述を変えたら `python -m software_factory.labeling write` で作り直す）
 - 材料は、往復 10 で代表を変えた所の、手引き第15.1節の目安で選んだ (対象, 訪問の区分, 印, 上流の違い) の組をすべて一つずつ
-  含む。訪問 2 以降を見るのは、持ち帰った記憶を受け取るステージと、そういうステージを持つフェーズのゲート（workflow.yaml の
-  memory_in から決まる）だけ。そのうち、見出しのほかは訪問 1 と同じ状態文書は渡さない（design、plan_tasks、architecture の
-  ゲートは訪問 2 以降がすべてそう）。intake.md を読む対象の訪問 2 以降の項目は、持ち帰った問いの回答を含む
+  含む。訪問 2 以降を見るのは、memory_in を持つステージと、そのステージを含むフェーズのゲート（workflow.yaml の memory_in
+  から決まる）だけ。そのうち、見出しのほかは訪問 1 と同じ状態文書は渡さない（design、plan_tasks、architecture のゲートは
+  訪問 2 以降がすべてそう）。組の中では短い状態文書を選び、それで intake.md を読む対象の訪問 2 以降の項目は、持ち帰った
+  問いの回答を含む（往復 12 の「回答を含むものを先に」を外しても変わらない）
 - human-labeling.md に印は無く、各項目に印を除いた状態文書、選択肢（id と記述）、「ラベル:」の行がある。`write` が作る形では
   「ラベル:」は空で、人が埋めた後も、「ラベル:」を空にすれば作り直したものと一致する（人がラベルを付けても検査は落ちない）
 - 埋めた「ラベル:」から contract/formats/label.schema.json の形の JSON Lines を作り、`oracle_report(MarkerClassifier(), ...)`
@@ -48,7 +49,7 @@ _REPEATED: dict[tuple[str, str], set[tuple[str | None, str]]] = {
     ("phase", "architecture"): {(None, "")},
 }
 # 対象と訪問の区分（訪問 2 以降か）ごとの (印, 上流の違い) の組。上流の違いは、intake.md を読む対象ではペルソナ、unit_test
-# では実装の変種
+# では実装の変種。review（往復 13 で足した。memory_in が無いので訪問 1 だけ）には上流の違いが無い
 SLOTS: dict[tuple[str, str, bool], set[tuple[str | None, str]]] = {
     **{(s, t, again): slots for (s, t), slots in _READS_INTAKE.items() for again in (False, True)},
     **{(s, t, False): slots for (s, t), slots in _REPEATED.items()},
@@ -57,6 +58,9 @@ SLOTS: dict[tuple[str, str, bool], set[tuple[str | None, str]]] = {
         (m, p)
         for m in ("goal", "requirement_unmet", "requirement_misread", "unknown")
         for p in NAMES
+    },
+    ("stage", "review", False): {
+        (m, "") for m in ("goal", "changes_requested", "design_flaw", "unknown")
     },
 }
 
@@ -91,7 +95,7 @@ def test_material_covers_every_slot_once(committed: list[CorpusItem]) -> None:
         if labeling.again(item) and item.target in ("intake", "analyze", "discovery"):
             assert labeling.responded(item), item.item
     assert slots == SLOTS
-    assert len(committed) == sum(len(s) for s in SLOTS.values()) == 45
+    assert len(committed) == sum(len(s) for s in SLOTS.values()) == 49
     assert len({item.item for item in committed}) == len(committed)
 
 
@@ -129,6 +133,7 @@ def test_later_visits_are_passed_only_for_targets_that_receive_carried_memory() 
     passed_again = labeling.AGAIN
     assert passed_again == expected
     assert ("stage", "acceptance") not in passed_again
+    assert ("stage", "review") not in passed_again
     # unit_test も受け取るが、変えた代表 defective は確率 0 で、試しの実行もシナリオも訪問 1 にしか写さない（訪問 2 以降の
     # 項目は無い）。design、plan_tasks、architecture の訪問 2 以降は訪問 1 と同じ状態文書（上のテスト）
     assert passed_again == set(_READS_INTAKE) | set(_REPEATED) | {("stage", "unit_test")}

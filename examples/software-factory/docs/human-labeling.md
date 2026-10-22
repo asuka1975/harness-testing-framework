@@ -1,4 +1,4 @@
-# 人がラベルを付ける材料（往復 12）
+# 人がラベルを付ける材料（往復 13）
 
 往復 10 で代表（偽の本体が写す成果物と、ペルソナの回答）を変えた所を、記述だけで分類してもらうための材料
 （adopting.md 第15.1節、docs/review-findings.md の G-6）。`python -m software_factory.labeling write` が作る。手で書くのは
@@ -23,12 +23,13 @@
 
 手引き第15.1節の「変えた所に絞ってラベルを付け直す時」の目安で選んだ。
 
-- 対象: 選択肢の記述（ゲートはフェーズの goal）が、変えた代表の変えた所を判断の根拠にする対象。項目は、その対象が根拠に
-  する変えた代表のどれかを状態文書に含む評価
-- 訪問: 訪問 1 を渡す。持ち帰った記憶を受け取るステージと、そういうステージを持つフェーズのゲートでは、訪問 2 以降も渡す
-- まとめ方: (対象, 訪問の区分, クラス, 上流の違い) ごとに一つ（上流の違いは、intake.md を読む対象では依頼者のペルソナ、
-  unit\_test では実装の変種）。訪問 2 以降は、訪問 1 の項目と見出しのほかが同じ状態文書を除く（design、plan\_tasks、
-  architecture のゲートの訪問 2 以降はすべてそうなので、項目が無い）
+- 対象: 記述（ステージの goal と end\_state、フェーズの goal）が、変えた代表の変えた所を判断の根拠にしうる対象。項目は、
+  その対象が根拠にしうる変えた代表のどれかを状態文書に含む評価
+- 訪問: 訪問 1 を渡す。訪問 2 以降も渡すのは、memory\_in を持つステージと、そのステージを含むフェーズのゲートだけ。
+  訪問 1 の項目と見出しのほかが同じ状態文書は除く（design、plan\_tasks、architecture のゲートの訪問 2 以降はすべてそう
+  なので、項目が無い）
+- まとめ方: (対象, 訪問の区分, クラス, 上流の違い) ごとに一つ、状態文書の短いもの（上流の違いは、intake.md を読む対象では
+  依頼者のペルソナ、unit\_test では実装の変種）
 
 - ステージ intake: 4（訪問 1 が 2、訪問 2 以降が 2）
 - ステージ analyze: 14（訪問 1 が 7、訪問 2 以降が 7）
@@ -38,7 +39,8 @@
 - ゲート architecture: 1（訪問 1）
 - ステージ unit\_test: 3（訪問 1）
 - ステージ acceptance: 12（訪問 1）
-- 合わせて 45 項目
+- ステージ review: 4（訪問 1）
+- 合わせて 49 項目
 
 ## ラベルを付けた後
 
@@ -547,7 +549,7 @@ shopcart の Cart に、割引コードを適用した支払額を出す機能�
 
 ラベル:
 
-## 項目 10: `ad2835696f442c96-7`
+## 項目 10: `991e7f4791e306f4-7`
 
 対象: ステージ analyze の訪問 1
 
@@ -1229,7 +1231,7 @@ shopcart の Cart に、割引コードを適用した支払額を出す機能�
 
 ラベル:
 
-## 項目 20: `ad2835696f442c96-8`
+## 項目 20: `991e7f4791e306f4-8`
 
 対象: フェーズ discovery のゲート（フェーズの最終ステージの訪問 1 の後）
 
@@ -1676,7 +1678,7 @@ def test_add_rejects_nonpositive_quantity() -> None:
 
 ラベル:
 
-## 項目 26: `ad2835696f442c96-13`
+## 項目 26: `991e7f4791e306f4-13`
 
 対象: ステージ design の訪問 1
 
@@ -2018,7 +2020,7 @@ tasks:
 
 ラベル:
 
-## 項目 29: `ad2835696f442c96-27`
+## 項目 29: `991e7f4791e306f4-27`
 
 対象: ステージ plan_tasks の訪問 1
 
@@ -2143,7 +2145,7 @@ tasks:
 
 ラベル:
 
-## 項目 30: `ad2835696f442c96-28`
+## 項目 30: `991e7f4791e306f4-28`
 
 対象: フェーズ architecture のゲート（フェーズの最終ステージの訪問 1 の後）
 
@@ -2268,7 +2270,7 @@ tasks:
 
 ラベル:
 
-## 項目 31: `36c75a86f956cac4-43`
+## 項目 31: `589320efbe2494ca-43`
 
 対象: ステージ unit_test の訪問 1
 
@@ -2489,227 +2491,7 @@ def test_amount_code_subtracts_the_whole_amount() -> None:
 
 ラベル:
 
-## 項目 32: `6beb1d60f5370a87-27`
-
-対象: ステージ unit_test の訪問 1
-
-状態文書:
-
-~~~~~~text
-# 評価: stage unit_test visit 1
-
-## ファイル requirements.md
-
-# 要件
-
-## 要件
-- REQ-1: 百分率の割引コード PCTnn（nn は 1〜50）で、小計から nn% を引く。割引額の 1 円未満は切り捨てる
-  - 受け入れ基準: 小計 1000 円に PCT10 で 900 円
-- REQ-2: 定額の割引コード OFFnnn（nnn は円）で、小計から nnn 円を引く。支払額は 0 円を下回らない
-  - 受け入れ基準: 小計 1000 円に OFF500 で 500 円
-  - 受け入れ基準: 小計 300 円に OFF500 で 0 円
-- REQ-3: 購入者（店のお客さん）がレジの画面で入力したコードのうち、形式に合わないものと、範囲外の百分率は ValueError で拒む
-  - 受け入れ基準: PCT0、PCT51、XYZ、OFF は ValueError
-- REQ-4: コードを渡さなければ、支払額は小計に等しい
-  - 受け入れ基準: 小計 440 円でコード無しなら 440 円
-
-## 未決事項
-（なし）
-
-
-## ファイル tasks.yaml
-# 
-tasks:
-  - id: T1
-    title: 割引コードの読み取りと適用
-    requirements: [REQ-1, REQ-2, REQ-3]
-    paths: [repo/src/shopcart/discount.py]
-    tests: [repo/tests/test_discount.py]
-  - id: T2
-    title: 割引を適用した支払額
-    requirements: [REQ-1, REQ-2, REQ-4]
-    paths: [repo/src/shopcart/cart.py]
-    tests: [repo/tests/test_discount.py]
-
-
-## ファイル repo/src/shopcart/__init__.py
-"""小さな買い物かごのライブラリ。"""
-
-__version__ = "0.1.0"
-
-
-## ファイル repo/src/shopcart/cart.py
-"""買い物かご。金額は円の整数。"""
-
-from shopcart.discount import parse_code
-
-
-class Cart:
-    def __init__(self) -> None:
-        self.items: dict[str, tuple[int, int]] = {}
-
-    def add(self, sku: str, price: int, qty: int = 1) -> None:
-        if qty <= 0:
-            raise ValueError("qty must be positive")
-        _, held = self.items.get(sku, (price, 0))
-        self.items[sku] = (price, held + qty)
-
-    def remove(self, sku: str) -> None:
-        self.items.pop(sku, None)
-
-    def subtotal(self) -> int:
-        return sum(price * qty for price, qty in self.items.values())
-
-    def total(self, code: str | None = None) -> int:
-        """割引コードを適用した支払額。コードが無ければ小計。"""
-        subtotal = self.subtotal()
-        if code is None:
-            return subtotal
-        return parse_code(code).apply(subtotal)
-
-
-## ファイル repo/src/shopcart/discount.py
-"""割引コード（正規表現で読む版）。"""
-
-import re
-from dataclasses import dataclass
-
-_CODE = re.compile(r"(PCT|OFF)([0-9]+)")
-
-
-@dataclass(frozen=True)
-class Discount:
-    kind: str
-    value: int
-
-    def apply(self, subtotal: int) -> int:
-        if self.kind == "PCT":
-            return subtotal * (100 - self.value) // 100
-        return max(subtotal - self.value, 0)
-
-
-def parse_code(code: str) -> Discount:
-    match = _CODE.fullmatch(code)
-    if match is None:
-        raise ValueError(f"unknown code: {code}")
-    kind, value = match.group(1), int(match.group(2))
-    if kind == "PCT" and not 1 <= value <= 50:
-        raise ValueError(f"percent out of range: {code}")
-    return Discount(kind, value)
-
-
-## ファイル repo/tests/test_cart.py
-import pytest
-from shopcart.cart import Cart
-
-
-def test_subtotal_sums_price_times_quantity() -> None:
-    cart = Cart()
-    cart.add("apple", 120, 2)
-    cart.add("pear", 200)
-    assert cart.subtotal() == 440
-
-
-def test_remove_drops_the_item() -> None:
-    cart = Cart()
-    cart.add("apple", 120)
-    cart.add("apple", 120)
-    cart.remove("apple")
-    assert cart.subtotal() == 0
-
-
-def test_add_rejects_nonpositive_quantity() -> None:
-    with pytest.raises(ValueError):
-        Cart().add("apple", 120, 0)
-
-
-## ファイル repo/tests/test_discount.py
-import pytest
-from shopcart.cart import Cart
-from shopcart.discount import parse_code
-
-
-def _cart(subtotal: int) -> Cart:
-    cart = Cart()
-    cart.add("item", subtotal)
-    return cart
-
-
-def test_percent_code_takes_percentage_off() -> None:
-    assert _cart(1000).total("PCT10") == 900
-
-
-def test_amount_code_takes_amount_off() -> None:
-    assert _cart(1000).total("OFF500") == 500
-
-
-def test_amount_code_never_goes_below_zero() -> None:
-    assert _cart(300).total("OFF500") == 0
-
-
-def test_no_code_pays_subtotal() -> None:
-    assert _cart(440).total() == 440
-
-
-@pytest.mark.parametrize("code", ["PCT0", "PCT51", "XYZ", "OFF"])
-def test_invalid_codes_are_rejected(code: str) -> None:
-    with pytest.raises(ValueError):
-        parse_code(code)
-
-
-def test_amount_code_subtracts_the_whole_amount() -> None:
-    # 定額のコードは、小計を超えても額をそのまま引く
-    assert _cart(300).total("OFF500") == -200
-
-
-## ファイル impl_notes.md
-
-# 実装の記録
-
-## 変更
-- T1: repo/src/shopcart/discount.py に、正規表現で割引コードを読む parse_code と、種類と値を持つ Discount を足した
-- T2: repo/src/shopcart/cart.py に、割引を適用した支払額（Cart.total）を足した
-
-## 違反
-（なし）
-
-## 問い
-（なし）
-
-## テストへの依頼
-（なし）
-
-
-## ファイル test_report.md
-
-# 単体テストの記録
-
-## テスト
-- repo/tests/test_discount.py: REQ-1〜REQ-4 の受け入れ基準を確かめる（百分率、定額、0 円の下限、コード無し、無効なコード）。あわせて、定額のコードが小計を超えた時の支払額を確かめる
-
-## 失敗
-（なし）
-
-## 未網羅
-- test_amount_code_subtracts_the_whole_amount: 小計 300 円に OFF500 で -200 円を期待しているが、REQ-2 は支払額が 0 円を下回らない（受け入れ基準は 0 円）。期待が要件に反するので、このテストは落ちる。repo/src/ ではなくテストが誤っている
-
-
-## 記憶 failing_tests
-[]
-
-## 記憶 coverage_gaps
-["repo/tests/test_discount.py の test_amount_code_subtracts_the_whole_amount: 小計 300 円に OFF500 で -200 円を期待しているが、REQ-2 は支払額が 0 円を下回らない（受け入れ基準は 0 円）。期待が要件に反するので、このテストは落ちる"]
-~~~~~~
-
-選択肢:
-
-- `impl_defect`: repo/tests/ のテストの一部が失敗し、その期待が requirements.md の受け入れ基準か要件の記述に従っている（テストではなく repo/src/ が誤っている）。失敗したテストと、それが示す repo/src/ の欠陥が、記憶 failing_tests と test_report.md の 「## 失敗」に列挙されている。tests_insufficient に優先する。
-- `tests_insufficient`: unit_test 自身が直すべき不足か不備がある: requirements.md の受け入れ基準のうちテストの無いもの、repo/src/ の実行され ない箇所（行カバレッジが 80% に届かない）、repo/tests/ の lint の違反、tasks.yaml のタスクの tests に無いファイルの 変更、requirements.md の要件に反する期待を持つテスト。その不足か不備が、記憶 coverage_gaps と test_report.md の 「## 未網羅」に列挙されている。
-- `unknown`: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
-
-ラベル:
-
-## 項目 33: `ad2835696f442c96-37`
+## 項目 32: `991e7f4791e306f4-37`
 
 対象: ステージ unit_test の訪問 1
 
@@ -2889,6 +2671,226 @@ def test_amount_code_subtracts_the_whole_amount() -> None:
 
 ## 変更
 - T1: repo/src/shopcart/discount.py に、割引コードの読み取り（parse_code）と適用（Discount.apply）を足した
+- T2: repo/src/shopcart/cart.py に、割引を適用した支払額（Cart.total）を足した
+
+## 違反
+（なし）
+
+## 問い
+（なし）
+
+## テストへの依頼
+（なし）
+
+
+## ファイル test_report.md
+
+# 単体テストの記録
+
+## テスト
+- repo/tests/test_discount.py: REQ-1〜REQ-4 の受け入れ基準を確かめる（百分率、定額、0 円の下限、コード無し、無効なコード）。あわせて、定額のコードが小計を超えた時の支払額を確かめる
+
+## 失敗
+（なし）
+
+## 未網羅
+- test_amount_code_subtracts_the_whole_amount: 小計 300 円に OFF500 で -200 円を期待しているが、REQ-2 は支払額が 0 円を下回らない（受け入れ基準は 0 円）。期待が要件に反するので、このテストは落ちる。repo/src/ ではなくテストが誤っている
+
+
+## 記憶 failing_tests
+[]
+
+## 記憶 coverage_gaps
+["repo/tests/test_discount.py の test_amount_code_subtracts_the_whole_amount: 小計 300 円に OFF500 で -200 円を期待しているが、REQ-2 は支払額が 0 円を下回らない（受け入れ基準は 0 円）。期待が要件に反するので、このテストは落ちる"]
+~~~~~~
+
+選択肢:
+
+- `impl_defect`: repo/tests/ のテストの一部が失敗し、その期待が requirements.md の受け入れ基準か要件の記述に従っている（テストではなく repo/src/ が誤っている）。失敗したテストと、それが示す repo/src/ の欠陥が、記憶 failing_tests と test_report.md の 「## 失敗」に列挙されている。tests_insufficient に優先する。
+- `tests_insufficient`: unit_test 自身が直すべき不足か不備がある: requirements.md の受け入れ基準のうちテストの無いもの、repo/src/ の実行され ない箇所（行カバレッジが 80% に届かない）、repo/tests/ の lint の違反、tasks.yaml のタスクの tests に無いファイルの 変更、requirements.md の要件に反する期待を持つテスト。その不足か不備が、記憶 coverage_gaps と test_report.md の 「## 未網羅」に列挙されている。
+- `unknown`: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+
+ラベル:
+
+## 項目 33: `e14e64229307dcbd-27`
+
+対象: ステージ unit_test の訪問 1
+
+状態文書:
+
+~~~~~~text
+# 評価: stage unit_test visit 1
+
+## ファイル requirements.md
+
+# 要件
+
+## 要件
+- REQ-1: 百分率の割引コード PCTnn（nn は 1〜50）で、小計から nn% を引く。割引額の 1 円未満は切り捨てる
+  - 受け入れ基準: 小計 1000 円に PCT10 で 900 円
+- REQ-2: 定額の割引コード OFFnnn（nnn は円）で、小計から nnn 円を引く。支払額は 0 円を下回らない
+  - 受け入れ基準: 小計 1000 円に OFF500 で 500 円
+  - 受け入れ基準: 小計 300 円に OFF500 で 0 円
+- REQ-3: 購入者（店のお客さん）がレジの画面で入力したコードのうち、形式に合わないものと、範囲外の百分率は ValueError で拒む
+  - 受け入れ基準: PCT0、PCT51、XYZ、OFF は ValueError
+- REQ-4: コードを渡さなければ、支払額は小計に等しい
+  - 受け入れ基準: 小計 440 円でコード無しなら 440 円
+
+## 未決事項
+（なし）
+
+
+## ファイル tasks.yaml
+# 
+tasks:
+  - id: T1
+    title: 割引コードの読み取りと適用
+    requirements: [REQ-1, REQ-2, REQ-3]
+    paths: [repo/src/shopcart/discount.py]
+    tests: [repo/tests/test_discount.py]
+  - id: T2
+    title: 割引を適用した支払額
+    requirements: [REQ-1, REQ-2, REQ-4]
+    paths: [repo/src/shopcart/cart.py]
+    tests: [repo/tests/test_discount.py]
+
+
+## ファイル repo/src/shopcart/__init__.py
+"""小さな買い物かごのライブラリ。"""
+
+__version__ = "0.1.0"
+
+
+## ファイル repo/src/shopcart/cart.py
+"""買い物かご。金額は円の整数。"""
+
+from shopcart.discount import parse_code
+
+
+class Cart:
+    def __init__(self) -> None:
+        self.items: dict[str, tuple[int, int]] = {}
+
+    def add(self, sku: str, price: int, qty: int = 1) -> None:
+        if qty <= 0:
+            raise ValueError("qty must be positive")
+        _, held = self.items.get(sku, (price, 0))
+        self.items[sku] = (price, held + qty)
+
+    def remove(self, sku: str) -> None:
+        self.items.pop(sku, None)
+
+    def subtotal(self) -> int:
+        return sum(price * qty for price, qty in self.items.values())
+
+    def total(self, code: str | None = None) -> int:
+        """割引コードを適用した支払額。コードが無ければ小計。"""
+        subtotal = self.subtotal()
+        if code is None:
+            return subtotal
+        return parse_code(code).apply(subtotal)
+
+
+## ファイル repo/src/shopcart/discount.py
+"""割引コード（正規表現で読む版）。"""
+
+import re
+from dataclasses import dataclass
+
+_CODE = re.compile(r"(PCT|OFF)([0-9]+)")
+
+
+@dataclass(frozen=True)
+class Discount:
+    kind: str
+    value: int
+
+    def apply(self, subtotal: int) -> int:
+        if self.kind == "PCT":
+            return subtotal * (100 - self.value) // 100
+        return max(subtotal - self.value, 0)
+
+
+def parse_code(code: str) -> Discount:
+    match = _CODE.fullmatch(code)
+    if match is None:
+        raise ValueError(f"unknown code: {code}")
+    kind, value = match.group(1), int(match.group(2))
+    if kind == "PCT" and not 1 <= value <= 50:
+        raise ValueError(f"percent out of range: {code}")
+    return Discount(kind, value)
+
+
+## ファイル repo/tests/test_cart.py
+import pytest
+from shopcart.cart import Cart
+
+
+def test_subtotal_sums_price_times_quantity() -> None:
+    cart = Cart()
+    cart.add("apple", 120, 2)
+    cart.add("pear", 200)
+    assert cart.subtotal() == 440
+
+
+def test_remove_drops_the_item() -> None:
+    cart = Cart()
+    cart.add("apple", 120)
+    cart.add("apple", 120)
+    cart.remove("apple")
+    assert cart.subtotal() == 0
+
+
+def test_add_rejects_nonpositive_quantity() -> None:
+    with pytest.raises(ValueError):
+        Cart().add("apple", 120, 0)
+
+
+## ファイル repo/tests/test_discount.py
+import pytest
+from shopcart.cart import Cart
+from shopcart.discount import parse_code
+
+
+def _cart(subtotal: int) -> Cart:
+    cart = Cart()
+    cart.add("item", subtotal)
+    return cart
+
+
+def test_percent_code_takes_percentage_off() -> None:
+    assert _cart(1000).total("PCT10") == 900
+
+
+def test_amount_code_takes_amount_off() -> None:
+    assert _cart(1000).total("OFF500") == 500
+
+
+def test_amount_code_never_goes_below_zero() -> None:
+    assert _cart(300).total("OFF500") == 0
+
+
+def test_no_code_pays_subtotal() -> None:
+    assert _cart(440).total() == 440
+
+
+@pytest.mark.parametrize("code", ["PCT0", "PCT51", "XYZ", "OFF"])
+def test_invalid_codes_are_rejected(code: str) -> None:
+    with pytest.raises(ValueError):
+        parse_code(code)
+
+
+def test_amount_code_subtracts_the_whole_amount() -> None:
+    # 定額のコードは、小計を超えても額をそのまま引く
+    assert _cart(300).total("OFF500") == -200
+
+
+## ファイル impl_notes.md
+
+# 実装の記録
+
+## 変更
+- T1: repo/src/shopcart/discount.py に、正規表現で割引コードを読む parse_code と、種類と値を持つ Discount を足した
 - T2: repo/src/shopcart/cart.py に、割引を適用した支払額（Cart.total）を足した
 
 ## 違反
@@ -3648,7 +3650,247 @@ def test_invalid_codes_are_rejected(code: str) -> None:
 
 ラベル:
 
-## 項目 37: `1283150739138628-33`
+## 項目 37: `3850e3d175ab3372-33`
+
+対象: ステージ acceptance の訪問 1
+
+状態文書:
+
+~~~~~~text
+# 評価: stage acceptance visit 1
+
+## ファイル feature_request.md
+# 依頼: 買い物かごに割引コードを入れたい
+
+shopcart ライブラリの Cart に、割引コードを適用した支払額を出す機能を足してほしい。
+来月のキャンペーンで「10% 引き」と「500 円引き」のコードを配る予定。
+
+
+## ファイル intake.md
+
+# 取り込み
+
+## 依頼
+shopcart の Cart に、割引コードを適用した支払額を出す機能を足す（feature_request.md）。
+
+## 質問と回答
+- Q: この機能を使うのは誰ですか
+  A: ネットショップの購入者。レジの画面でコードを入力する
+- Q: 配る割引コードの種類と上限は何ですか
+  A: PCT10 のような百分率のコードと、OFF500 のような定額のコード。百分率は 50% まで。割引額の 1 円未満は切り捨て、定額で小計を超えたら 0 円にする
+- Q: 使えないコードが入力された時はどうしますか
+  A: エラーにして、割引しない
+
+## 制約
+- 金額は円の整数で扱う
+
+
+## ファイル requirements.md
+
+# 要件
+
+## 要件
+- REQ-1: 百分率の割引コード PCTnn（nn は 1〜50）で、小計から nn% を引く。割引額の 1 円未満は切り捨てる
+  - 受け入れ基準: 小計 1000 円に PCT10 で 900 円
+- REQ-2: 定額の割引コード OFFnnn（nnn は円）で、小計から nnn 円を引く。支払額は 0 円を下回らない
+  - 受け入れ基準: 小計 1000 円に OFF500 で 500 円
+  - 受け入れ基準: 小計 300 円に OFF500 で 0 円
+- REQ-3: 購入者（店のお客さん）がレジの画面で入力したコードのうち、形式に合わないものと、範囲外の百分率は ValueError で拒む
+  - 受け入れ基準: PCT0、PCT51、XYZ、OFF は ValueError
+- REQ-4: コードを渡さなければ、支払額は小計に等しい
+  - 受け入れ基準: 小計 440 円でコード無しなら 440 円
+
+## 未決事項
+（なし）
+
+
+## ファイル tasks.yaml
+# 
+tasks:
+  - id: T1
+    title: 割引コードの読み取りと適用
+    requirements: [REQ-1, REQ-2, REQ-3]
+    paths: [repo/src/shopcart/discount.py]
+    tests: [repo/tests/test_discount.py]
+  - id: T2
+    title: 割引を適用した支払額
+    requirements: [REQ-1, REQ-2, REQ-4]
+    paths: [repo/src/shopcart/cart.py]
+    tests: [repo/tests/test_discount.py]
+
+
+## ファイル repo/src/shopcart/__init__.py
+"""小さな買い物かごのライブラリ。"""
+
+__version__ = "0.1.0"
+
+
+## ファイル repo/src/shopcart/cart.py
+"""買い物かご。金額は円の整数。"""
+
+from shopcart.discount import parse_code
+
+
+class Cart:
+    def __init__(self) -> None:
+        self.items: dict[str, tuple[int, int]] = {}
+
+    def add(self, sku: str, price: int, qty: int = 1) -> None:
+        if qty <= 0:
+            raise ValueError("qty must be positive")
+        _, held = self.items.get(sku, (price, 0))
+        self.items[sku] = (price, held + qty)
+
+    def remove(self, sku: str) -> None:
+        self.items.pop(sku, None)
+
+    def subtotal(self) -> int:
+        return sum(price * qty for price, qty in self.items.values())
+
+    def total(self, code: str | None = None) -> int:
+        """割引コードを適用した支払額。コードが無ければ小計。"""
+        subtotal = self.subtotal()
+        if code is None:
+            return subtotal
+        return parse_code(code).apply(subtotal)
+
+
+## ファイル repo/src/shopcart/discount.py
+"""割引コード（正規表現で読む版）。"""
+
+import re
+from dataclasses import dataclass
+
+_CODE = re.compile(r"(PCT|OFF)([0-9]+)")
+
+
+@dataclass(frozen=True)
+class Discount:
+    kind: str
+    value: int
+
+    def apply(self, subtotal: int) -> int:
+        if self.kind == "PCT":
+            return subtotal * (100 - self.value) // 100
+        return max(subtotal - self.value, 0)
+
+
+def parse_code(code: str) -> Discount:
+    match = _CODE.fullmatch(code)
+    if match is None:
+        raise ValueError(f"unknown code: {code}")
+    kind, value = match.group(1), int(match.group(2))
+    if kind == "PCT" and not 1 <= value <= 50:
+        raise ValueError(f"percent out of range: {code}")
+    return Discount(kind, value)
+
+
+## ファイル repo/tests/test_cart.py
+import pytest
+from shopcart.cart import Cart
+
+
+def test_subtotal_sums_price_times_quantity() -> None:
+    cart = Cart()
+    cart.add("apple", 120, 2)
+    cart.add("pear", 200)
+    assert cart.subtotal() == 440
+
+
+def test_remove_drops_the_item() -> None:
+    cart = Cart()
+    cart.add("apple", 120)
+    cart.add("apple", 120)
+    cart.remove("apple")
+    assert cart.subtotal() == 0
+
+
+def test_add_rejects_nonpositive_quantity() -> None:
+    with pytest.raises(ValueError):
+        Cart().add("apple", 120, 0)
+
+
+## ファイル repo/tests/test_discount.py
+import pytest
+from shopcart.cart import Cart
+from shopcart.discount import parse_code
+
+
+def _cart(subtotal: int) -> Cart:
+    cart = Cart()
+    cart.add("item", subtotal)
+    return cart
+
+
+def test_percent_code_takes_percentage_off() -> None:
+    assert _cart(1000).total("PCT10") == 900
+
+
+def test_amount_code_takes_amount_off() -> None:
+    assert _cart(1000).total("OFF500") == 500
+
+
+def test_amount_code_never_goes_below_zero() -> None:
+    assert _cart(300).total("OFF500") == 0
+
+
+def test_no_code_pays_subtotal() -> None:
+    assert _cart(440).total() == 440
+
+
+@pytest.mark.parametrize("code", ["PCT0", "PCT51", "XYZ", "OFF"])
+def test_invalid_codes_are_rejected(code: str) -> None:
+    with pytest.raises(ValueError):
+        parse_code(code)
+
+
+## ファイル test_report.md
+
+# 単体テストの記録
+
+## テスト
+- repo/tests/test_discount.py: REQ-1〜REQ-4 の受け入れ基準を確かめる（百分率、定額、0 円の下限、コード無し、無効なコード）
+
+## 失敗
+（なし）
+
+## 未網羅
+（なし）
+
+
+## ファイル verification.md
+
+# 検証
+
+## 要件ごとの結果
+| 要件 | 確かめたテスト | 結果 |
+| --- | --- | --- |
+| REQ-1 | test_percent_code_takes_percentage_off | 合格 |
+| REQ-2 | test_amount_code_takes_amount_off, test_amount_code_never_goes_below_zero | 合格 |
+| REQ-3 | test_invalid_codes_are_rejected | 合格 |
+| REQ-4 | test_no_code_pays_subtotal | 合格 |
+
+## 依頼との食い違い
+- intake.md の回答では、購入者がレジの画面でコードを入力する（requirements.md の REQ-3 にもある）。人が打つコードには大文字と小文字の揺れが出るが、requirements.md の要件にはその扱いが無く、入力された pct10 を拒む
+
+
+## 記憶 unmet_requirements
+[]
+
+## 記憶 requirement_gaps
+["requirements.md にコードの大文字と小文字の扱いが無く、入力された pct10 を拒む"]
+~~~~~~
+
+選択肢:
+
+- `goal`: verification.md の表が requirements.md のすべての要件を挙げてすべて合格で、「## 依頼との食い違い」が空である。
+- `requirement_misread`: verification.md の「## 依頼との食い違い」に、requirements.md の要件（またはその欠落）が feature_request.md の依頼か intake.md の回答と食い違う点があり、その点が記憶 requirement_gaps に列挙されている。表の結果によらず、 requirement_gaps に食い違いが列挙されていればこの状態とし、goal と requirement_unmet に優先する。
+- `requirement_unmet`: verification.md の表で一つ以上の要件が不合格で、その要件と、要件の記述か受け入れ基準に反する repo/ の振る舞いが、 記憶 unmet_requirements と verification.md の「## 不合格の内容」に列挙されている。requirements.md の要件そのものは 依頼と食い違っていない。
+- `unknown`: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+
+ラベル:
+
+## 項目 38: `535b72045e0e3db7-33`
 
 対象: ステージ acceptance の訪問 1
 
@@ -3890,247 +4132,7 @@ def test_invalid_codes_are_rejected(code: str) -> None:
 
 ラベル:
 
-## 項目 38: `3850e3d175ab3372-33`
-
-対象: ステージ acceptance の訪問 1
-
-状態文書:
-
-~~~~~~text
-# 評価: stage acceptance visit 1
-
-## ファイル feature_request.md
-# 依頼: 買い物かごに割引コードを入れたい
-
-shopcart ライブラリの Cart に、割引コードを適用した支払額を出す機能を足してほしい。
-来月のキャンペーンで「10% 引き」と「500 円引き」のコードを配る予定。
-
-
-## ファイル intake.md
-
-# 取り込み
-
-## 依頼
-shopcart の Cart に、割引コードを適用した支払額を出す機能を足す（feature_request.md）。
-
-## 質問と回答
-- Q: この機能を使うのは誰ですか
-  A: ネットショップの購入者。レジの画面でコードを入力する
-- Q: 配る割引コードの種類と上限は何ですか
-  A: PCT10 のような百分率のコードと、OFF500 のような定額のコード。百分率は 50% まで。割引額の 1 円未満は切り捨て、定額で小計を超えたら 0 円にする
-- Q: 使えないコードが入力された時はどうしますか
-  A: エラーにして、割引しない
-
-## 制約
-- 金額は円の整数で扱う
-
-
-## ファイル requirements.md
-
-# 要件
-
-## 要件
-- REQ-1: 百分率の割引コード PCTnn（nn は 1〜50）で、小計から nn% を引く。割引額の 1 円未満は切り捨てる
-  - 受け入れ基準: 小計 1000 円に PCT10 で 900 円
-- REQ-2: 定額の割引コード OFFnnn（nnn は円）で、小計から nnn 円を引く。支払額は 0 円を下回らない
-  - 受け入れ基準: 小計 1000 円に OFF500 で 500 円
-  - 受け入れ基準: 小計 300 円に OFF500 で 0 円
-- REQ-3: 購入者（店のお客さん）がレジの画面で入力したコードのうち、形式に合わないものと、範囲外の百分率は ValueError で拒む
-  - 受け入れ基準: PCT0、PCT51、XYZ、OFF は ValueError
-- REQ-4: コードを渡さなければ、支払額は小計に等しい
-  - 受け入れ基準: 小計 440 円でコード無しなら 440 円
-
-## 未決事項
-（なし）
-
-
-## ファイル tasks.yaml
-# 
-tasks:
-  - id: T1
-    title: 割引コードの読み取りと適用
-    requirements: [REQ-1, REQ-2, REQ-3]
-    paths: [repo/src/shopcart/discount.py]
-    tests: [repo/tests/test_discount.py]
-  - id: T2
-    title: 割引を適用した支払額
-    requirements: [REQ-1, REQ-2, REQ-4]
-    paths: [repo/src/shopcart/cart.py]
-    tests: [repo/tests/test_discount.py]
-
-
-## ファイル repo/src/shopcart/__init__.py
-"""小さな買い物かごのライブラリ。"""
-
-__version__ = "0.1.0"
-
-
-## ファイル repo/src/shopcart/cart.py
-"""買い物かご。金額は円の整数。"""
-
-from shopcart.discount import parse_code
-
-
-class Cart:
-    def __init__(self) -> None:
-        self.items: dict[str, tuple[int, int]] = {}
-
-    def add(self, sku: str, price: int, qty: int = 1) -> None:
-        if qty <= 0:
-            raise ValueError("qty must be positive")
-        _, held = self.items.get(sku, (price, 0))
-        self.items[sku] = (price, held + qty)
-
-    def remove(self, sku: str) -> None:
-        self.items.pop(sku, None)
-
-    def subtotal(self) -> int:
-        return sum(price * qty for price, qty in self.items.values())
-
-    def total(self, code: str | None = None) -> int:
-        """割引コードを適用した支払額。コードが無ければ小計。"""
-        subtotal = self.subtotal()
-        if code is None:
-            return subtotal
-        return parse_code(code).apply(subtotal)
-
-
-## ファイル repo/src/shopcart/discount.py
-"""割引コード（正規表現で読む版）。"""
-
-import re
-from dataclasses import dataclass
-
-_CODE = re.compile(r"(PCT|OFF)([0-9]+)")
-
-
-@dataclass(frozen=True)
-class Discount:
-    kind: str
-    value: int
-
-    def apply(self, subtotal: int) -> int:
-        if self.kind == "PCT":
-            return subtotal * (100 - self.value) // 100
-        return max(subtotal - self.value, 0)
-
-
-def parse_code(code: str) -> Discount:
-    match = _CODE.fullmatch(code)
-    if match is None:
-        raise ValueError(f"unknown code: {code}")
-    kind, value = match.group(1), int(match.group(2))
-    if kind == "PCT" and not 1 <= value <= 50:
-        raise ValueError(f"percent out of range: {code}")
-    return Discount(kind, value)
-
-
-## ファイル repo/tests/test_cart.py
-import pytest
-from shopcart.cart import Cart
-
-
-def test_subtotal_sums_price_times_quantity() -> None:
-    cart = Cart()
-    cart.add("apple", 120, 2)
-    cart.add("pear", 200)
-    assert cart.subtotal() == 440
-
-
-def test_remove_drops_the_item() -> None:
-    cart = Cart()
-    cart.add("apple", 120)
-    cart.add("apple", 120)
-    cart.remove("apple")
-    assert cart.subtotal() == 0
-
-
-def test_add_rejects_nonpositive_quantity() -> None:
-    with pytest.raises(ValueError):
-        Cart().add("apple", 120, 0)
-
-
-## ファイル repo/tests/test_discount.py
-import pytest
-from shopcart.cart import Cart
-from shopcart.discount import parse_code
-
-
-def _cart(subtotal: int) -> Cart:
-    cart = Cart()
-    cart.add("item", subtotal)
-    return cart
-
-
-def test_percent_code_takes_percentage_off() -> None:
-    assert _cart(1000).total("PCT10") == 900
-
-
-def test_amount_code_takes_amount_off() -> None:
-    assert _cart(1000).total("OFF500") == 500
-
-
-def test_amount_code_never_goes_below_zero() -> None:
-    assert _cart(300).total("OFF500") == 0
-
-
-def test_no_code_pays_subtotal() -> None:
-    assert _cart(440).total() == 440
-
-
-@pytest.mark.parametrize("code", ["PCT0", "PCT51", "XYZ", "OFF"])
-def test_invalid_codes_are_rejected(code: str) -> None:
-    with pytest.raises(ValueError):
-        parse_code(code)
-
-
-## ファイル test_report.md
-
-# 単体テストの記録
-
-## テスト
-- repo/tests/test_discount.py: REQ-1〜REQ-4 の受け入れ基準を確かめる（百分率、定額、0 円の下限、コード無し、無効なコード）
-
-## 失敗
-（なし）
-
-## 未網羅
-（なし）
-
-
-## ファイル verification.md
-
-# 検証
-
-## 要件ごとの結果
-| 要件 | 確かめたテスト | 結果 |
-| --- | --- | --- |
-| REQ-1 | test_percent_code_takes_percentage_off | 合格 |
-| REQ-2 | test_amount_code_takes_amount_off, test_amount_code_never_goes_below_zero | 合格 |
-| REQ-3 | test_invalid_codes_are_rejected | 合格 |
-| REQ-4 | test_no_code_pays_subtotal | 合格 |
-
-## 依頼との食い違い
-- intake.md の回答では、購入者がレジの画面でコードを入力する（requirements.md の REQ-3 にもある）。人が打つコードには大文字と小文字の揺れが出るが、requirements.md の要件にはその扱いが無く、入力された pct10 を拒む
-
-
-## 記憶 unmet_requirements
-[]
-
-## 記憶 requirement_gaps
-["requirements.md にコードの大文字と小文字の扱いが無く、入力された pct10 を拒む"]
-~~~~~~
-
-選択肢:
-
-- `goal`: verification.md の表が requirements.md のすべての要件を挙げてすべて合格で、「## 依頼との食い違い」が空である。
-- `requirement_misread`: verification.md の「## 依頼との食い違い」に、requirements.md の要件（またはその欠落）が feature_request.md の依頼か intake.md の回答と食い違う点があり、その点が記憶 requirement_gaps に列挙されている。表の結果によらず、 requirement_gaps に食い違いが列挙されていればこの状態とし、goal と requirement_unmet に優先する。
-- `requirement_unmet`: verification.md の表で一つ以上の要件が不合格で、その要件と、要件の記述か受け入れ基準に反する repo/ の振る舞いが、 記憶 unmet_requirements と verification.md の「## 不合格の内容」に列挙されている。requirements.md の要件そのものは 依頼と食い違っていない。
-- `unknown`: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
-
-ラベル:
-
-## 項目 39: `6beb1d60f5370a87-37`
+## 項目 39: `546c26839c0b4df1-37`
 
 対象: ステージ acceptance の訪問 1
 
@@ -4345,20 +4347,17 @@ def test_invalid_codes_are_rejected(code: str) -> None:
 ## 要件ごとの結果
 | 要件 | 確かめたテスト | 結果 |
 | --- | --- | --- |
-| REQ-1 | test_percent_code_takes_percentage_off、小計 333 円に PCT10 を適用する確認 | 不合格 |
+| REQ-1 | test_percent_code_takes_percentage_off | 合格 |
 | REQ-2 | test_amount_code_takes_amount_off, test_amount_code_never_goes_below_zero | 合格 |
 | REQ-3 | test_invalid_codes_are_rejected | 合格 |
 | REQ-4 | test_no_code_pays_subtotal | 合格 |
-
-## 不合格の内容
-- REQ-1: 小計 333 円に PCT10 を適用すると、支払額が 299 円になる。要件は割引額（33.3 円）の 1 円未満を切り捨てるので 300 円になるべきだが、repo/src/shopcart/discount.py の Discount.apply が支払額を切り捨てている。repo/tests/ の単体テストはこの場合を確かめていない
 
 ## 依頼との食い違い
 （なし）
 
 
 ## 記憶 unmet_requirements
-["REQ-1: 小計 333 円に PCT10 を適用すると支払額が 299 円になる（割引額の 1 円未満を切り捨てれば 300 円）。repo/src/shopcart/discount.py の Discount.apply が支払額を切り捨てている"]
+[]
 
 ## 記憶 requirement_gaps
 []
@@ -4366,6 +4365,7 @@ def test_invalid_codes_are_rejected(code: str) -> None:
 
 選択肢:
 
+- `goal`: verification.md の表が requirements.md のすべての要件を挙げてすべて合格で、「## 依頼との食い違い」が空である。
 - `requirement_misread`: verification.md の「## 依頼との食い違い」に、requirements.md の要件（またはその欠落）が feature_request.md の依頼か intake.md の回答と食い違う点があり、その点が記憶 requirement_gaps に列挙されている。表の結果によらず、 requirement_gaps に食い違いが列挙されていればこの状態とし、goal と requirement_unmet に優先する。
 - `requirement_unmet`: verification.md の表で一つ以上の要件が不合格で、その要件と、要件の記述か受け入れ基準に反する repo/ の振る舞いが、 記憶 unmet_requirements と verification.md の「## 不合格の内容」に列挙されている。requirements.md の要件そのものは 依頼と食い違っていない。
 - `unknown`: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
@@ -4606,249 +4606,7 @@ def test_invalid_codes_are_rejected(code: str) -> None:
 
 ラベル:
 
-## 項目 41: `a330ccffd1b54d6f-33`
-
-対象: ステージ acceptance の訪問 1
-
-状態文書:
-
-~~~~~~text
-# 評価: stage acceptance visit 1
-
-## ファイル feature_request.md
-# 依頼: 買い物かごに割引コードを入れたい
-
-shopcart ライブラリの Cart に、割引コードを適用した支払額を出す機能を足してほしい。
-来月のキャンペーンで「10% 引き」と「500 円引き」のコードを配る予定。
-
-
-## ファイル intake.md
-
-# 取り込み
-
-## 依頼
-shopcart の Cart に、割引コードを適用した支払額を出す機能を足す（feature_request.md）。
-
-## 質問と回答
-- Q: この機能を使うのは誰ですか
-  A: ネットショップの購入者。レジの画面でコードを入力する
-- Q: 配る割引コードの種類と上限は何ですか
-  A: PCT10 のような百分率のコードと、OFF500 のような定額のコード。百分率は 50% まで。割引額の 1 円未満は切り捨て、定額で小計を超えたら 0 円にする
-- Q: 使えないコードが入力された時はどうしますか
-  A: エラーにして、割引しない
-
-## 制約
-- 金額は円の整数で扱う
-
-
-## ファイル requirements.md
-
-# 要件
-
-## 要件
-- REQ-1: 百分率の割引コード PCTnn（nn は 1〜50）で、小計から nn% を引く。割引額の 1 円未満は切り捨てる
-  - 受け入れ基準: 小計 1000 円に PCT10 で 900 円
-- REQ-2: 定額の割引コード OFFnnn（nnn は円）で、小計から nnn 円を引く。支払額は 0 円を下回らない
-  - 受け入れ基準: 小計 1000 円に OFF500 で 500 円
-  - 受け入れ基準: 小計 300 円に OFF500 で 0 円
-- REQ-3: 購入者（店のお客さん）がレジの画面で入力したコードのうち、形式に合わないものと、範囲外の百分率は ValueError で拒む
-  - 受け入れ基準: PCT0、PCT51、XYZ、OFF は ValueError
-- REQ-4: コードを渡さなければ、支払額は小計に等しい
-  - 受け入れ基準: 小計 440 円でコード無しなら 440 円
-
-## 未決事項
-（なし）
-
-
-## ファイル tasks.yaml
-# 
-tasks:
-  - id: T1
-    title: 割引コードの読み取りと適用
-    requirements: [REQ-1, REQ-2, REQ-3]
-    paths: [repo/src/shopcart/discount.py]
-    tests: [repo/tests/test_discount.py]
-  - id: T2
-    title: 割引を適用した支払額
-    requirements: [REQ-1, REQ-2, REQ-4]
-    paths: [repo/src/shopcart/cart.py]
-    tests: [repo/tests/test_discount.py]
-
-
-## ファイル repo/src/shopcart/__init__.py
-"""小さな買い物かごのライブラリ。"""
-
-__version__ = "0.1.0"
-
-
-## ファイル repo/src/shopcart/cart.py
-"""買い物かご。金額は円の整数。"""
-
-from shopcart.discount import parse_code
-
-
-class Cart:
-    def __init__(self) -> None:
-        self.items: dict[str, tuple[int, int]] = {}
-
-    def add(self, sku: str, price: int, qty: int = 1) -> None:
-        if qty <= 0:
-            raise ValueError("qty must be positive")
-        _, held = self.items.get(sku, (price, 0))
-        self.items[sku] = (price, held + qty)
-
-    def remove(self, sku: str) -> None:
-        self.items.pop(sku, None)
-
-    def subtotal(self) -> int:
-        return sum(price * qty for price, qty in self.items.values())
-
-    def total(self, code: str | None = None) -> int:
-        """割引コードを適用した支払額。コードが無ければ小計。"""
-        subtotal = self.subtotal()
-        if code is None:
-            return subtotal
-        return parse_code(code).apply(subtotal)
-
-
-## ファイル repo/src/shopcart/discount.py
-"""割引コード（正規表現で読む版）。"""
-
-import re
-from dataclasses import dataclass
-
-_CODE = re.compile(r"(PCT|OFF)([0-9]+)")
-
-
-@dataclass(frozen=True)
-class Discount:
-    kind: str
-    value: int
-
-    def apply(self, subtotal: int) -> int:
-        if self.kind == "PCT":
-            return subtotal * (100 - self.value) // 100
-        return max(subtotal - self.value, 0)
-
-
-def parse_code(code: str) -> Discount:
-    match = _CODE.fullmatch(code)
-    if match is None:
-        raise ValueError(f"unknown code: {code}")
-    kind, value = match.group(1), int(match.group(2))
-    if kind == "PCT" and not 1 <= value <= 50:
-        raise ValueError(f"percent out of range: {code}")
-    return Discount(kind, value)
-
-
-## ファイル repo/tests/test_cart.py
-import pytest
-from shopcart.cart import Cart
-
-
-def test_subtotal_sums_price_times_quantity() -> None:
-    cart = Cart()
-    cart.add("apple", 120, 2)
-    cart.add("pear", 200)
-    assert cart.subtotal() == 440
-
-
-def test_remove_drops_the_item() -> None:
-    cart = Cart()
-    cart.add("apple", 120)
-    cart.add("apple", 120)
-    cart.remove("apple")
-    assert cart.subtotal() == 0
-
-
-def test_add_rejects_nonpositive_quantity() -> None:
-    with pytest.raises(ValueError):
-        Cart().add("apple", 120, 0)
-
-
-## ファイル repo/tests/test_discount.py
-import pytest
-from shopcart.cart import Cart
-from shopcart.discount import parse_code
-
-
-def _cart(subtotal: int) -> Cart:
-    cart = Cart()
-    cart.add("item", subtotal)
-    return cart
-
-
-def test_percent_code_takes_percentage_off() -> None:
-    assert _cart(1000).total("PCT10") == 900
-
-
-def test_amount_code_takes_amount_off() -> None:
-    assert _cart(1000).total("OFF500") == 500
-
-
-def test_amount_code_never_goes_below_zero() -> None:
-    assert _cart(300).total("OFF500") == 0
-
-
-def test_no_code_pays_subtotal() -> None:
-    assert _cart(440).total() == 440
-
-
-@pytest.mark.parametrize("code", ["PCT0", "PCT51", "XYZ", "OFF"])
-def test_invalid_codes_are_rejected(code: str) -> None:
-    with pytest.raises(ValueError):
-        parse_code(code)
-
-
-## ファイル test_report.md
-
-# 単体テストの記録
-
-## テスト
-- repo/tests/test_discount.py: REQ-1〜REQ-4 の受け入れ基準を確かめる（百分率、定額、0 円の下限、コード無し、無効なコード）
-
-## 失敗
-（なし）
-
-## 未網羅
-（なし）
-
-
-## ファイル verification.md
-
-# 検証
-
-## 要件ごとの結果
-| 要件 | 確かめたテスト | 結果 |
-| --- | --- | --- |
-| REQ-1 | test_percent_code_takes_percentage_off、小計 333 円に PCT10 を適用する確認 | 不合格 |
-| REQ-2 | test_amount_code_takes_amount_off, test_amount_code_never_goes_below_zero | 合格 |
-| REQ-3 | test_invalid_codes_are_rejected | 合格 |
-| REQ-4 | test_no_code_pays_subtotal | 合格 |
-
-## 不合格の内容
-- REQ-1: 小計 333 円に PCT10 を適用すると、支払額が 299 円になる。要件は割引額（33.3 円）の 1 円未満を切り捨てるので 300 円になるべきだが、repo/src/shopcart/discount.py の Discount.apply が支払額を切り捨てている。repo/tests/ の単体テストはこの場合を確かめていない
-
-## 依頼との食い違い
-（なし）
-
-
-## 記憶 unmet_requirements
-["REQ-1: 小計 333 円に PCT10 を適用すると支払額が 299 円になる（割引額の 1 円未満を切り捨てれば 300 円）。repo/src/shopcart/discount.py の Discount.apply が支払額を切り捨てている"]
-
-## 記憶 requirement_gaps
-[]
-~~~~~~
-
-選択肢:
-
-- `requirement_misread`: verification.md の「## 依頼との食い違い」に、requirements.md の要件（またはその欠落）が feature_request.md の依頼か intake.md の回答と食い違う点があり、その点が記憶 requirement_gaps に列挙されている。表の結果によらず、 requirement_gaps に食い違いが列挙されていればこの状態とし、goal と requirement_unmet に優先する。
-- `requirement_unmet`: verification.md の表で一つ以上の要件が不合格で、その要件と、要件の記述か受け入れ基準に反する repo/ の振る舞いが、 記憶 unmet_requirements と verification.md の「## 不合格の内容」に列挙されている。requirements.md の要件そのものは 依頼と食い違っていない。
-- `unknown`: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
-
-ラベル:
-
-## 項目 42: `b3e889e2153157a3-37`
+## 項目 41: `b3e889e2153157a3-37`
 
 対象: ステージ acceptance の訪問 1
 
@@ -5088,7 +4846,7 @@ def test_invalid_codes_are_rejected(code: str) -> None:
 
 ラベル:
 
-## 項目 43: `c6b9562d7274501e-37`
+## 項目 42: `c6b9562d7274501e-37`
 
 対象: ステージ acceptance の訪問 1
 
@@ -5322,7 +5080,7 @@ def test_invalid_codes_are_rejected(code: str) -> None:
 
 ラベル:
 
-## 項目 44: `d4e45be74e6ea3e3-59`
+## 項目 43: `d4e45be74e6ea3e3-59`
 
 対象: ステージ acceptance の訪問 1
 
@@ -5566,7 +5324,249 @@ def test_invalid_codes_are_rejected(code: str) -> None:
 
 ラベル:
 
-## 項目 45: `ed73449f7a82f75d-37`
+## 項目 44: `dfc17a022d4bd8c2-33`
+
+対象: ステージ acceptance の訪問 1
+
+状態文書:
+
+~~~~~~text
+# 評価: stage acceptance visit 1
+
+## ファイル feature_request.md
+# 依頼: 買い物かごに割引コードを入れたい
+
+shopcart ライブラリの Cart に、割引コードを適用した支払額を出す機能を足してほしい。
+来月のキャンペーンで「10% 引き」と「500 円引き」のコードを配る予定。
+
+
+## ファイル intake.md
+
+# 取り込み
+
+## 依頼
+shopcart の Cart に、割引コードを適用した支払額を出す機能を足す（feature_request.md）。
+
+## 質問と回答
+- Q: この機能を使うのは誰ですか
+  A: ネットショップの購入者。レジの画面でコードを入力する
+- Q: 配る割引コードの種類と上限は何ですか
+  A: PCT10 のような百分率のコードと、OFF500 のような定額のコード。百分率は 50% まで。割引額の 1 円未満は切り捨て、定額で小計を超えたら 0 円にする
+- Q: 使えないコードが入力された時はどうしますか
+  A: エラーにして、割引しない
+
+## 制約
+- 金額は円の整数で扱う
+
+
+## ファイル requirements.md
+
+# 要件
+
+## 要件
+- REQ-1: 百分率の割引コード PCTnn（nn は 1〜50）で、小計から nn% を引く。割引額の 1 円未満は切り捨てる
+  - 受け入れ基準: 小計 1000 円に PCT10 で 900 円
+- REQ-2: 定額の割引コード OFFnnn（nnn は円）で、小計から nnn 円を引く。支払額は 0 円を下回らない
+  - 受け入れ基準: 小計 1000 円に OFF500 で 500 円
+  - 受け入れ基準: 小計 300 円に OFF500 で 0 円
+- REQ-3: 購入者（店のお客さん）がレジの画面で入力したコードのうち、形式に合わないものと、範囲外の百分率は ValueError で拒む
+  - 受け入れ基準: PCT0、PCT51、XYZ、OFF は ValueError
+- REQ-4: コードを渡さなければ、支払額は小計に等しい
+  - 受け入れ基準: 小計 440 円でコード無しなら 440 円
+
+## 未決事項
+（なし）
+
+
+## ファイル tasks.yaml
+# 
+tasks:
+  - id: T1
+    title: 割引コードの読み取りと適用
+    requirements: [REQ-1, REQ-2, REQ-3]
+    paths: [repo/src/shopcart/discount.py]
+    tests: [repo/tests/test_discount.py]
+  - id: T2
+    title: 割引を適用した支払額
+    requirements: [REQ-1, REQ-2, REQ-4]
+    paths: [repo/src/shopcart/cart.py]
+    tests: [repo/tests/test_discount.py]
+
+
+## ファイル repo/src/shopcart/__init__.py
+"""小さな買い物かごのライブラリ。"""
+
+__version__ = "0.1.0"
+
+
+## ファイル repo/src/shopcart/cart.py
+"""買い物かご。金額は円の整数。"""
+
+from shopcart.discount import parse_code
+
+
+class Cart:
+    def __init__(self) -> None:
+        self.items: dict[str, tuple[int, int]] = {}
+
+    def add(self, sku: str, price: int, qty: int = 1) -> None:
+        if qty <= 0:
+            raise ValueError("qty must be positive")
+        _, held = self.items.get(sku, (price, 0))
+        self.items[sku] = (price, held + qty)
+
+    def remove(self, sku: str) -> None:
+        self.items.pop(sku, None)
+
+    def subtotal(self) -> int:
+        return sum(price * qty for price, qty in self.items.values())
+
+    def total(self, code: str | None = None) -> int:
+        """割引コードを適用した支払額。コードが無ければ小計。"""
+        subtotal = self.subtotal()
+        if code is None:
+            return subtotal
+        return parse_code(code).apply(subtotal)
+
+
+## ファイル repo/src/shopcart/discount.py
+"""割引コード（正規表現で読む版）。"""
+
+import re
+from dataclasses import dataclass
+
+_CODE = re.compile(r"(PCT|OFF)([0-9]+)")
+
+
+@dataclass(frozen=True)
+class Discount:
+    kind: str
+    value: int
+
+    def apply(self, subtotal: int) -> int:
+        if self.kind == "PCT":
+            return subtotal * (100 - self.value) // 100
+        return max(subtotal - self.value, 0)
+
+
+def parse_code(code: str) -> Discount:
+    match = _CODE.fullmatch(code)
+    if match is None:
+        raise ValueError(f"unknown code: {code}")
+    kind, value = match.group(1), int(match.group(2))
+    if kind == "PCT" and not 1 <= value <= 50:
+        raise ValueError(f"percent out of range: {code}")
+    return Discount(kind, value)
+
+
+## ファイル repo/tests/test_cart.py
+import pytest
+from shopcart.cart import Cart
+
+
+def test_subtotal_sums_price_times_quantity() -> None:
+    cart = Cart()
+    cart.add("apple", 120, 2)
+    cart.add("pear", 200)
+    assert cart.subtotal() == 440
+
+
+def test_remove_drops_the_item() -> None:
+    cart = Cart()
+    cart.add("apple", 120)
+    cart.add("apple", 120)
+    cart.remove("apple")
+    assert cart.subtotal() == 0
+
+
+def test_add_rejects_nonpositive_quantity() -> None:
+    with pytest.raises(ValueError):
+        Cart().add("apple", 120, 0)
+
+
+## ファイル repo/tests/test_discount.py
+import pytest
+from shopcart.cart import Cart
+from shopcart.discount import parse_code
+
+
+def _cart(subtotal: int) -> Cart:
+    cart = Cart()
+    cart.add("item", subtotal)
+    return cart
+
+
+def test_percent_code_takes_percentage_off() -> None:
+    assert _cart(1000).total("PCT10") == 900
+
+
+def test_amount_code_takes_amount_off() -> None:
+    assert _cart(1000).total("OFF500") == 500
+
+
+def test_amount_code_never_goes_below_zero() -> None:
+    assert _cart(300).total("OFF500") == 0
+
+
+def test_no_code_pays_subtotal() -> None:
+    assert _cart(440).total() == 440
+
+
+@pytest.mark.parametrize("code", ["PCT0", "PCT51", "XYZ", "OFF"])
+def test_invalid_codes_are_rejected(code: str) -> None:
+    with pytest.raises(ValueError):
+        parse_code(code)
+
+
+## ファイル test_report.md
+
+# 単体テストの記録
+
+## テスト
+- repo/tests/test_discount.py: REQ-1〜REQ-4 の受け入れ基準を確かめる（百分率、定額、0 円の下限、コード無し、無効なコード）
+
+## 失敗
+（なし）
+
+## 未網羅
+（なし）
+
+
+## ファイル verification.md
+
+# 検証
+
+## 要件ごとの結果
+| 要件 | 確かめたテスト | 結果 |
+| --- | --- | --- |
+| REQ-1 | test_percent_code_takes_percentage_off、小計 333 円に PCT10 を適用する確認 | 不合格 |
+| REQ-2 | test_amount_code_takes_amount_off, test_amount_code_never_goes_below_zero | 合格 |
+| REQ-3 | test_invalid_codes_are_rejected | 合格 |
+| REQ-4 | test_no_code_pays_subtotal | 合格 |
+
+## 不合格の内容
+- REQ-1: 小計 333 円に PCT10 を適用すると、支払額が 299 円になる。要件は割引額（33.3 円）の 1 円未満を切り捨てるので 300 円になるべきだが、repo/src/shopcart/discount.py の Discount.apply が支払額を切り捨てている。repo/tests/ の単体テストはこの場合を確かめていない
+
+## 依頼との食い違い
+（なし）
+
+
+## 記憶 unmet_requirements
+["REQ-1: 小計 333 円に PCT10 を適用すると支払額が 299 円になる（割引額の 1 円未満を切り捨てれば 300 円）。repo/src/shopcart/discount.py の Discount.apply が支払額を切り捨てている"]
+
+## 記憶 requirement_gaps
+[]
+~~~~~~
+
+選択肢:
+
+- `requirement_misread`: verification.md の「## 依頼との食い違い」に、requirements.md の要件（またはその欠落）が feature_request.md の依頼か intake.md の回答と食い違う点があり、その点が記憶 requirement_gaps に列挙されている。表の結果によらず、 requirement_gaps に食い違いが列挙されていればこの状態とし、goal と requirement_unmet に優先する。
+- `requirement_unmet`: verification.md の表で一つ以上の要件が不合格で、その要件と、要件の記述か受け入れ基準に反する repo/ の振る舞いが、 記憶 unmet_requirements と verification.md の「## 不合格の内容」に列挙されている。requirements.md の要件そのものは 依頼と食い違っていない。
+- `unknown`: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+
+ラベル:
+
+## 項目 45: `e14e64229307dcbd-37`
 
 対象: ステージ acceptance の訪問 1
 
@@ -5781,6 +5781,207 @@ def test_invalid_codes_are_rejected(code: str) -> None:
 ## 要件ごとの結果
 | 要件 | 確かめたテスト | 結果 |
 | --- | --- | --- |
+| REQ-1 | test_percent_code_takes_percentage_off、小計 333 円に PCT10 を適用する確認 | 不合格 |
+| REQ-2 | test_amount_code_takes_amount_off, test_amount_code_never_goes_below_zero | 合格 |
+| REQ-3 | test_invalid_codes_are_rejected | 合格 |
+| REQ-4 | test_no_code_pays_subtotal | 合格 |
+
+## 不合格の内容
+- REQ-1: 小計 333 円に PCT10 を適用すると、支払額が 299 円になる。要件は割引額（33.3 円）の 1 円未満を切り捨てるので 300 円になるべきだが、repo/src/shopcart/discount.py の Discount.apply が支払額を切り捨てている。repo/tests/ の単体テストはこの場合を確かめていない
+
+## 依頼との食い違い
+（なし）
+
+
+## 記憶 unmet_requirements
+["REQ-1: 小計 333 円に PCT10 を適用すると支払額が 299 円になる（割引額の 1 円未満を切り捨てれば 300 円）。repo/src/shopcart/discount.py の Discount.apply が支払額を切り捨てている"]
+
+## 記憶 requirement_gaps
+[]
+~~~~~~
+
+選択肢:
+
+- `requirement_misread`: verification.md の「## 依頼との食い違い」に、requirements.md の要件（またはその欠落）が feature_request.md の依頼か intake.md の回答と食い違う点があり、その点が記憶 requirement_gaps に列挙されている。表の結果によらず、 requirement_gaps に食い違いが列挙されていればこの状態とし、goal と requirement_unmet に優先する。
+- `requirement_unmet`: verification.md の表で一つ以上の要件が不合格で、その要件と、要件の記述か受け入れ基準に反する repo/ の振る舞いが、 記憶 unmet_requirements と verification.md の「## 不合格の内容」に列挙されている。requirements.md の要件そのものは 依頼と食い違っていない。
+- `unknown`: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+
+ラベル:
+
+## 項目 46: `18e6c2c396476139-51`
+
+対象: ステージ review の訪問 1
+
+状態文書:
+
+~~~~~~text
+# 評価: stage review visit 1
+
+## ファイル design.md
+
+# 設計
+
+## 構成
+- repo/src/shopcart/discount.py（新規）: 割引コードを読む parse_code と、小計に割引を適用する Discount.apply
+- repo/src/shopcart/cart.py（変更）: Cart.total(code=None) が小計に割引を適用する
+
+## 対応
+- REQ-1: Discount.apply の百分率の分岐。割引額を切り捨ててから小計から引く
+- REQ-2: Discount.apply の定額の分岐。支払額の下限を 0 円にする
+- REQ-3: parse_code が、購入者がレジの画面で入力したコード（文字列で受け取る。画面は repo/ の外）の形式と百分率の範囲を検査し、ValueError を送出する
+- REQ-4: Cart.total はコードが無ければ小計を返す
+
+## 要件への問い
+（なし）
+
+
+## ファイル tasks.yaml
+# 
+tasks:
+  - id: T1
+    title: 割引コードの読み取りと適用
+    requirements: [REQ-1, REQ-2, REQ-3]
+    paths: [repo/src/shopcart/discount.py]
+    tests: [repo/tests/test_discount.py]
+  - id: T2
+    title: 割引を適用した支払額
+    requirements: [REQ-1, REQ-2, REQ-4]
+    paths: [repo/src/shopcart/cart.py]
+    tests: [repo/tests/test_discount.py]
+
+
+## ファイル repo/src/shopcart/__init__.py
+"""小さな買い物かごのライブラリ。"""
+
+__version__ = "0.1.0"
+
+
+## ファイル repo/src/shopcart/cart.py
+"""買い物かご。金額は円の整数。"""
+
+from shopcart.discount import parse_code
+
+
+class Cart:
+    def __init__(self) -> None:
+        self.items: dict[str, tuple[int, int]] = {}
+
+    def add(self, sku: str, price: int, qty: int = 1) -> None:
+        if qty <= 0:
+            raise ValueError("qty must be positive")
+        _, held = self.items.get(sku, (price, 0))
+        self.items[sku] = (price, held + qty)
+
+    def remove(self, sku: str) -> None:
+        self.items.pop(sku, None)
+
+    def subtotal(self) -> int:
+        return sum(price * qty for price, qty in self.items.values())
+
+    def total(self, code: str | None = None) -> int:
+        """割引コードを適用した支払額。コードが無ければ小計。"""
+        subtotal = self.subtotal()
+        if code is None:
+            return subtotal
+        return parse_code(code).apply(subtotal)
+
+
+## ファイル repo/src/shopcart/discount.py
+"""割引コード（正規表現で読む版）。"""
+
+import re
+from dataclasses import dataclass
+
+_CODE = re.compile(r"(PCT|OFF)([0-9]+)")
+
+
+@dataclass(frozen=True)
+class Discount:
+    kind: str
+    value: int
+
+    def apply(self, subtotal: int) -> int:
+        if self.kind == "PCT":
+            return subtotal * (100 - self.value) // 100
+        return max(subtotal - self.value, 0)
+
+
+def parse_code(code: str) -> Discount:
+    match = _CODE.fullmatch(code)
+    if match is None:
+        raise ValueError(f"unknown code: {code}")
+    kind, value = match.group(1), int(match.group(2))
+    if kind == "PCT" and not 1 <= value <= 50:
+        raise ValueError(f"percent out of range: {code}")
+    return Discount(kind, value)
+
+
+## ファイル repo/tests/test_cart.py
+import pytest
+from shopcart.cart import Cart
+
+
+def test_subtotal_sums_price_times_quantity() -> None:
+    cart = Cart()
+    cart.add("apple", 120, 2)
+    cart.add("pear", 200)
+    assert cart.subtotal() == 440
+
+
+def test_remove_drops_the_item() -> None:
+    cart = Cart()
+    cart.add("apple", 120)
+    cart.add("apple", 120)
+    cart.remove("apple")
+    assert cart.subtotal() == 0
+
+
+def test_add_rejects_nonpositive_quantity() -> None:
+    with pytest.raises(ValueError):
+        Cart().add("apple", 120, 0)
+
+
+## ファイル repo/tests/test_discount.py
+import pytest
+from shopcart.cart import Cart
+from shopcart.discount import parse_code
+
+
+def _cart(subtotal: int) -> Cart:
+    cart = Cart()
+    cart.add("item", subtotal)
+    return cart
+
+
+def test_percent_code_takes_percentage_off() -> None:
+    assert _cart(1000).total("PCT10") == 900
+
+
+def test_amount_code_takes_amount_off() -> None:
+    assert _cart(1000).total("OFF500") == 500
+
+
+def test_amount_code_never_goes_below_zero() -> None:
+    assert _cart(300).total("OFF500") == 0
+
+
+def test_no_code_pays_subtotal() -> None:
+    assert _cart(440).total() == 440
+
+
+@pytest.mark.parametrize("code", ["PCT0", "PCT51", "XYZ", "OFF"])
+def test_invalid_codes_are_rejected(code: str) -> None:
+    with pytest.raises(ValueError):
+        parse_code(code)
+
+
+## ファイル verification.md
+
+# 検証
+
+## 要件ごとの結果
+| 要件 | 確かめたテスト | 結果 |
+| --- | --- | --- |
 | REQ-1 | test_percent_code_takes_percentage_off | 合格 |
 | REQ-2 | test_amount_code_takes_amount_off, test_amount_code_never_goes_below_zero | 合格 |
 | REQ-3 | test_invalid_codes_are_rejected | 合格 |
@@ -5790,18 +5991,629 @@ def test_invalid_codes_are_rejected(code: str) -> None:
 （なし）
 
 
-## 記憶 unmet_requirements
-[]
+## ファイル review.json
+{"marker": "", "reviewed": ["repo/src/shopcart/discount.py", "repo/src/shopcart/cart.py", "repo/tests/test_discount.py"], "findings": [{"path": "repo/src/shopcart/discount.py", "blocking": false, "comment": "parse_code の docstring にコードの形式の例があると読みやすい"}]}
 
-## 記憶 requirement_gaps
+
+## 記憶 review_findings
+["（修正を要しない）parse_code の docstring にコードの形式の例があると読みやすい"]
+
+## 記憶 design_issues
 []
 ~~~~~~
 
 選択肢:
 
-- `goal`: verification.md の表が requirements.md のすべての要件を挙げてすべて合格で、「## 依頼との食い違い」が空である。
-- `requirement_misread`: verification.md の「## 依頼との食い違い」に、requirements.md の要件（またはその欠落）が feature_request.md の依頼か intake.md の回答と食い違う点があり、その点が記憶 requirement_gaps に列挙されている。表の結果によらず、 requirement_gaps に食い違いが列挙されていればこの状態とし、goal と requirement_unmet に優先する。
-- `requirement_unmet`: verification.md の表で一つ以上の要件が不合格で、その要件と、要件の記述か受け入れ基準に反する repo/ の振る舞いが、 記憶 unmet_requirements と verification.md の「## 不合格の内容」に列挙されている。requirements.md の要件そのものは 依頼と食い違っていない。
+- `goal`: review.json の reviewed が tasks.yaml のタスクの paths と tests をすべて含み、修正を要する指摘が一つも無い。
+- `design_flaw`: review.json に修正を要する指摘があり、そのうち一つ以上が、design.md の構成かインターフェースを変えなければ解消しない。 その指摘が記憶 design_issues に列挙されている。changes_requested に優先する。
+- `changes_requested`: review.json に修正を要する指摘が一つ以上あり、そのすべてが repo/src/ か repo/tests/ の修正で解消する（design.md は 変えなくてよい）。その指摘が記憶 review_findings に列挙されている。フェーズ assurance の評価では、修正を要する指摘が 無くても、修正を要しない指摘を verification.md の結果と合わせると repo/ を直してからリリースすべきで、その指摘が review_findings に列挙されている場合も、この状態とする。
+- `unknown`: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+
+ラベル:
+
+## 項目 47: `546c26839c0b4df1-41`
+
+対象: ステージ review の訪問 1
+
+状態文書:
+
+~~~~~~text
+# 評価: stage review visit 1
+
+## ファイル design.md
+
+# 設計
+
+## 構成
+- repo/src/shopcart/discount.py（新規）: 割引コードを読む parse_code と、小計に割引を適用する Discount.apply
+- repo/src/shopcart/cart.py（変更）: Cart.total(code=None) が小計に割引を適用する
+
+## 対応
+- REQ-1: Discount.apply の百分率の分岐。割引額を切り捨ててから小計から引く
+- REQ-2: Discount.apply の定額の分岐。支払額の下限を 0 円にする
+- REQ-3: parse_code が、購入者がレジの画面で入力したコード（文字列で受け取る。画面は repo/ の外）の形式と百分率の範囲を検査し、ValueError を送出する
+- REQ-4: Cart.total はコードが無ければ小計を返す
+
+## 要件への問い
+（なし）
+
+
+## ファイル tasks.yaml
+# 
+tasks:
+  - id: T1
+    title: 割引コードの読み取りと適用
+    requirements: [REQ-1, REQ-2, REQ-3]
+    paths: [repo/src/shopcart/discount.py]
+    tests: [repo/tests/test_discount.py]
+  - id: T2
+    title: 割引を適用した支払額
+    requirements: [REQ-1, REQ-2, REQ-4]
+    paths: [repo/src/shopcart/cart.py]
+    tests: [repo/tests/test_discount.py]
+
+
+## ファイル repo/src/shopcart/__init__.py
+"""小さな買い物かごのライブラリ。"""
+
+__version__ = "0.1.0"
+
+
+## ファイル repo/src/shopcart/cart.py
+"""買い物かご。金額は円の整数。"""
+
+from shopcart.discount import parse_code
+
+
+class Cart:
+    def __init__(self) -> None:
+        self.items: dict[str, tuple[int, int]] = {}
+
+    def add(self, sku: str, price: int, qty: int = 1) -> None:
+        if qty <= 0:
+            raise ValueError("qty must be positive")
+        _, held = self.items.get(sku, (price, 0))
+        self.items[sku] = (price, held + qty)
+
+    def remove(self, sku: str) -> None:
+        self.items.pop(sku, None)
+
+    def subtotal(self) -> int:
+        return sum(price * qty for price, qty in self.items.values())
+
+    def total(self, code: str | None = None) -> int:
+        """割引コードを適用した支払額。コードが無ければ小計。"""
+        subtotal = self.subtotal()
+        if code is None:
+            return subtotal
+        return parse_code(code).apply(subtotal)
+
+
+## ファイル repo/src/shopcart/discount.py
+"""割引コード（正規表現で読む版）。"""
+
+import re
+from dataclasses import dataclass
+
+_CODE = re.compile(r"(PCT|OFF)([0-9]+)")
+
+
+@dataclass(frozen=True)
+class Discount:
+    kind: str
+    value: int
+
+    def apply(self, subtotal: int) -> int:
+        if self.kind == "PCT":
+            return subtotal * (100 - self.value) // 100
+        return max(subtotal - self.value, 0)
+
+
+def parse_code(code: str) -> Discount:
+    match = _CODE.fullmatch(code)
+    if match is None:
+        raise ValueError(f"unknown code: {code}")
+    kind, value = match.group(1), int(match.group(2))
+    if kind == "PCT" and not 1 <= value <= 50:
+        raise ValueError(f"percent out of range: {code}")
+    return Discount(kind, value)
+
+
+## ファイル repo/tests/test_cart.py
+import pytest
+from shopcart.cart import Cart
+
+
+def test_subtotal_sums_price_times_quantity() -> None:
+    cart = Cart()
+    cart.add("apple", 120, 2)
+    cart.add("pear", 200)
+    assert cart.subtotal() == 440
+
+
+def test_remove_drops_the_item() -> None:
+    cart = Cart()
+    cart.add("apple", 120)
+    cart.add("apple", 120)
+    cart.remove("apple")
+    assert cart.subtotal() == 0
+
+
+def test_add_rejects_nonpositive_quantity() -> None:
+    with pytest.raises(ValueError):
+        Cart().add("apple", 120, 0)
+
+
+## ファイル repo/tests/test_discount.py
+import pytest
+from shopcart.cart import Cart
+from shopcart.discount import parse_code
+
+
+def _cart(subtotal: int) -> Cart:
+    cart = Cart()
+    cart.add("item", subtotal)
+    return cart
+
+
+def test_percent_code_takes_percentage_off() -> None:
+    assert _cart(1000).total("PCT10") == 900
+
+
+def test_amount_code_takes_amount_off() -> None:
+    assert _cart(1000).total("OFF500") == 500
+
+
+def test_amount_code_never_goes_below_zero() -> None:
+    assert _cart(300).total("OFF500") == 0
+
+
+def test_no_code_pays_subtotal() -> None:
+    assert _cart(440).total() == 440
+
+
+@pytest.mark.parametrize("code", ["PCT0", "PCT51", "XYZ", "OFF"])
+def test_invalid_codes_are_rejected(code: str) -> None:
+    with pytest.raises(ValueError):
+        parse_code(code)
+
+
+## ファイル verification.md
+
+# 検証
+
+## 要件ごとの結果
+| 要件 | 確かめたテスト | 結果 |
+| --- | --- | --- |
+| REQ-1 | test_percent_code_takes_percentage_off | 合格 |
+| REQ-2 | test_amount_code_takes_amount_off, test_amount_code_never_goes_below_zero | 合格 |
+| REQ-3 | test_invalid_codes_are_rejected | 合格 |
+| REQ-4 | test_no_code_pays_subtotal | 合格 |
+
+## 依頼との食い違い
+（なし）
+
+
+## ファイル review.json
+{"marker": "", "reviewed": [], "findings": [{"path": "repo/", "blocking": false, "comment": "どこを見ればよいか判断できない"}]}
+
+
+## 記憶 review_findings
+[]
+
+## 記憶 design_issues
+[]
+~~~~~~
+
+選択肢:
+
+- `goal`: review.json の reviewed が tasks.yaml のタスクの paths と tests をすべて含み、修正を要する指摘が一つも無い。
+- `design_flaw`: review.json に修正を要する指摘があり、そのうち一つ以上が、design.md の構成かインターフェースを変えなければ解消しない。 その指摘が記憶 design_issues に列挙されている。changes_requested に優先する。
+- `changes_requested`: review.json に修正を要する指摘が一つ以上あり、そのすべてが repo/src/ か repo/tests/ の修正で解消する（design.md は 変えなくてよい）。その指摘が記憶 review_findings に列挙されている。フェーズ assurance の評価では、修正を要する指摘が 無くても、修正を要しない指摘を verification.md の結果と合わせると repo/ を直してからリリースすべきで、その指摘が review_findings に列挙されている場合も、この状態とする。
+- `unknown`: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+
+ラベル:
+
+## 項目 48: `929600241b3545e6-37`
+
+対象: ステージ review の訪問 1
+
+状態文書:
+
+~~~~~~text
+# 評価: stage review visit 1
+
+## ファイル design.md
+
+# 設計
+
+## 構成
+- repo/src/shopcart/discount.py（新規）: 割引コードを読む parse_code と、小計に割引を適用する Discount.apply
+- repo/src/shopcart/cart.py（変更）: Cart.total(code=None) が小計に割引を適用する
+
+## 対応
+- REQ-1: Discount.apply の百分率の分岐。割引額を切り捨ててから小計から引く
+- REQ-2: Discount.apply の定額の分岐。支払額の下限を 0 円にする
+- REQ-3: parse_code が、購入者がレジの画面で入力したコード（文字列で受け取る。画面は repo/ の外）の形式と百分率の範囲を検査し、ValueError を送出する
+- REQ-4: Cart.total はコードが無ければ小計を返す
+
+## 要件への問い
+（なし）
+
+
+## ファイル tasks.yaml
+# 
+tasks:
+  - id: T1
+    title: 割引コードの読み取りと適用
+    requirements: [REQ-1, REQ-2, REQ-3]
+    paths: [repo/src/shopcart/discount.py]
+    tests: [repo/tests/test_discount.py]
+  - id: T2
+    title: 割引を適用した支払額
+    requirements: [REQ-1, REQ-2, REQ-4]
+    paths: [repo/src/shopcart/cart.py]
+    tests: [repo/tests/test_discount.py]
+
+
+## ファイル repo/src/shopcart/__init__.py
+"""小さな買い物かごのライブラリ。"""
+
+__version__ = "0.1.0"
+
+
+## ファイル repo/src/shopcart/cart.py
+"""買い物かご。金額は円の整数。"""
+
+from shopcart.discount import parse_code
+
+
+class Cart:
+    def __init__(self) -> None:
+        self.items: dict[str, tuple[int, int]] = {}
+
+    def add(self, sku: str, price: int, qty: int = 1) -> None:
+        if qty <= 0:
+            raise ValueError("qty must be positive")
+        _, held = self.items.get(sku, (price, 0))
+        self.items[sku] = (price, held + qty)
+
+    def remove(self, sku: str) -> None:
+        self.items.pop(sku, None)
+
+    def subtotal(self) -> int:
+        return sum(price * qty for price, qty in self.items.values())
+
+    def total(self, code: str | None = None) -> int:
+        """割引コードを適用した支払額。コードが無ければ小計。"""
+        subtotal = self.subtotal()
+        if code is None:
+            return subtotal
+        return parse_code(code).apply(subtotal)
+
+
+## ファイル repo/src/shopcart/discount.py
+"""割引コード（正規表現で読む版）。"""
+
+import re
+from dataclasses import dataclass
+
+_CODE = re.compile(r"(PCT|OFF)([0-9]+)")
+
+
+@dataclass(frozen=True)
+class Discount:
+    kind: str
+    value: int
+
+    def apply(self, subtotal: int) -> int:
+        if self.kind == "PCT":
+            return subtotal * (100 - self.value) // 100
+        return max(subtotal - self.value, 0)
+
+
+def parse_code(code: str) -> Discount:
+    match = _CODE.fullmatch(code)
+    if match is None:
+        raise ValueError(f"unknown code: {code}")
+    kind, value = match.group(1), int(match.group(2))
+    if kind == "PCT" and not 1 <= value <= 50:
+        raise ValueError(f"percent out of range: {code}")
+    return Discount(kind, value)
+
+
+## ファイル repo/tests/test_cart.py
+import pytest
+from shopcart.cart import Cart
+
+
+def test_subtotal_sums_price_times_quantity() -> None:
+    cart = Cart()
+    cart.add("apple", 120, 2)
+    cart.add("pear", 200)
+    assert cart.subtotal() == 440
+
+
+def test_remove_drops_the_item() -> None:
+    cart = Cart()
+    cart.add("apple", 120)
+    cart.add("apple", 120)
+    cart.remove("apple")
+    assert cart.subtotal() == 0
+
+
+def test_add_rejects_nonpositive_quantity() -> None:
+    with pytest.raises(ValueError):
+        Cart().add("apple", 120, 0)
+
+
+## ファイル repo/tests/test_discount.py
+import pytest
+from shopcart.cart import Cart
+from shopcart.discount import parse_code
+
+
+def _cart(subtotal: int) -> Cart:
+    cart = Cart()
+    cart.add("item", subtotal)
+    return cart
+
+
+def test_percent_code_takes_percentage_off() -> None:
+    assert _cart(1000).total("PCT10") == 900
+
+
+def test_amount_code_takes_amount_off() -> None:
+    assert _cart(1000).total("OFF500") == 500
+
+
+def test_amount_code_never_goes_below_zero() -> None:
+    assert _cart(300).total("OFF500") == 0
+
+
+def test_no_code_pays_subtotal() -> None:
+    assert _cart(440).total() == 440
+
+
+@pytest.mark.parametrize("code", ["PCT0", "PCT51", "XYZ", "OFF"])
+def test_invalid_codes_are_rejected(code: str) -> None:
+    with pytest.raises(ValueError):
+        parse_code(code)
+
+
+## ファイル verification.md
+
+# 検証
+
+## 要件ごとの結果
+| 要件 | 確かめたテスト | 結果 |
+| --- | --- | --- |
+| REQ-1 | test_percent_code_takes_percentage_off | 合格 |
+| REQ-2 | test_amount_code_takes_amount_off, test_amount_code_never_goes_below_zero | 合格 |
+| REQ-3 | test_invalid_codes_are_rejected | 合格 |
+| REQ-4 | test_no_code_pays_subtotal | 合格 |
+
+## 依頼との食い違い
+（なし）
+
+
+## ファイル review.json
+{"marker": "", "reviewed": ["repo/src/shopcart/discount.py", "repo/src/shopcart/cart.py", "repo/tests/test_discount.py"], "findings": [{"path": "repo/src/shopcart/discount.py", "blocking": true, "comment": "design.md が割引の種類を Discount の分岐で表しており、種類を足すたびに apply を直すことになる。種類ごとの型に分ける設計にする"}]}
+
+
+## 記憶 review_findings
+[]
+
+## 記憶 design_issues
+["割引の種類を Discount の分岐で表しており、種類を足すたびに apply を直すことになる"]
+~~~~~~
+
+選択肢:
+
+- `design_flaw`: review.json に修正を要する指摘があり、そのうち一つ以上が、design.md の構成かインターフェースを変えなければ解消しない。 その指摘が記憶 design_issues に列挙されている。changes_requested に優先する。
+- `changes_requested`: review.json に修正を要する指摘が一つ以上あり、そのすべてが repo/src/ か repo/tests/ の修正で解消する（design.md は 変えなくてよい）。その指摘が記憶 review_findings に列挙されている。フェーズ assurance の評価では、修正を要する指摘が 無くても、修正を要しない指摘を verification.md の結果と合わせると repo/ を直してからリリースすべきで、その指摘が review_findings に列挙されている場合も、この状態とする。
+- `unknown`: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
+
+ラベル:
+
+## 項目 49: `e14e64229307dcbd-55`
+
+対象: ステージ review の訪問 1
+
+状態文書:
+
+~~~~~~text
+# 評価: stage review visit 1
+
+## ファイル design.md
+
+# 設計
+
+## 構成
+- repo/src/shopcart/discount.py（新規）: 割引コードを読む parse_code と、小計に割引を適用する Discount.apply
+- repo/src/shopcart/cart.py（変更）: Cart.total(code=None) が小計に割引を適用する
+
+## 対応
+- REQ-1: Discount.apply の百分率の分岐。割引額を切り捨ててから小計から引く
+- REQ-2: Discount.apply の定額の分岐。支払額の下限を 0 円にする
+- REQ-3: parse_code が、購入者がレジの画面で入力したコード（文字列で受け取る。画面は repo/ の外）の形式と百分率の範囲を検査し、ValueError を送出する
+- REQ-4: Cart.total はコードが無ければ小計を返す
+
+## 要件への問い
+（なし）
+
+
+## ファイル tasks.yaml
+# 
+tasks:
+  - id: T1
+    title: 割引コードの読み取りと適用
+    requirements: [REQ-1, REQ-2, REQ-3]
+    paths: [repo/src/shopcart/discount.py]
+    tests: [repo/tests/test_discount.py]
+  - id: T2
+    title: 割引を適用した支払額
+    requirements: [REQ-1, REQ-2, REQ-4]
+    paths: [repo/src/shopcart/cart.py]
+    tests: [repo/tests/test_discount.py]
+
+
+## ファイル repo/src/shopcart/__init__.py
+"""小さな買い物かごのライブラリ。"""
+
+__version__ = "0.1.0"
+
+
+## ファイル repo/src/shopcart/cart.py
+"""買い物かご。金額は円の整数。"""
+
+from shopcart.discount import parse_code
+
+
+class Cart:
+    def __init__(self) -> None:
+        self.items: dict[str, tuple[int, int]] = {}
+
+    def add(self, sku: str, price: int, qty: int = 1) -> None:
+        if qty <= 0:
+            raise ValueError("qty must be positive")
+        _, held = self.items.get(sku, (price, 0))
+        self.items[sku] = (price, held + qty)
+
+    def remove(self, sku: str) -> None:
+        self.items.pop(sku, None)
+
+    def subtotal(self) -> int:
+        return sum(price * qty for price, qty in self.items.values())
+
+    def total(self, code: str | None = None) -> int:
+        """割引コードを適用した支払額。コードが無ければ小計。"""
+        subtotal = self.subtotal()
+        if code is None:
+            return subtotal
+        return parse_code(code).apply(subtotal)
+
+
+## ファイル repo/src/shopcart/discount.py
+"""割引コード（正規表現で読む版）。"""
+
+import re
+from dataclasses import dataclass
+
+_CODE = re.compile(r"(PCT|OFF)([0-9]+)")
+
+
+@dataclass(frozen=True)
+class Discount:
+    kind: str
+    value: int
+
+    def apply(self, subtotal: int) -> int:
+        if self.kind == "PCT":
+            return subtotal * (100 - self.value) // 100
+        return max(subtotal - self.value, 0)
+
+
+def parse_code(code: str) -> Discount:
+    match = _CODE.fullmatch(code)
+    if match is None:
+        raise ValueError(f"unknown code: {code}")
+    kind, value = match.group(1), int(match.group(2))
+    if kind == "PCT" and not 1 <= value <= 50:
+        raise ValueError(f"percent out of range: {code}")
+    return Discount(kind, value)
+
+
+## ファイル repo/tests/test_cart.py
+import pytest
+from shopcart.cart import Cart
+
+
+def test_subtotal_sums_price_times_quantity() -> None:
+    cart = Cart()
+    cart.add("apple", 120, 2)
+    cart.add("pear", 200)
+    assert cart.subtotal() == 440
+
+
+def test_remove_drops_the_item() -> None:
+    cart = Cart()
+    cart.add("apple", 120)
+    cart.add("apple", 120)
+    cart.remove("apple")
+    assert cart.subtotal() == 0
+
+
+def test_add_rejects_nonpositive_quantity() -> None:
+    with pytest.raises(ValueError):
+        Cart().add("apple", 120, 0)
+
+
+## ファイル repo/tests/test_discount.py
+import pytest
+from shopcart.cart import Cart
+from shopcart.discount import parse_code
+
+
+def _cart(subtotal: int) -> Cart:
+    cart = Cart()
+    cart.add("item", subtotal)
+    return cart
+
+
+def test_percent_code_takes_percentage_off() -> None:
+    assert _cart(1000).total("PCT10") == 900
+
+
+def test_amount_code_takes_amount_off() -> None:
+    assert _cart(1000).total("OFF500") == 500
+
+
+def test_amount_code_never_goes_below_zero() -> None:
+    assert _cart(300).total("OFF500") == 0
+
+
+def test_no_code_pays_subtotal() -> None:
+    assert _cart(440).total() == 440
+
+
+@pytest.mark.parametrize("code", ["PCT0", "PCT51", "XYZ", "OFF"])
+def test_invalid_codes_are_rejected(code: str) -> None:
+    with pytest.raises(ValueError):
+        parse_code(code)
+
+
+## ファイル verification.md
+
+# 検証
+
+## 要件ごとの結果
+| 要件 | 確かめたテスト | 結果 |
+| --- | --- | --- |
+| REQ-1 | test_percent_code_takes_percentage_off | 合格 |
+| REQ-2 | test_amount_code_takes_amount_off, test_amount_code_never_goes_below_zero | 合格 |
+| REQ-3 | test_invalid_codes_are_rejected | 合格 |
+| REQ-4 | test_no_code_pays_subtotal | 合格 |
+
+## 依頼との食い違い
+（なし）
+
+
+## ファイル review.json
+{"marker": "", "reviewed": ["repo/src/shopcart/discount.py", "repo/src/shopcart/cart.py", "repo/tests/test_discount.py"], "findings": [{"path": "repo/src/shopcart/cart.py", "blocking": true, "comment": "Cart.total が parse_code の ValueError をそのまま上げており、呼び出し側が無効なコードと数量の誤りを区別できない。専用の例外にする"}]}
+
+
+## 記憶 review_findings
+["Cart.total が parse_code の ValueError をそのまま上げている"]
+
+## 記憶 design_issues
+[]
+~~~~~~
+
+選択肢:
+
+- `design_flaw`: review.json に修正を要する指摘があり、そのうち一つ以上が、design.md の構成かインターフェースを変えなければ解消しない。 その指摘が記憶 design_issues に列挙されている。changes_requested に優先する。
+- `changes_requested`: review.json に修正を要する指摘が一つ以上あり、そのすべてが repo/src/ か repo/tests/ の修正で解消する（design.md は 変えなくてよい）。その指摘が記憶 review_findings に列挙されている。フェーズ assurance の評価では、修正を要する指摘が 無くても、修正を要しない指摘を verification.md の結果と合わせると repo/ を直してからリリースすべきで、その指摘が review_findings に列挙されている場合も、この状態とする。
 - `unknown`: 上記に当てはまらない、または分類の確信度が低い。人間に差し戻す。
 
 ラベル:

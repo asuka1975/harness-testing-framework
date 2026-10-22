@@ -224,7 +224,9 @@ profiles:
   # goal の実装の三つの変種）を、少ない実行で踏むように分布を寄せる。分布テストの分布に無い unit_test の defective も置く。
   # 材料が訪問 2 以降も見る対象（intake、analyze、design、plan_tasks と、discovery と architecture のゲート）は、markov の
   # 訪問 2 以降に出るクラスをすべて置く（往復 12。design、plan_tasks、architecture の訪問 2 以降が、見出しのほかは訪問 1 と
-  # 同じ状態文書になることも、これで確かめる）。ほかの訪問 2 以降は goal に寄せて、実行を acceptance まで進める
+  # 同じ状態文書になることも、これで確かめる）。ほかの訪問 2 以降は goal に寄せて、実行を acceptance まで進める。
+  # 往復 13 で材料の対象に review を足したので、review の訪問 1 に四つのクラスを置いた（review は acceptance の訪問 1 の後
+  # なので、acceptance に届く実行は減らない）
   labeling:
     intake:
       first: {ok: 0.9, unknown: 0.1}
@@ -248,7 +250,7 @@ profiles:
       first: {ok: 0.25, unmet: 0.25, misread: 0.25, unknown: 0.25}
       again: {ok: 1.0}
     review:
-      first: {ok: 1.0}
+      first: {ok: 0.4, changes: 0.2, design_flaw: 0.2, unknown: 0.2}
       again: {ok: 1.0}
     release:
       without_carry: {ok: 1.0}
