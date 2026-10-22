@@ -1,11 +1,12 @@
 # 公開 API
 
-ハーネスを作る人が使ってよい、フレームワークの名前と文書の一覧。ここに無いモジュールと名前は内部のもので、予告なく変わる。手順は [adopting.md](adopting.md) にある。
+ハーネスを作る人が使ってよい、フレームワークの名前と文書の一覧。ここに無いモジュールと名前は内部のもので、予告なく変わる。手順は [adopting.md](adopting.md) にある。各名前の引数、属性、戻り値と説明は [api-reference.md](api-reference.md) にある（本体から作る）。
 
 ## 公開 API の文書
 
 言語に依存しない仕様で、ハーネスを作る人が読む。
 
+- docs/api-reference.md: 公開の名前ごとの引数、属性、戻り値と説明（Python の束縛）
 - schema/workflow.schema.json: ワークフロー定義のスキーマ
 - contract/contract.md: ハーネス契約（三つの操作、遷移、スナップショット、実行記録、インターフェース、記録再生、契約適合テスト）
 - contract/snapshot.schema.json: スナップショットのマニフェストの形式
@@ -13,6 +14,7 @@
 - contract/conformance/README.md: 契約適合テストとシナリオの書き方、偽物の振る舞い、実行記録の要約の規則
 - contract/conformance/scenario.schema.json: シナリオの形式
 - contract/conformance/manifests.json: マニフェストの正規形のテストベクトル
+- contract/conformance/workflows/、scenarios/、files/: 契約適合テストの合成のワークフローとシナリオ（Python のパッケージにも同梱。`conformance_dir()`）
 - contract/formats/expectations.schema.json: 分布テストの基準（expectations）の形式
 - contract/formats/corpus_item.schema.json、label.schema.json: 分類器の検証のコーパスと人手のラベルの一行の形式（JSON Lines）
 - contract/formats/triage_item.schema.json、triage_decision.schema.json: トリアージの待ち行列と判定の一行の形式（JSON Lines）
@@ -47,7 +49,7 @@
 | 名前 | 内容 |
 | --- | --- |
 | `StageBody` | ステージ本体。`StageContext` を受け取る呼び出し |
-| `StageContext` | 本体に渡す文脈（作業領域、記憶、種、ユーザー入出力、LLM） |
+| `StageContext` | 本体に渡す文脈（ステージの id、訪問の回数、作業領域、記憶、種、ユーザー入出力、LLM） |
 | `MetricRegistry` | 指標レジストリ（`names`、`measure`） |
 | `SnapshotView` | 指標が読む、読み取り専用のスナップショット。`baseline()` で比べる基準（開始時）のスナップショット |
 | `MetricError` | 指標を測定できない |
@@ -85,8 +87,8 @@
 | `Stage` | ステージのモデル |
 | `Runtime` | ランタイム。`start(seed, inputs)` で始め、`resume(state, answer=... / decision=...)` で再開する。引数と既定値は adopting.md の第7節 |
 | `RunResult` | 一区切りの結果（状態、出来事、スナップショットの id） |
-| `RunState` | 保存して再開できる実行の状態（`to_json` / `from_json`） |
-| `BlobStore` | 内容アドレスのファイル置き場とスナップショットの置き場 |
+| `RunState` | 保存して再開できる実行の状態（`to_json` / `from_json`）。中断なら `pending["question"]` に保留中の質問（`text` と `choices`） |
+| `BlobStore` | 内容アドレスのファイル置き場とスナップショットの置き場。`get(SHA-256)` でファイルの内容も状態文書も読める |
 | `Snapshot` | スナップショット（ファイル、記憶、ゲート、注記）。`id` はマニフェストの正規形の SHA-256 |
 | `SnapshotReader` | `SnapshotView` の実装 |
 | `Annotation` | 注記（goal 到達扱いの記録など） |
@@ -104,10 +106,10 @@
 
 | 名前 | 内容 |
 | --- | --- |
-| `load_scenario` | シナリオを読み、形式を検査する |
-| `run_scenario` | シナリオを参照ランタイムで実行する（記録と再生も）。結果の `problems` は期待との食い違い |
+| `load_scenario` | シナリオを読み、形式を検査する。ファイルの参照（`{from: パス}`）は内容に置き換える |
+| `run_scenario` | シナリオを参照ランタイムで実行する（記録と再生も）。結果の `problems` は期待との食い違い。`user` でユーザーシミュレータを束縛できる |
 | `verify` | 実行の結果をシナリオの期待（実行記録の要約、状態、開始時スナップショット、選択肢、記憶、注記）と比べる |
-| `Scenario` | 読み込んだシナリオ |
+| `Scenario` | 読み込んだシナリオ（凍結した dataclass。`dataclasses.replace` で一部を差し替えられる） |
 | `ScenarioInvalid` | 形式に適合しないシナリオ |
 | `Expectation` | シナリオの期待（状態、実行記録の要約、記憶、注記の数） |
 | `ScenarioResult` | 実行の結果（状態、要約、実行記録、スナップショット） |
@@ -124,6 +126,8 @@
 | `AbortOperator` | escalate にいつも中止で答える運用者 |
 | `AutoUser` | いつも同じ回答をその場で返すユーザー |
 | `ReplayOnly` | runtime の `ReplayOnly` と同じもの |
+| `conformance_dir` | パッケージに同梱した契約適合テスト一式のディレクトリ |
+| `conformance_scenarios` | 同梱した契約適合テストのシナリオのファイル |
 | `evaluation_target` | 状態文書の見出し行から、評価の対象を読む |
 | `marked_class` | 状態文書の見出し行が示す対象について、印 `[[class <対象>=<クラス>]]` が示すクラス |
 
@@ -163,12 +167,12 @@ E2E のカバレッジ計画（誘発と注入）とマルコフ合成。
 | `Target` | (ステージ, クラス) |
 | `plan_coverage` | カバレッジ計画を作る。ステージごとの goal の台本と、(ステージ, クラス) ごとの誘発の台本を与える。誘発の台本が無いクラスは注入（分類の結果だけを変える）で踏む |
 | `CoverageItem` | 計画の一項目（対象、誘発か注入か、シナリオ） |
-| `run_coverage` | 計画を実行し、踏んだ (ステージ, クラス) と踏めなかったものを返す |
+| `run_coverage` | 計画を実行し、踏んだ (ステージ, クラス) と踏めなかったものを返す。`user` でユーザーシミュレータを束縛できる |
 | `CoverageReport` | カバレッジの結果 |
 | `MarkovModel` | (ステージ, 訪問の区分) ごとのクラスの分布と、(フェーズ, 最終ステージの訪問の区分) ごとのゲートの分布 |
 | `estimate_model` | 実行の集まりからモデルを推定する |
-| `synthesize` | モデルとワークフローから、最後の状態の分布、訪問の回数の期待値、評価の結果ごとの回数の期待値を厳密に計算する（escalate の後は中止） |
-| `Prediction` | 合成の結果 |
+| `synthesize` | モデルとワークフローから、最後の状態の分布、訪問の回数の期待値、評価の結果ごとの回数の期待値（訪問の区分ごとにも）を厳密に計算する（escalate の後は中止） |
+| `Prediction` | 合成の結果。`evaluations[(scope, 対象, 訪問の区分)]` は visit や from\_visit で絞った基準の分母の期待値 E[n] |
 | `ModelIncomplete` | 到達しうる (ステージ, 訪問) の分布がモデルに無い |
 | `compare_prediction` | 予測と実測を比べる（差が標準誤差の k 倍以内なら一致） |
 | `Comparison` | 一つの量の比較 |
@@ -179,14 +183,14 @@ E2E のカバレッジ計画（誘発と注入）とマルコフ合成。
 
 | 名前 | 内容 |
 | --- | --- |
-| `build_corpus` | 実行記録の各評価から、分類器が見た状態文書（置き場から読む）と選択肢の項目を作る |
+| `build_corpus` | 実行記録の各評価から、分類器が見た状態文書（置き場から読む）と選択肢の項目を作る。`unique_states=True` で同じ状態文書を一項目にまとめる |
 | `CorpusItem` | コーパスの一項目 |
 | `Label` | 人手のラベル（項目、正しいクラス、付けた人） |
 | `load_corpus`、`save_corpus` | コーパスを JSON Lines で読み書きする |
 | `load_labels`、`save_labels` | ラベルを JSON Lines で読み書きする |
 | `CorpusInvalid` | 形式に適合しない、またはコーパスとラベルが食い違う |
 | `oracle_report` | ラベルの付いた項目を分類器にかけ、κ、混同行列、ECE（等幅の区間）、再実行の一致率を求める |
-| `OracleReport` | レポート（`lines()` で人が読む形）。ECE は答えた項目だけで計算し、答えた割合は `coverage`。対象ごとの内訳は `by_target` |
+| `OracleReport` | レポート（`lines()` で人が読む形）。ECE は答えた項目だけで計算し、答えた割合は `coverage`。対象ごとの内訳は `by_target`（鍵は `stage:<id>` か `phase:<id>`） |
 | `TargetSummary` | 対象（scope と id）ごとの件数、κ、一致率、ECE |
 | `CalibrationBin` | 較正の一区間 |
 | `cohen_kappa` | Cohen の κ |

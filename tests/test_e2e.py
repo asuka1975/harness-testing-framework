@@ -1,9 +1,11 @@
 """E2E のカバレッジ計画とマルコフ合成（plan.md 第6節 F3）。手で計算できる合成のモデルで確かめる。"""
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
+from harness_testing_framework.contract import Question
 from harness_testing_framework.runtime import load_workflow
 from harness_testing_framework.testing.e2e import (
     MarkovModel,
@@ -12,6 +14,8 @@ from harness_testing_framework.testing.e2e import (
     compare_prediction,
     coverage_targets,
     estimate_model,
+    plan_coverage,
+    run_coverage,
     synthesize,
 )
 from harness_testing_framework.testing.harness import ConformanceRegistry
@@ -240,3 +244,85 @@ def test_estimate_model_respects_cap() -> None:
         {"goal": 2 / 3, "e2_back": 1 / 3}
     )
     assert set(estimate_model(runs, cap=3).stage) == {("s2", 1), ("s2", 2), ("s2", 3)}
+
+
+def test_synthesis_gives_expected_evaluations_per_visit_bucket() -> None:
+    """訪問の区分ごとの評価の回数の期待値（visit や from_visit で絞った基準の分母 E[n]）。手計算と比べる。"""
+    half = {"goal": 0.5, "e2_back": 0.5}
+    model = MarkovModel(
+        stage={
+            ("s1", 1): {"goal": 1.0},
+            ("s2", 1): half,
+            ("s2", 2): half,
+            ("s3", 1): {"goal": 1.0},
+        },
+        gate={("p1", 1): {"goal": 1.0}, ("p2", 1): {"goal": 1.0}},
+        cap=2,
+    )
+    p = synthesize(model, WORKFLOW)
+    # s2 の訪問 1 は必ず、訪問 2 は 1/2、訪問 3 は 1/4（区分 2 に入る）。s1 も同じ
+    assert p.evaluations[("stage", "s2", 1)] == pytest.approx(1.0)
+    assert p.evaluations[("stage", "s2", 2)] == pytest.approx(0.75)
+    assert p.evaluations[("stage", "s1", 2)] == pytest.approx(0.75)
+    assert p.visit_outcomes[("stage", "s2", 1, "e2_back")] == pytest.approx(0.5)
+    assert p.visit_outcomes[("stage", "s2", 2, "goal")] == pytest.approx(0.25 + 0.125)
+    # ゲートの訪問は最終ステージの訪問の回数。p1 は s2 が goal の時だけ評価する
+    assert p.evaluations[("phase", "p1", 1)] == pytest.approx(0.5)
+    assert p.evaluations[("phase", "p1", 2)] == pytest.approx(0.375)
+    assert p.evaluations[("phase", "p2", 1)] == pytest.approx(0.875)
+    assert ("phase", "p2", 2) not in p.evaluations
+
+
+def test_per_visit_expectations_add_up_to_the_totals() -> None:
+    model = MarkovModel(
+        stage={
+            ("s1", 1): {"goal": 0.9, "unknown": 0.1},
+            ("s2", 1): {"goal": 0.6, "e2_back": 0.4},
+            ("s2", 2): {"goal": 0.8, "e2_back": 0.2},
+            ("s3", 1): {"goal": 0.5, "e3_back": 0.3, "e3_retry": 0.2},
+            ("s3", 3): {"goal": 1.0},
+        },
+        gate={("p1", 1): {"goal": 0.7, "e2_back": 0.3}, ("p2", 1): {"goal": 1.0}},
+        cap=3,
+    )
+    p = synthesize(model, WORKFLOW)
+    for stage, mean in p.mean_visits.items():
+        total = sum(v for (s, t, _), v in p.evaluations.items() if s == "stage" and t == stage)
+        assert total == pytest.approx(mean)
+    for (stage, outcome), mean in p.outcomes.items():
+        total = sum(
+            v
+            for (s, t, _, o), v in p.visit_outcomes.items()
+            if s == "stage" and t == stage and o == outcome
+        )
+        assert total == pytest.approx(mean)
+    assert {b for (_, _, b) in p.evaluations} <= {1, 2, 3}
+
+
+class _Simulator:
+    def __init__(self) -> None:
+        self.asked: list[str] = []
+
+    def ask(self, question: Question) -> str:
+        self.asked.append(question.text)
+        return "シミュレータの回答"
+
+
+def test_coverage_runs_can_bind_a_user_simulator(tmp_path: Path) -> None:
+    """run_coverage に user を与えると、awaits_user のステージの goal の台本が尋ねる先になる。"""
+    goal: dict[str, dict[str, Any]] = {
+        "s1": {
+            "files": {"s1.txt": "s1", "s1.flag": "true"},
+            "ask": ["主題は何か"],
+            "answers_to": "s1.txt",
+        },
+        "s2": {"files": {"s2.txt": "s2", "s2.flag": "true", "gate1.flag": "true"}},
+        "s3": {"files": {"s3.txt": "s3", "s3.flag": "true", "gate2.num": "0"}},
+    }
+    path = ROOT / "contract/conformance/workflows/basic.yaml"
+    plan = plan_coverage(WORKFLOW, path, goal=goal, induce={}, inputs={"in.txt": "依頼"})
+    simulator = _Simulator()
+    report = run_coverage(plan, tmp_path, registry=ConformanceRegistry(), user=simulator)
+    assert report.missing == []
+    # s1 の最初の訪問は、どの項目でも尋ねる
+    assert len(simulator.asked) >= len(plan)

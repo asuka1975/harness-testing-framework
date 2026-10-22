@@ -1,7 +1,7 @@
 """分類器の検証（オラクル）。コーパス形式とラベル形式、一致率（Cohen の κ）・較正（ECE）・再実行一致のレポート。
 
 コーパスの各項目は、分類器が見た状態文書と選択肢（実行記録と置き場から作れる）。ラベルは人手で付けた正しいクラス。
-分類器の判定の閾値は、このレポートの較正の結果から決める（plan.md 第2節）。
+分類器の判定の閾値は、このレポートの較正の結果から決める。
 """
 
 import hashlib
@@ -33,6 +33,13 @@ class CorpusInvalid(ValueError):
 
 @dataclass(frozen=True)
 class CorpusItem:
+    """コーパスの一項目。
+
+    item は `<実行の id>-<評価の seq>` で、トリアージの項目の id と同じ形（突き合わせられる）。scope は stage か
+    phase、target はステージかフェーズの id、options は選択肢、state は分類器が見た状態文書、source は出どころ
+    （実行の種、seq、分類器の選択）。
+    """
+
     item: str
     scope: str
     target: str
@@ -55,6 +62,8 @@ class CorpusItem:
 
 @dataclass(frozen=True)
 class Label:
+    """人手のラベル。item はコーパスの項目の id、label はその項目の選択肢のどれか、labeler は付けた人。"""
+
     item: str
     label: str
     labeler: str
@@ -109,9 +118,16 @@ def save_labels(labels: Sequence[Label], path: Path) -> None:
     _write_jsonl([{"item": x.item, "label": x.label, "labeler": x.labeler} for x in labels], path)
 
 
-def build_corpus(runs: RunSet, store: BlobStore, workflow: Workflow) -> list[CorpusItem]:
-    """実行記録の各評価から、分類器が見た状態文書と選択肢の項目を作る。状態文書は置き場から読む。"""
+def build_corpus(
+    runs: RunSet, store: BlobStore, workflow: Workflow, *, unique_states: bool = False
+) -> list[CorpusItem]:
+    """実行記録の各評価から、分類器が見た状態文書と選択肢の項目を作る。状態文書は置き場から読む。
+
+    unique_states が真なら、状態文書と選択肢の組ごとに最初の項目だけを残す。偽の本体のように同じ成果物が
+    繰り返し出る実行では、同じ状態文書が何度も入り、項目の数の重みが状態文書の出現の回数で偏る。
+    """
     items: list[CorpusItem] = []
+    seen: set[tuple[str, tuple[str, ...]]] = set()
     for run in runs.runs:
         for e in run.evaluations():
             classification = e["classification"]
@@ -125,6 +141,10 @@ def build_corpus(runs: RunSet, store: BlobStore, workflow: Workflow) -> list[Cor
                 goal_text, target = phase.goal.qualitative, phase.id
             descriptions = {"goal": goal_text, **{s.id: s.description for s in stage.end_states}}
             options = tuple(Option(o, descriptions[o]) for o in classification["options"])
+            key = (str(classification["state"]), tuple(o.id for o in options))
+            if unique_states and key in seen:
+                continue
+            seen.add(key)
             state = store.get(str(classification["state"])).decode("utf-8")
             item = f"{run.run_id}-{e['seq']}"
             source = {"run": run.seed, "seq": e["seq"], "choice": classification["choice"]}
@@ -190,6 +210,7 @@ class OracleReport:
 
     ECE は答えた項目だけで計算する（答え無しを確信度 0 の不正解として入れると、答え無しが多いほど ECE が下がるため）。
     答えた割合は coverage に、答え無しの件数は unanswered に出す。κ と混同行列は、答え無しを独立のカテゴリとして数える。
+    by_target の鍵は `stage:<ステージの id>` か `phase:<フェーズの id>`。
     """
 
     n: int
@@ -293,7 +314,8 @@ class ConfusionClassifier:
 
     状態文書の印 `[[class <対象>=<真のクラス>]]` から真のクラスを読み、rows[真のクラス] の (選ぶクラス, 確信度) を
     真のクラスごとに、初めて見た順に巡って割り当てる。同じ状態文書には同じ答えを返す（決定論的）。
-    真のクラスごとの件数が rows の長さの倍数なら、混同行列は配分どおりになる。
+    配分は違う状態文書の数で巡るので、真のクラスごとの違う状態文書の数が rows の長さの倍数で、コーパスに同じ
+    状態文書が重ならない（build_corpus の unique_states）なら、混同行列は配分どおりになる。
     """
 
     def __init__(self, rows: Mapping[str, Sequence[tuple[str | None, float]]]) -> None:
@@ -322,6 +344,8 @@ class FlakyClassifier:
 
     同じ状態文書を二回目以降に分類する時、初めて見た順で every 件に一件の項目だけ、選択肢の中の別のクラスを返す。
     再実行の一致率は 1 - 1/every になる。一回目の答えは基の分類器のもの。
+    「二回目」は再実行に限らない。コーパスに同じ状態文書が二度あれば、一回目の分類の中でも二度目は揺れる。
+    重なりの無いコーパス（build_corpus の unique_states）で使う。
     """
 
     def __init__(self, base: Classifier, every: int) -> None:

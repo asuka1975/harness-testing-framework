@@ -18,13 +18,23 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator
 
+from harness_testing_framework.contract import Question
+from harness_testing_framework.runtime.checkpoint import sha256
 from harness_testing_framework.testing.harness import (
     TRANSITION_KINDS,
     ReplayOnly,
+    ScenarioInvalid,
+    conformance_dir,
+    conformance_scenarios,
     load_scenario,
     run_scenario,
     transition_coverage,
 )
+
+
+def sha256_text(text: str) -> str:
+    return sha256(text.encode("utf-8"))
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFORMANCE = ROOT / "contract/conformance"
@@ -127,3 +137,100 @@ def test_verify_reports_each_kind_of_mismatch(part: str, mutate: Any, tmp_path: 
     result = run_scenario(scenario, tmp_path / "run")
     assert result.problems
     assert any(problem.startswith(part) for problem in result.problems), result.problems
+
+
+def _scenario_with_refs(tmp_path: Path, inputs: dict[str, Any], starts: dict[str, Any]) -> Path:
+    doc = {
+        "scenario": "refs",
+        "description": "ファイルとディレクトリの参照",
+        "workflow": str(CONFORMANCE / "workflows/basic.yaml"),
+        "metrics": "conformance",
+        "inputs": inputs,
+        "visits": {"s1#1": {"classify": {"choice": None, "confidence": 0.0}}},
+        "expect": {
+            "status": "awaiting_operator",
+            "trace": [],
+            "starts": {"s1#1": {"files": starts, "memory": {}, "gates": []}},
+        },
+    }
+    path = tmp_path / "scenarios" / "refs.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(doc, allow_unicode=True), encoding="utf-8")
+    return path
+
+
+def test_file_and_directory_references_are_read_relative_to_the_scenario(tmp_path: Path) -> None:
+    files = tmp_path / "files"
+    (files / "dir" / "sub").mkdir(parents=True)
+    (files / "in.txt").write_text("入力", encoding="utf-8")
+    (files / "dir" / "a.txt").write_text("A", encoding="utf-8")
+    (files / "dir" / "sub" / "b.txt").write_text("B", encoding="utf-8")
+    refs = {"in.txt": {"from": "../files/in.txt"}, "d/": {"from": "../files/dir/"}}
+    scenario = load_scenario(_scenario_with_refs(tmp_path, refs, refs))
+    expanded = {"in.txt": "入力", "d/a.txt": "A", "d/sub/b.txt": "B"}
+    assert dict(scenario.inputs) == expanded
+    assert scenario.expect.starts["s1#1"]["files"] == expanded
+
+
+@pytest.mark.parametrize(
+    "refs",
+    [
+        {"x/": {"from": "../files/in.txt"}},  # ディレクトリの鍵にファイル
+        {"x": {"from": "../files/dir/"}},  # ファイルの鍵にディレクトリ
+        {"x": {"from": "../files/missing.txt"}},  # 無いファイル
+        {"x": {"from": "../files/dir"}},  # ディレクトリを / で終えずに指す
+    ],
+)
+def test_bad_references_are_rejected(tmp_path: Path, refs: dict[str, Any]) -> None:
+    (tmp_path / "files" / "dir").mkdir(parents=True)
+    (tmp_path / "files" / "in.txt").write_text("入力", encoding="utf-8")
+    with pytest.raises(ScenarioInvalid, match="from"):
+        load_scenario(_scenario_with_refs(tmp_path, refs, {}))
+
+
+class _Simulator:
+    """その場で答えるユーザーシミュレータ。"""
+
+    def __init__(self) -> None:
+        self.asked: list[str] = []
+
+    def ask(self, question: Question) -> str:
+        self.asked.append(question.text)
+        return f"シミュレータの回答: {question.text}"
+
+
+def test_a_user_simulator_can_replace_the_scripted_user(tmp_path: Path) -> None:
+    """run_scenario に user を与えると、台本の user の代わりにそれが尋ねられる。"""
+    scenario = load_scenario(CONFORMANCE / "scenarios/suspend_resume.yaml")
+    simulator = _Simulator()
+    result = run_scenario(scenario, tmp_path, user=simulator)
+    assert result.status == "completed"
+    assert simulator.asked == ["主題は何か"]
+    assert "suspend s1" not in result.summary
+    final = result.final_snapshot
+    assert final.files["s1.txt"] == sha256_text("シミュレータの回答: 主題は何か")
+
+
+def _tree(root: Path, skip: set[str]) -> dict[str, bytes]:
+    return {
+        p.relative_to(root).as_posix(): p.read_bytes()
+        for p in sorted(root.rglob("*"))
+        if p.is_file()
+        and "__pycache__" not in p.parts
+        and p.relative_to(root).as_posix() not in skip
+    }
+
+
+def test_packaged_conformance_matches_canonical() -> None:
+    """契約適合テストのシナリオ一式は、パッケージにも同梱する（pip で入れた利用者が読めるように）。
+    シナリオの形式は load_contract_schema で読めるので、写しには含めない。"""
+    packaged = conformance_dir()
+    assert _tree(packaged, set()) == _tree(CONFORMANCE, {"scenario.schema.json"})
+    assert conformance_scenarios() == sorted((packaged / "scenarios").glob("*.yaml"))
+    assert [p.name for p in conformance_scenarios()] == [p.name for p in SCENARIOS]
+
+
+def test_packaged_scenarios_run(tmp_path: Path) -> None:
+    for i, path in enumerate(conformance_scenarios()):
+        result = run_scenario(load_scenario(path), tmp_path / str(i))
+        assert result.problems == [], (path.name, result.problems)

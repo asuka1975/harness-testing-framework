@@ -1,0 +1,26 @@
+scenario: contract_violation_write
+description: s1 が範囲内で自分の writes に無い s2.txt を書くと契約違反
+workflow: ../workflows/basic.yaml
+metrics: conformance
+seed: 1
+inputs:
+  in.txt: 依頼
+visits:
+  s1#1:
+    files:
+      s1.txt: s1
+      s1.flag: 'true'
+      s2.txt: 勝手に書いた
+    classify:
+      choice: goal
+      confidence: 0.9
+operator:
+- kind: abort
+expect:
+  status: aborted
+  trace:
+  - start s1#1
+  - error s1#1 contract_violation
+  - escalation s1 contract_violation -> abort
+  - abort
+  - end aborted

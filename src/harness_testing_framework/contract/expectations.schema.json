@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://raw.githubusercontent.com/asuka1975/harness-testing-framework/main/contract/formats/expectations.schema.json",
     "title": "Expectations",
-    "description": "分布テストの基準（plan.md 第2節「分布基準の置き場」）。N 回の実行で何が何割起きるべきかを書く。ワークフロー定義には書かない",
+    "description": "分布テストの基準。N 回の実行で何が何割起きるべきかを書く。ワークフロー定義には書かない（分布の基準はテストの側に置く）",
     "type": "object",
     "properties": {
         "expectations": {

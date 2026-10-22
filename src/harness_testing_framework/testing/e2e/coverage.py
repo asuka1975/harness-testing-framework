@@ -1,6 +1,6 @@
 """E2E のカバレッジ計画（誘発と注入）。
 
-各ステージの各クラス（goal、end_state、unknown）を一度は踏む（plan.md 第2節）。踏み方は二つ。
+各ステージの各クラス（goal、end_state、unknown）を一度は踏む（組み合わせは網羅しない）。踏み方は二つ。
 
 - 誘発（induce）: その状態を実際に表す成果物を本体に書かせ、分類もそれに合わせる。ハーネスが状態ごとに台本を与える
 - 注入（inject）: 誘発の台本が無い状態は、goal の成果物のまま分類の結果だけをその状態にする
@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from harness_testing_framework.contract import MetricRegistry
+from harness_testing_framework.contract import MetricRegistry, UserIO
 from harness_testing_framework.runtime.model import Workflow
 from harness_testing_framework.testing.harness.scenario import Expectation, Scenario, run_scenario
 
@@ -132,13 +132,19 @@ def run_coverage(
     *,
     registry: MetricRegistry,
     fixtures: Path | None = None,
+    user: UserIO | None = None,
 ) -> CoverageReport:
-    """計画の各項目を実行し、踏んだ (ステージ, クラス) を集める。"""
+    """計画の各項目を実行し、踏んだ (ステージ, クラス) を集める。
+
+    user を与えると、awaits_user のステージの台本の ask は、計画の回答の台本の代わりにそれに尋ねる。
+    """
     covered: set[Target] = set()
     reached: dict[Target, bool] = {}
     wanted: list[Target] = []
     for i, item in enumerate(plan):
-        result = run_scenario(item.scenario, workdir / str(i), registry=registry, fixtures=fixtures)
+        result = run_scenario(
+            item.scenario, workdir / str(i), registry=registry, fixtures=fixtures, user=user
+        )
         seen = {
             Target(str(e["stage"]), str(e["outcome"]))
             for e in result.trace

@@ -1,0 +1,69 @@
+scenario: happy_path
+description: 全ステージが一回で goal に達し、二つのゲートを通って完了する（next）
+workflow: ../workflows/basic.yaml
+metrics: conformance
+seed: 1
+inputs:
+  in.txt: 依頼
+visits:
+  s1#1:
+    files:
+      s1.txt: s1
+      s1.flag: 'true'
+    classify: &id001
+      choice: goal
+      confidence: 0.9
+  s2#1:
+    files:
+      s2.txt: s2
+      s2.flag: 'true'
+      gate1.flag: 'true'
+    classify: *id001
+  s3#1:
+    files:
+      s3.txt: s3
+      s3.flag: 'true'
+      gate2.num: '0'
+    classify: *id001
+gates:
+  p1#1: *id001
+  p2#1: *id001
+expect:
+  status: completed
+  trace:
+  - start s1#1
+  - eval stage s1 = goal
+  - next s1 -> s2
+  - start s2#1
+  - eval stage s2 = goal
+  - eval phase p1 = goal
+  - gate_pass s2
+  - next s2 -> s3
+  - start s3#1
+  - eval stage s3 = goal
+  - eval phase p2 = goal
+  - gate_pass s3
+  - complete
+  - end completed
+  starts:
+    s3#1:
+      files:
+        in.txt: 依頼
+        s1.txt: s1
+        s1.flag: 'true'
+        s2.txt: s2
+        s2.flag: 'true'
+        gate1.flag: 'true'
+      memory: {}
+      gates:
+      - p1
+  options:
+    stage:s3#1: &id002
+    - goal
+    - e3_back
+    - e3_retry
+    - unknown
+    phase:p2#1: *id002
+    stage:s1#1:
+    - goal
+    - unknown

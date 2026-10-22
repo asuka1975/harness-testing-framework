@@ -35,10 +35,10 @@
             "default": 0.5
         },
         "inputs": {
-            "description": "ワークフローの inputs に置くファイルの内容",
+            "description": "ワークフローの inputs に置くファイルの内容（content）",
             "type": "object",
             "additionalProperties": {
-                "type": "string"
+                "$ref": "#/$defs/content"
             }
         },
         "visits": {
@@ -289,7 +289,7 @@
                 "files": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "string"
+                        "$ref": "#/$defs/content"
                     }
                 },
                 "memory": {
@@ -308,6 +308,27 @@
                 "gates"
             ],
             "additionalProperties": false
+        },
+        "content": {
+            "description": "ファイルの内容。文字列か、シナリオのファイルからの相対パスで内容を読む {from: パス}。鍵が / で終わるなら from も / で終わるディレクトリで、その下のすべてのファイルを鍵の下に置く",
+            "oneOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "from": {
+                            "type": "string",
+                            "minLength": 1
+                        }
+                    },
+                    "required": [
+                        "from"
+                    ],
+                    "additionalProperties": false
+                }
+            ]
         }
     }
 }

@@ -5,14 +5,13 @@
 cap 以上を一つにまとめる。escalate の後は方針に従う（いまは中止だけ）。
 
 予測と実測の一致は、モデルの仮定が成り立つ本体に対して、合成の計算が正しいことの確認になる。仮定そのもの
-（マルコフ性）が実際のハーネスで成り立つかは、実 LLM を伴う方法の検証の問題（plan.md 第1節）。
+（マルコフ性）が実際のハーネスで成り立つかは、実 LLM を伴う方法の検証の問題で、偽の本体では確かめられない。
 """
 
 import math
 from collections import Counter, defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from functools import cache
 
 from harness_testing_framework.runtime.model import Workflow
 from harness_testing_framework.testing.stages.runs import RunSet
@@ -61,97 +60,109 @@ def estimate_model(runs: RunSet, cap: int = 2) -> MarkovModel:
 
 @dataclass(frozen=True)
 class Prediction:
+    """合成の結果。
+
+    - status: 最後の状態（completed / aborted）の確率
+    - mean_visits: ステージごとの訪問の回数の期待値
+    - outcomes: (ステージ, 結果) ごとのステージの評価の回数の期待値
+    - evaluations: (scope, 対象, 訪問の区分) ごとの評価の回数の期待値。scope は stage か phase（ゲート）で、
+      区分は min(訪問の番号, cap)。ゲートの訪問はフェーズの最終ステージの訪問の番号。visit や from_visit で
+      絞った分布テストの基準の分母の期待値 E[n] になる（区分が cap より小さい訪問は、その訪問ちょうど）
+    - visit_outcomes: (scope, 対象, 訪問の区分, 結果) ごとの評価の回数の期待値
+    """
+
     status: dict[str, float]
     mean_visits: dict[str, float]
     outcomes: dict[tuple[str, str], float] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class _Sum:
-    status: tuple[tuple[str, float], ...]
-    visits: tuple[float, ...]
-    outcomes: tuple[tuple[tuple[str, str], float], ...]
+    evaluations: dict[tuple[str, str, int], float] = field(default_factory=dict)
+    visit_outcomes: dict[tuple[str, str, int, str], float] = field(default_factory=dict)
 
 
 def synthesize(model: MarkovModel, workflow: Workflow, policy: str = "abort") -> Prediction:
-    """モデルとワークフローから、最後の状態の分布、ステージごとの訪問の回数の期待値、
-    ステージの評価の結果ごとの回数の期待値を計算する。"""
+    """モデルとワークフローから、最後の状態の分布と、訪問と評価の回数の期待値を厳密に計算する（Prediction）。
+
+    状態（いまのステージ、ステージごとの訪問の番号、辺ごとの戻りの回数）の確率を、遷移規則に沿って前へ
+    流す。戻りのたびに回数の和が増え、戻りが無ければステージの位置が進むので、状態は (回数の和, 位置) の
+    順に一度ずつ処理すれば足りる。訪問の番号は cap で頭打ちにして持つ（分布は min(訪問, cap) だけで決まる）。
+    """
     if policy != "abort":
         raise ValueError(f"escalate の後の方針 {policy} は扱えない（中止だけ）")
     stages = [s.id for s in workflow.stages]
     edges = [(s.id, rb.state) for s in workflow.stages for rb in s.rollbacks.values()]
+    status = {"completed": 0.0, "aborted": 0.0}
+    visits_mean = dict.fromkeys(stages, 0.0)
+    visit_outcomes: dict[tuple[str, str, int, str], float] = defaultdict(float)
+    # (回数の和, 位置) → {(訪問の番号の組, 戻りの回数の組): 確率}
+    pending: dict[tuple[int, int], dict[tuple[tuple[int, ...], tuple[int, ...]], float]] = (
+        defaultdict(lambda: defaultdict(float))
+    )
 
-    def add(into: dict[str, float], key: str, value: float) -> None:
-        into[key] = into.get(key, 0.0) + value
+    def enter(stage_id: str, visits: tuple[int, ...], counts: tuple[int, ...], mass: float) -> None:
+        pending[(sum(counts), stages.index(stage_id))][(visits, counts)] += mass
 
-    def combine(parts: list[tuple[float, _Sum]]) -> _Sum:
-        status: dict[str, float] = {}
-        visits = [0.0] * len(stages)
-        outcomes: dict[tuple[str, str], float] = {}
-        for p, part in parts:
-            for k, v in part.status:
-                add(status, k, p * v)
-            for i, v in enumerate(part.visits):
-                visits[i] += p * v
-            for k2, v in part.outcomes:
-                outcomes[k2] = outcomes.get(k2, 0.0) + p * v
-        return _Sum(tuple(sorted(status.items())), tuple(visits), tuple(sorted(outcomes.items())))
+    def forward(
+        stage_id: str, visits: tuple[int, ...], counts: tuple[int, ...], mass: float
+    ) -> None:
+        following = workflow.next_stage(stage_id)
+        if following is None:
+            status["completed"] += mass
+        else:
+            enter(following.id, visits, counts, mass)
 
-    def terminal(status: str) -> _Sum:
-        return _Sum(((status, 1.0),), tuple([0.0] * len(stages)), ())
-
-    @cache
-    def enter(stage_id: str, visits: tuple[int, ...], counts: tuple[int, ...]) -> _Sum:
-        position = stages.index(stage_id)
-        visit = visits[position] + 1
-        now = (*visits[:position], visit, *visits[position + 1 :])
-        parts = []
-        for outcome, p in model.stage_distribution(stage_id, visit).items():
-            after = settle(stage_id, outcome, now, counts, "stage", visit)
-            here = _Sum(
-                (),
-                tuple(1.0 if i == position else 0.0 for i in range(len(stages))),
-                (((stage_id, outcome), 1.0),),
-            )
-            parts.append((p, combine([(1.0, after), (1.0, here)])))
-        return combine(parts)
-
-    def settle(
-        stage_id: str,
-        outcome: str,
-        visits: tuple[int, ...],
-        counts: tuple[int, ...],
-        origin: str,
-        visit: int,
-    ) -> _Sum:
-        stage = workflow.stage(stage_id)
-        if outcome == "goal":
-            if origin == "stage" and workflow.is_last_in_phase(stage_id):
-                gate = model.gate_distribution(stage.phase, visit)
-                return combine(
-                    [
-                        (q, settle(stage_id, g, visits, counts, "gate", visit))
-                        for g, q in gate.items()
-                    ]
-                )
-            following = workflow.next_stage(stage_id)
-            return (
-                terminal("completed") if following is None else enter(following.id, visits, counts)
-            )
+    def back(
+        stage_id: str, outcome: str, visits: tuple[int, ...], counts: tuple[int, ...], mass: float
+    ) -> None:
         if outcome == "unknown":
-            return terminal("aborted")
-        rollback = stage.rollbacks[outcome]
+            status["aborted"] += mass
+            return
+        rollback = workflow.stage(stage_id).rollbacks[outcome]
         index = edges.index((stage_id, outcome))
         if counts[index] >= rollback.max:
-            return terminal("aborted")
-        more = (*counts[:index], counts[index] + 1, *counts[index + 1 :])
-        return enter(rollback.target, visits, more)
+            status["aborted"] += mass
+            return
+        enter(
+            rollback.target,
+            visits,
+            (*counts[:index], counts[index] + 1, *counts[index + 1 :]),
+            mass,
+        )
 
-    total = enter(stages[0], tuple([0] * len(stages)), tuple([0] * len(edges)))
-    status = dict(total.status)
-    for s in ("completed", "aborted"):
-        status.setdefault(s, 0.0)
-    return Prediction(status, dict(zip(stages, total.visits, strict=True)), dict(total.outcomes))
+    enter(stages[0], tuple([0] * len(stages)), tuple([0] * len(edges)), 1.0)
+    for total in range(sum(rb.max for s in workflow.stages for rb in s.rollbacks.values()) + 1):
+        for position, stage_id in enumerate(stages):
+            stage = workflow.stage(stage_id)
+            for (visits, counts), mass in pending.pop((total, position), {}).items():
+                visit = min(visits[position] + 1, model.cap)
+                now = (*visits[:position], visit, *visits[position + 1 :])
+                visits_mean[stage_id] += mass
+                for outcome, p in model.stage_distribution(stage_id, visit).items():
+                    visit_outcomes[("stage", stage_id, visit, outcome)] += mass * p
+                    if outcome != "goal":
+                        back(stage_id, outcome, now, counts, mass * p)
+                    elif not workflow.is_last_in_phase(stage_id):
+                        forward(stage_id, now, counts, mass * p)
+                    else:
+                        gate = model.gate_distribution(stage.phase, visit)
+                        for g, q in gate.items():
+                            visit_outcomes[("phase", stage.phase, visit, g)] += mass * p * q
+                            if g == "goal":
+                                forward(stage_id, now, counts, mass * p * q)
+                            else:
+                                back(stage_id, g, now, counts, mass * p * q)
+    assert not pending, "処理されない状態が残った"
+    outcomes: dict[tuple[str, str], float] = defaultdict(float)
+    evaluations: dict[tuple[str, str, int], float] = defaultdict(float)
+    for (scope, target, bucket, outcome), v in visit_outcomes.items():
+        if scope == "stage":
+            outcomes[(target, outcome)] += v
+        evaluations[(scope, target, bucket)] += v
+    return Prediction(
+        status,
+        visits_mean,
+        dict(sorted(outcomes.items())),
+        dict(sorted(evaluations.items())),
+        dict(sorted(visit_outcomes.items())),
+    )
 
 
 @dataclass(frozen=True)

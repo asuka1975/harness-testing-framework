@@ -133,8 +133,55 @@ def _example_ids() -> set[str]:
     return ids
 
 
+def _ids_in(node: object, into: set[str]) -> None:
+    """ワークフロー定義らしい文書から、id、指標名、成果物のパス、記憶の名前を拾う（形の崩れた文書も読む）。"""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "id" and isinstance(value, str):
+                into.add(value)
+            elif key == "quantitative" and isinstance(value, dict):
+                into.update(k for k in value if isinstance(k, str))
+            elif key in ("reads", "writes", "memory_in", "memory_out", "carry", "inputs") and (
+                isinstance(value, list)
+            ):
+                into.update(v for v in value if isinstance(v, str))
+            _ids_in(value, into)
+    elif isinstance(node, list):
+        for value in node:
+            _ids_in(value, into)
+
+
+def _framework_vocabulary() -> set[str]:
+    """本体自身の語: 公開 API の名前と、本体が持つワークフロー定義の例（schema/examples/、
+    contract/conformance/workflows/）の id など。例の id がこれと重なるのは、本体が例を前提にした
+    ことにはならない（ありふれた語の偶然の一致）。"""
+    words: set[str] = set()
+    for name in SUBPACKAGES:
+        words.update(getattr(importlib.import_module(f"{PACKAGE}.{name}"), "__all__", []))
+    documents = [
+        *ROOT.glob("schema/examples/**/*.yaml"),
+        *ROOT.glob("contract/conformance/workflows/*.yaml"),
+    ]
+    for path in documents:
+        try:
+            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except yaml.YAMLError:
+            continue
+        _ids_in(doc, words)
+    words.discard("unknown")
+    return words
+
+
+def test_framework_vocabulary_holds_own_words_only() -> None:
+    words = _framework_vocabulary()
+    # 公開 API の名前と、本体の例の id・パス・記憶
+    assert {"verify", "run_scenario", "request.md", "open_questions"} <= words
+    # 例（toy-minimal）だけにある語は含まない
+    assert not {"write_note", "brief.txt", "toy-minimal"} & words
+
+
 def test_body_does_not_mention_example_ids() -> None:
-    ids = _example_ids()
+    ids = _example_ids() - _framework_vocabulary()
     if not ids:
         pytest.skip("examples/ にワークフロー定義がまだ無い")
     pattern = re.compile(r"(?<![\w-])(" + "|".join(map(re.escape, sorted(ids))) + r")(?![\w-])")
@@ -142,7 +189,6 @@ def test_body_does_not_mention_example_ids() -> None:
         f"{p.relative_to(ROOT)}:{n}:{m.group(1)}"
         for p in _body_files()
         for n, line in _lines(p)
-        for m in [pattern.search(line)]
-        if m
+        for m in pattern.finditer(line)
     ]
     assert not hits

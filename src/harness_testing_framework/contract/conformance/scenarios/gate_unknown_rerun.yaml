@@ -1,0 +1,76 @@
+scenario: gate_unknown_rerun
+description: p1 のゲートが unknown になり再実行を選ぶと、最終ステージ s2 を訪問 2 として実行し直し、ゲートの鍵は p1#2
+workflow: ../workflows/basic.yaml
+metrics: conformance
+seed: 1
+inputs:
+  in.txt: x
+visits:
+  s1#1:
+    files:
+      s1.txt: s1
+      s1.flag: 'true'
+    classify: &id001
+      choice: goal
+      confidence: 0.9
+  s2#1: &id002
+    files:
+      s2.txt: s2
+      s2.flag: 'true'
+      gate1.flag: 'true'
+    classify: *id001
+  s2#2: *id002
+  s3#1:
+    files:
+      s3.txt: s3
+      s3.flag: 'true'
+      gate2.num: '0'
+    classify: *id001
+gates:
+  p1#1:
+    choice: null
+    confidence: 0
+  p1#2: *id001
+  p2#1: *id001
+operator:
+- kind: rerun
+expect:
+  status: completed
+  trace:
+  - start s1#1
+  - eval stage s1 = goal
+  - next s1 -> s2
+  - start s2#1
+  - eval stage s2 = goal
+  - eval phase p1 = unknown
+  - escalation s2 unknown -> rerun
+  - start s2#2
+  - eval stage s2 = goal
+  - eval phase p1 = goal
+  - gate_pass s2
+  - next s2 -> s3
+  - start s3#1
+  - eval stage s3 = goal
+  - eval phase p2 = goal
+  - gate_pass s3
+  - complete
+  - end completed
+  starts:
+    s2#2:
+      files:
+        in.txt: x
+        s1.txt: s1
+        s1.flag: 'true'
+      memory: {}
+      gates: []
+    s3#1:
+      files:
+        in.txt: x
+        s1.txt: s1
+        s1.flag: 'true'
+        s2.txt: s2
+        s2.flag: 'true'
+        gate1.flag: 'true'
+      memory: {}
+      gates:
+      - p1

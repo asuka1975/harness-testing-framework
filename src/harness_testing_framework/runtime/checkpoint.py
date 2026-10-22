@@ -134,6 +134,7 @@ class BlobStore:
         (root / "snapshots").mkdir(parents=True, exist_ok=True)
 
     def put(self, data: bytes) -> str:
+        """内容を置き、その SHA-256 を返す。"""
         digest = sha256(data)
         path = self.root / "blobs" / digest
         if not path.exists():
@@ -141,15 +142,19 @@ class BlobStore:
         return digest
 
     def get(self, digest: str) -> bytes:
+        """内容を SHA-256 で読む。スナップショットのファイル（snapshot.files[パス]）も、分類器が見た状態文書
+        （実行記録の evaluation、コーパスとトリアージの項目の state）も、これで読める。"""
         return (self.root / "blobs" / digest).read_bytes()
 
     def put_snapshot(self, snapshot: Snapshot) -> str:
+        """スナップショットのマニフェストを置き、その id を返す。"""
         path = self.root / "snapshots" / f"{snapshot.id}.json"
         if not path.exists():
             path.write_bytes(canonical_json(snapshot.manifest()))
         return snapshot.id
 
     def get_snapshot(self, snapshot_id: str) -> Snapshot:
+        """スナップショットを id で読む。"""
         manifest = json.loads((self.root / "snapshots" / f"{snapshot_id}.json").read_bytes())
         return Snapshot.from_manifest(manifest)
 

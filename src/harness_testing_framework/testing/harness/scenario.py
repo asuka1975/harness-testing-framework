@@ -2,13 +2,19 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
 import yaml
 from jsonschema import Draft202012Validator
 
-from harness_testing_framework.contract import JSONValue, MetricRegistry, load_contract_schema
+from harness_testing_framework.contract import (
+    JSONValue,
+    MetricRegistry,
+    UserIO,
+    load_contract_schema,
+)
 from harness_testing_framework.runtime.checkpoint import BlobStore, Snapshot
 from harness_testing_framework.runtime.loader import load_workflow
 from harness_testing_framework.runtime.recorder import Passthrough, Recorder, Recording, ReplayOnly
@@ -45,6 +51,11 @@ class Expectation:
 
 @dataclass(frozen=True)
 class Scenario:
+    """読み込んだシナリオ（形は scenario.schema.json）。ファイルの参照は内容の文字列に置き換えてある。
+
+    凍結した dataclass なので、一部を変えた写しは `dataclasses.replace(scenario, inputs=...)` で作れる。
+    """
+
     path: Path
     name: str
     description: str
@@ -60,7 +71,47 @@ class Scenario:
     expect: Expectation
 
 
+def conformance_dir() -> Path:
+    """パッケージに同梱した契約適合テスト一式（contract/conformance/ の写し。README.md、workflows/、
+    scenarios/、files/、manifests.json）のディレクトリ。シナリオの形式は load_contract_schema で読む。"""
+    path = Path(str(files("harness_testing_framework.contract") / "conformance"))
+    if not path.is_dir():
+        raise FileNotFoundError(f"契約適合テスト一式がファイルとして読めない: {path}")
+    return path
+
+
+def conformance_scenarios() -> list[Path]:
+    """同梱した契約適合テストのシナリオのファイル（名前の順）。"""
+    return sorted((conformance_dir() / "scenarios").glob("*.yaml"))
+
+
+def _contents(path: Path, files: Mapping[str, Any]) -> dict[str, str]:
+    """ファイルの内容の対応を読む。{from: パス} はシナリオのファイルからの相対パスで、鍵が / で終わるなら
+    そのディレクトリの下のすべてのファイルを、鍵の下の相対パスに置く（README.md）。"""
+    out: dict[str, str] = {}
+    for key, value in files.items():
+        if isinstance(value, str):
+            out[key] = value
+            continue
+        source = path.parent / value["from"]
+        if key.endswith("/") != value["from"].endswith("/"):
+            raise ScenarioInvalid(
+                f"{path}: {key} の from {value['from']} は、どちらも / で終わるか、どちらも終わらない"
+            )
+        if key.endswith("/"):
+            if not source.is_dir():
+                raise ScenarioInvalid(f"{path}: {key} の from {value['from']} がディレクトリでない")
+            for file in sorted(f for f in source.rglob("*") if f.is_file()):
+                out[key + file.relative_to(source).as_posix()] = file.read_text(encoding="utf-8")
+        elif source.is_file():
+            out[key] = source.read_text(encoding="utf-8")
+        else:
+            raise ScenarioInvalid(f"{path}: {key} の from {value['from']} がファイルでない")
+    return out
+
+
 def load_scenario(path: Path) -> Scenario:
+    """シナリオを読む。ファイルの参照（{from: パス}）は、ここで内容の文字列に置き換える。"""
     doc = yaml.safe_load(path.read_text(encoding="utf-8"))
     errors = list(
         Draft202012Validator(load_contract_schema("scenario.schema.json")).iter_errors(doc)
@@ -68,6 +119,10 @@ def load_scenario(path: Path) -> Scenario:
     if errors:
         raise ScenarioInvalid(f"{path}: " + "; ".join(e.message for e in errors))
     expect = doc["expect"]
+    starts = {
+        key: {**start, "files": _contents(path, start["files"])}
+        for key, start in expect.get("starts", {}).items()
+    }
     return Scenario(
         path=path,
         name=doc["scenario"],
@@ -76,7 +131,7 @@ def load_scenario(path: Path) -> Scenario:
         metrics=doc.get("metrics"),
         seed=doc.get("seed", 0),
         threshold=doc.get("threshold", 0.5),
-        inputs=doc.get("inputs", {}),
+        inputs=_contents(path, doc.get("inputs", {})),
         visits=doc["visits"],
         gates=doc.get("gates", {}),
         operator=doc.get("operator", []),
@@ -86,7 +141,7 @@ def load_scenario(path: Path) -> Scenario:
             trace=expect["trace"],
             memory=expect.get("memory"),
             annotations=expect.get("annotations"),
-            starts=expect.get("starts", {}),
+            starts=starts,
             options=expect.get("options", {}),
         ),
     )
@@ -114,18 +169,22 @@ def run_scenario(
     record: Path | None = None,
     replay: Path | None = None,
     max_resumes: int = 50,
+    user: UserIO | None = None,
 ) -> ScenarioResult:
     """シナリオを参照ランタイムで実行する（README.md の手順）。
 
     record を与えると外からの値をそこに記録し、replay を与えると記録だけから再生する。
     再生では、偽の分類器・運用者・ユーザー・指標の代わりに、呼ばれたら失敗するものを束縛する。
+    user を与えると、シナリオの user の台本の代わりにそれ（ユーザーシミュレータなど）に尋ねる。それが回答を
+    保留して中断した時の再開の回答には、シナリオの user の台本を順に使う。
     """
     if scenario.metrics == "conformance":
         registry = ConformanceRegistry()
     if registry is None:
         raise ValueError(f"{scenario.name}: 指標レジストリが要る")
     workflow = load_workflow(scenario.workflow, registry.names())
-    user = ScriptedUser(scenario.user)
+    script = ScriptedUser(scenario.user)
+    user_io: UserIO = script if user is None else user
     operator = ScriptedOperator(scenario.operator)
     classifier = ScriptedClassifier(
         {k: v["classify"] for k, v in scenario.visits.items() if "classify" in v}, scenario.gates
@@ -159,7 +218,7 @@ def run_scenario(
             registry=registry,
             classifier=classifier,
             operator=operator,
-            user_io=user,
+            user_io=user_io,
             store=store,
             workdir=workdir,
             threshold=scenario.threshold,
@@ -171,7 +230,7 @@ def run_scenario(
     events, snapshot_ids = list(result.events), list(result.snapshots)
     resumes = 0
     while result.status in ("suspended", "awaiting_operator") and resumes < max_resumes:
-        resume = _resumer(result, user, operator, replay is not None)
+        resume = _resumer(result, script, operator, replay is not None)
         if resume is None:
             break
         # 保存した状態から、新しく組み立てたランタイムで再開する

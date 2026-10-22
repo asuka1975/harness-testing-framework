@@ -28,8 +28,9 @@ build-backend = "uv_build"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-# reports/ は検証の記録で、中のコード片は記録時のまま残す
-extend-exclude = ["reports"]
+# reports/ は検証の記録で、中のコード片は記録時のまま残す。
+# examples/<名前>/tests/fixtures/ は、ステージ本体が写す成果物（意図的に壊したコードを含む）の置き場
+extend-exclude = ["reports", "examples/*/tests/fixtures"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
@@ -43,6 +44,8 @@ strict = true
 files = ["src", "tests"]
 mypy_path = ["src"]
 explicit_package_bases = true
+# examples/<名前>/tests/fixtures/ の下のコードは、ステージ本体が写す成果物で、型検査の対象ではない
+exclude = ['(^|/)examples/[^/]+/tests/fixtures/']
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "examples"]

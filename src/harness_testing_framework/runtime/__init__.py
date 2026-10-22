@@ -1,4 +1,4 @@
-"""参照ランタイム（決定 #8）。loader / checkpoint / runner / oracle / recorder。"""
+"""参照ランタイム（契約の参照実装）。loader / checkpoint / runner / oracle / recorder。"""
 
 from harness_testing_framework.runtime.checkpoint import (
     Annotation,

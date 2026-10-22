@@ -1,0 +1,26 @@
+scenario: stage_error
+description: 本体が例外で終わると評価をせずに escalate する（unknown の一種）
+workflow: ../workflows/basic.yaml
+metrics: conformance
+seed: 1
+inputs:
+  in.txt: 依頼
+visits:
+  s1#1:
+    files:
+      s1.txt: s1
+      s1.flag: 'true'
+    classify:
+      choice: goal
+      confidence: 0.9
+    raise: stage_error
+operator:
+- kind: abort
+expect:
+  status: aborted
+  trace:
+  - start s1#1
+  - error s1#1 stage_error
+  - escalation s1 stage_error -> abort
+  - abort
+  - end aborted

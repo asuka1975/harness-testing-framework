@@ -27,7 +27,10 @@ import sys, zipfile, glob
 whl = glob.glob(sys.argv[1] + '/*.whl')[0]
 names = zipfile.ZipFile(whl).namelist()
 for n in ['schema/workflow.schema.json', 'contract/trace.schema.json',
-          'contract/snapshot.schema.json', 'contract/scenario.schema.json']:
+          'contract/snapshot.schema.json', 'contract/scenario.schema.json',
+          'contract/conformance/workflows/basic.yaml',
+          'contract/conformance/scenarios/happy_path.yaml',
+          'contract/conformance/files/in.txt', 'contract/conformance/manifests.json']:
     assert 'harness_testing_framework/' + n in names, (n, names)
 print('wheel: schemas packaged')
 " "$out"

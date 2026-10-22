@@ -7,6 +7,7 @@
 """
 
 import importlib
+import importlib.util
 import os
 import re
 from pathlib import Path
@@ -71,7 +72,7 @@ def test_adopting_covers(topic: str) -> None:
     assert any(topic in h for h in headings), topic
 
 
-@pytest.mark.parametrize("doc", ["docs/adopting.md", "docs/api.md"])
+@pytest.mark.parametrize("doc", ["docs/adopting.md", "docs/api.md", "docs/api-reference.md"])
 def test_user_docs_do_not_point_to_internal_documents(doc: str) -> None:
     text = (ROOT / doc).read_text(encoding="utf-8")
     for forbidden in ["plan.md", "progress.md", "decisions.md", "src/harness_testing_framework"]:
@@ -85,3 +86,41 @@ def test_adopting_runnable_example(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     monkeypatch.setenv("WORKDIR", str(tmp_path))
     assert os.environ["WORKDIR"] == str(tmp_path)
     exec(compile(blocks[0], "docs/adopting.md", "exec"), {})
+
+
+INTERNAL = re.compile(
+    r"plan\.md|progress\.md|decisions\.md|決定 ?#|追加の論点|\bD-\d+\b|\bF[1-5]\b"
+)
+
+
+def _public_texts() -> list[Path]:
+    """利用者が読む、または公開の名前の docstring として見える本体のファイル。"""
+    paths = [*ROOT.glob("contract/**/*.md"), *ROOT.glob("contract/**/*.json")]
+    paths += [ROOT / "schema/workflow.schema.json", *ROOT.glob("src/**/*.py")]
+    paths += [*ROOT.glob("src/**/*.json")]
+    return [p for p in paths if "__pycache__" not in p.parts]
+
+
+def test_public_material_does_not_cite_internal_documents() -> None:
+    """契約、スキーマ、本体のコード（docstring）は、利用者が読まない文書（計画書、決定記録、作業ログ）や
+    その番号を根拠として指さない。根拠は本文に書く。"""
+    hits = [
+        f"{p.relative_to(ROOT)}:{n}: {m.group(0)}"
+        for p in _public_texts()
+        for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
+        for m in INTERNAL.finditer(line)
+    ]
+    assert not hits
+
+
+def test_api_reference_is_generated_from_the_body() -> None:
+    """docs/api-reference.md（公開の名前の引数、属性、docstring）が本体と食い違わない。"""
+    spec = importlib.util.spec_from_file_location(
+        "api_reference", ROOT / "scripts/api_reference.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    written = (ROOT / "docs/api-reference.md").read_text(encoding="utf-8")
+    assert written == module.render(), "uv run python scripts/api_reference.py --write で書き直す"
+    assert "docs/api-reference.md" in API or "(api-reference.md)" in API

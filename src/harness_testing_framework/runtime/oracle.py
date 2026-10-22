@@ -22,7 +22,7 @@ UNKNOWN = "unknown"
 
 
 def satisfies(criterion: Criterion, value: bool | float) -> bool:
-    """測った値が基準を満たすか。比較はフレームワークが行う（決定 #2）。"""
+    """測った値が基準を満たすか。比較はフレームワークが行い、ハーネスは測るだけ。"""
     if criterion.equals is not None:
         if isinstance(criterion.equals, bool) or isinstance(value, bool):
             return isinstance(value, bool) and value is criterion.equals
@@ -54,7 +54,7 @@ def measure(
     recorder: Recorder,
     key: Key,
 ) -> dict[str, MetricResult]:
-    """goal の各指標を測って基準と比べる。測定の失敗は未達（D-1）。"""
+    """goal の各指標を測って基準と比べる。測定の失敗は未達。"""
     results: dict[str, MetricResult] = {}
     for criterion in goal.criteria:
 

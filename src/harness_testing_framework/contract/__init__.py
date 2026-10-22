@@ -41,6 +41,8 @@ def load_contract_schema(name: str) -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class Question:
+    """ユーザーへの質問。text は質問の文、choices は選択肢（自由回答なら空）。"""
+
     text: str
     choices: tuple[str, ...] = ()
 
@@ -70,8 +72,12 @@ class LLMClient(Protocol):
 
 
 class StageContext(Protocol):
+    """ステージ本体に渡す文脈。ここにある属性と操作だけを使う（ほかの名前はランタイムの内部のもの）。"""
+
     @property
-    def stage_id(self) -> str: ...
+    def stage_id(self) -> str:
+        """このステージの id。"""
+        ...
 
     @property
     def visit(self) -> int:
@@ -79,19 +85,28 @@ class StageContext(Protocol):
         ...
 
     @property
-    def workspace(self) -> Path: ...
+    def workspace(self) -> Path:
+        """作業領域。ランタイムが訪問ごとに開始時スナップショットから作り、訪問の後に消す。"""
+        ...
 
     @property
     def seed(self) -> int:
-        """実行の種、ステージの id、訪問の回数から決定論的に導いた整数。"""
+        """実行の種、ステージの id、訪問の回数から SHA-256 で導いた整数。
+
+        確率的な振る舞いの唯一の乱数の源。`random.Random(seed)` にそのまま渡してよい。訪問ごとの種は
+        ハッシュから導くので、互いに独立な一様の種とみなせる。
+        """
         ...
 
     def read_memory(self, name: str) -> JSONValue:
-        """memory_in に宣言した記憶を読む。値が無ければ None。"""
+        """memory_in に宣言した記憶を読む。値がまだ無ければ（carry で受け取っていなければ）None。
+
+        宣言の無い名前を読むのは契約違反。
+        """
         ...
 
     def write_memory(self, name: str, value: JSONValue) -> None:
-        """memory_out に宣言した記憶を書く。"""
+        """memory_out に宣言した記憶を書く。宣言の無い名前を書くのは契約違反。"""
         ...
 
     @property
@@ -141,7 +156,12 @@ class MetricRegistry(Protocol):
     def names(self) -> Collection[str]: ...
 
     def measure(self, name: str, view: SnapshotView, args: Mapping[str, JSONValue]) -> bool | float:
-        """値を測る。測定できなければ MetricError を送出する。"""
+        """値を測る。測定できなければ MetricError を送出する。
+
+        args はワークフロー定義の基準の args で、読み取り専用の Mapping（dict とは限らない。必要なら dict(args)
+        で写す）。同じスナップショットと args には同じ値を返す。そのため、費用の高い測定の結果は、読むファイルの
+        内容のハッシュと args を鍵にして覚えてよい。
+        """
         ...
 
 
@@ -150,12 +170,16 @@ class MetricRegistry(Protocol):
 
 @dataclass(frozen=True)
 class Option:
+    """分類の選択肢。id は goal か end_state の id、description はワークフロー定義の記述そのもの。"""
+
     id: str
     description: str
 
 
 @dataclass(frozen=True)
 class Classification:
+    """分類の結果。choice は選んだ選択肢の id（答えられなければ None）、confidence は 0〜1 の確信度。"""
+
     choice: str | None
     confidence: float
 
@@ -171,6 +195,8 @@ type EscalationReason = Literal["max_exceeded", "unknown", "stage_error", "contr
 
 @dataclass(frozen=True)
 class Edge:
+    """rollback の辺。ステージ stage の end_state state から、ステージ target へ戻る。"""
+
     stage: str
     state: str
     target: str
@@ -178,6 +204,12 @@ class Edge:
 
 @dataclass(frozen=True)
 class Escalation:
+    """escalate の状況。stage は escalate したステージ、outcome は評価の結果（評価の前の escalate なら None）。
+
+    edge と count は、max を超えた辺と、それを通った回数（max 超過の時だけ）。message は補足（本体の例外や
+    契約違反の内容など）。
+    """
+
     reason: EscalationReason
     stage: str
     outcome: str | None
@@ -188,24 +220,35 @@ class Escalation:
 
 @dataclass(frozen=True)
 class Rerun:
-    pass
+    """再実行。escalate したステージを、その直近の開始時スナップショットから新しい訪問として実行し直す。"""
 
 
 @dataclass(frozen=True)
 class RollbackTo:
+    """指定ステージへのロールバック。stage は escalate したステージ自身か、それより前のステージ。
+
+    carry は持ち帰る記憶の名前で、戻り先の memory_in にあるものに限る。
+    """
+
     stage: str
     carry: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
 class ContinueAsGoal:
+    """goal 到達扱いで続行。note は注記（なぜ）、by は誰が（空ならランタイムが operator と書く）。
+
+    成果物はそのまま後のステージとゲートに渡る。後のゲートの指標は免れないので、成果物が実際に基準を
+    満たしていなければ、後のゲートで goal が選択肢から外れ、もう一度 escalate しうる。
+    """
+
     note: str
     by: str = ""
 
 
 @dataclass(frozen=True)
 class Abort:
-    pass
+    """中止。実行を中止状態で終え、最後のスナップショットを残す。"""
 
 
 type Decision = Rerun | RollbackTo | ContinueAsGoal | Abort

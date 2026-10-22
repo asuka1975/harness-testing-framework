@@ -7,13 +7,20 @@ from pathlib import Path
 
 import pytest
 
-from harness_testing_framework.contract import Classification, Option
+from harness_testing_framework.contract import Classification, Option, StageContext
+from harness_testing_framework.runtime import BlobStore, Runtime, load_workflow
+from harness_testing_framework.testing.harness import (
+    AbortOperator,
+    ConformanceRegistry,
+    MarkerClassifier,
+)
 from harness_testing_framework.testing.oracle import (
     ConfusionClassifier,
     CorpusInvalid,
     CorpusItem,
     FlakyClassifier,
     Label,
+    build_corpus,
     cohen_kappa,
     expected_calibration_error,
     load_corpus,
@@ -22,6 +29,9 @@ from harness_testing_framework.testing.oracle import (
     save_corpus,
     save_labels,
 )
+from harness_testing_framework.testing.stages import record_run, run_many
+
+ROOT = Path(__file__).resolve().parents[1]
 
 OPTIONS = (
     Option("goal", "目的を達した"),
@@ -201,3 +211,35 @@ def test_no_answered_items_gives_no_ece() -> None:
     assert report.coverage == 0.0
     assert report.ece is None
     assert any("ECE なし" in line for line in report.lines())
+
+
+def _write(context: StageContext) -> None:
+    n = context.stage_id[-1]
+    (context.workspace / f"s{n}.txt").write_text(n)
+    (context.workspace / f"s{n}.flag").write_text("true")
+    if n == "2":
+        (context.workspace / "gate1.flag").write_text("true")
+    if n == "3":
+        (context.workspace / "gate2.num").write_text("0")
+
+
+def test_corpus_can_keep_one_item_per_state_document(tmp_path: Path) -> None:
+    """同じ成果物が繰り返し出る実行（偽の本体）では、同じ状態文書が何度もコーパスに入る。
+    unique_states=True なら、状態文書と選択肢の組ごとに最初の項目だけを残す。"""
+    workflow = load_workflow(
+        ROOT / "contract/conformance/workflows/basic.yaml", ConformanceRegistry().names()
+    )
+    runtime = Runtime(
+        workflow,
+        {s.id: _write for s in workflow.stages},
+        registry=ConformanceRegistry(),
+        classifier=MarkerClassifier(),
+        operator=AbortOperator(),
+        store=BlobStore(tmp_path / "store"),
+        workdir=tmp_path,
+    )
+    runs = run_many(3, 0, lambda seed: record_run(runtime, seed, {"in.txt": b"x"}))
+    every = build_corpus(runs, runtime.store, workflow)
+    unique = build_corpus(runs, runtime.store, workflow, unique_states=True)
+    assert len(every) == 3 * len(unique) == 3 * 5  # 三つのステージと二つのゲート
+    assert unique == every[:5]

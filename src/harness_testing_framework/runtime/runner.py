@@ -1,4 +1,4 @@
-"""参照ランタイムの実行（決定 #8）。遷移規則は契約 第3節、実行記録の並びは契約 3.4.1。"""
+"""参照ランタイムの実行。遷移規則は契約 第3節、実行記録の並びは契約 3.4.1。"""
 
 import hashlib
 import json
@@ -71,7 +71,12 @@ class OperatorDecisionInvalid(ValueError):
 
 @dataclass
 class RunState:
-    """保存して別のプロセスで再開できる、実行の状態。"""
+    """保存して別のプロセスで再開できる、実行の状態。
+
+    current は最後のスナップショットの id。status が suspended なら pending は
+    {"kind": "user", "question": {"text": 質問の文, "choices": [選択肢, ...]}}、awaiting_operator なら
+    {"kind": "operator", "escalation": escalate の状況}。ほかの属性はランタイムの内部の状態で、読み書きしない。
+    """
 
     seed: int
     status: str = "running"
@@ -304,6 +309,7 @@ class Runtime:
     # --- 入口 ---
 
     def start(self, seed: int, inputs: Mapping[str, bytes]) -> RunResult:
+        """種 seed と、ワークフローの inputs のファイル（パスから内容）で実行を始める。"""
         self._events, self._snapshots = [], []
         state = RunState(seed=seed)
         self._emit(state, {"event": "run_start", "workflow": self.workflow.name, "seed": seed})
@@ -314,6 +320,8 @@ class Runtime:
     def resume(
         self, state: RunState, *, answer: str | None = None, decision: Decision | None = None
     ) -> RunResult:
+        """中断（suspended）した実行を answer で、escalate 待ち（awaiting_operator）の実行を decision で
+        再開する。state は同じ置き場を使うランタイムで保存したもの。"""
         self._events, self._snapshots = [], []
         # 再開で受け取る回答と選択も外からの値なので、記録再生を通す
         if state.status == "suspended":
@@ -351,6 +359,7 @@ class Runtime:
         return self._result(state)
 
     def snapshot(self, snapshot_id: str) -> Snapshot:
+        """スナップショットを id で読む。最後のものの id は result.state.current。"""
         return self.store.get_snapshot(snapshot_id)
 
     # --- 実行記録 ---

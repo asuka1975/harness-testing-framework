@@ -1,0 +1,28 @@
+scenario: failed_metric_excludes_goal
+description: 指標が基準を満たさないと goal は選択肢に無く、分類器が goal を選んでも unknown になる。運用者は中止を選ぶ
+workflow: ../workflows/basic.yaml
+metrics: conformance
+seed: 1
+inputs:
+  in.txt: 依頼
+visits:
+  s1#1:
+    files:
+      s1.txt: s1
+      s1.flag: 'false'
+    classify:
+      choice: goal
+      confidence: 0.9
+operator:
+- kind: abort
+expect:
+  status: aborted
+  trace:
+  - start s1#1
+  - eval stage s1 = unknown
+  - escalation s1 unknown -> abort
+  - abort
+  - end aborted
+  options:
+    stage:s1#1:
+    - unknown

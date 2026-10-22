@@ -1,6 +1,8 @@
 """CI がローカルと同じ検査（scripts/check.sh）を呼ぶことの検査。"""
 
+import importlib.util
 import re
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -38,3 +40,23 @@ def test_tool_configuration_does_not_name_examples() -> None:
         text = (ROOT / config).read_text(encoding="utf-8")
         for name in names:
             assert re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", text) is None, (config, name)
+
+
+FIXTURES_GLOB = "examples/*/tests/fixtures"
+
+
+def test_example_fixtures_are_excluded_from_lint_types_and_collection() -> None:
+    """examples/<名前>/tests/fixtures/ の下のコード（意図的に壊したものを含む）は、
+    ruff、mypy、pytest の収集のどれにも拾われない（adopting.md 第11節）。"""
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert FIXTURES_GLOB in pyproject["tool"]["ruff"]["extend-exclude"]
+    excludes = [re.compile(e) for e in pyproject["tool"]["mypy"]["exclude"]]
+    for path in ["examples/x/tests/fixtures/a.py", "examples/x/tests/fixtures/repo/src/b.py"]:
+        assert any(e.search(path) for e in excludes), path
+    for path in ["examples/x/tests/test_a.py", "examples/x/pkg/fixtures/a.py", "src/a.py"]:
+        assert not any(e.search(path) for e in excludes), path
+    spec = importlib.util.spec_from_file_location("root_conftest", ROOT / "conftest.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert FIXTURES_GLOB in module.collect_ignore_glob

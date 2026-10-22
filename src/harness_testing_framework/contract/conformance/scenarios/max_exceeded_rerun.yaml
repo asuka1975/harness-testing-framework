@@ -1,0 +1,87 @@
+scenario: max_exceeded_rerun
+description: e2_back の辺が max（2）を超えて escalate し、運用者が再実行を選ぶ（max 超過、再実行）
+workflow: ../workflows/basic.yaml
+metrics: conformance
+seed: 1
+inputs:
+  in.txt: 依頼
+visits:
+  s1#1: &id001
+    files:
+      s1.txt: s1
+      s1.flag: 'true'
+    classify: &id003
+      choice: goal
+      confidence: 0.9
+  s2#1: &id002
+    files:
+      s2.txt: s2
+      s2.flag: 'false'
+      gate1.flag: 'true'
+    classify:
+      choice: e2_back
+      confidence: 0.9
+    memory:
+      m21: fix
+  s1#2: *id001
+  s2#2: *id002
+  s1#3: *id001
+  s2#3: *id002
+  s2#4:
+    files:
+      s2.txt: s2
+      s2.flag: 'true'
+      gate1.flag: 'true'
+    classify: *id003
+  s3#1:
+    files:
+      s3.txt: s3
+      s3.flag: 'true'
+      gate2.num: '0'
+    classify: *id003
+gates:
+  p1#4: *id003
+  p2#1: *id003
+operator:
+- kind: rerun
+expect:
+  status: completed
+  trace:
+  - start s1#1
+  - eval stage s1 = goal
+  - next s1 -> s2
+  - start s2#1
+  - eval stage s2 = e2_back
+  - rollback s2 -> s1 [e2_back 1]
+  - start s1#2
+  - eval stage s1 = goal
+  - next s1 -> s2
+  - start s2#2
+  - eval stage s2 = e2_back
+  - rollback s2 -> s1 [e2_back 2]
+  - start s1#3
+  - eval stage s1 = goal
+  - next s1 -> s2
+  - start s2#3
+  - eval stage s2 = e2_back
+  - escalation s2 max_exceeded -> rerun
+  - start s2#4
+  - eval stage s2 = goal
+  - eval phase p1 = goal
+  - gate_pass s2
+  - next s2 -> s3
+  - start s3#1
+  - eval stage s3 = goal
+  - eval phase p2 = goal
+  - gate_pass s3
+  - complete
+  - end completed
+  starts:
+    s2#4:
+      files:
+        in.txt: 依頼
+        s1.txt: s1
+        s1.flag: 'true'
+      memory:
+        m21: fix
+      gates: []

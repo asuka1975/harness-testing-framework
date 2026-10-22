@@ -797,3 +797,51 @@ plan.md 第7節の F4 のプロンプトは、利用者が読むものに docs/h
 - 対象: F3 までの成果物（D-1〜D-9）。F3 の検証役の判定は二回とも準正常で、二回目の残りの中二件は直したが、三回目の判定は受けていない（D-9）。人間はこれを示されたうえで承認した
 - 公開のしかた: pyproject と `__version__` を 0.1.0 にし、git tag `v0.1.0` と GitHub Release を作る。パッケージレジストリには公開しない（#10）
 - 合わせて直したこと: 契約 第11節に残っていた「（下書き）」を、承認済みの状態に合わせて消した。README を v0.1 の内容に合わせた
+
+## D-11 F4 の不足（adopting-gaps.md）の扱い（2026-10-22、一回目の往復）
+
+- 状態: 承認（2026-10-22、包括指示による推奨の採用。承認済みの契約 v0.1 とシナリオの形式への、互換性を壊さない追記）
+- 強制点: F4（adopting-gaps.md の全項目を、本体で解消するか、解消しない理由をここに記録する）
+- 関係: D-5、D-10、examples/software-factory/docs/adopting-gaps.md
+- 決定: 下の表のとおり。本体の側だけを直し、examples/software-factory/ と adopting-gaps.md は直していない。解消したかの判定は、F4 と同じ読取制限の利用者役（第5.9節）が行う
+
+### 文脈
+
+F4 の利用者セッションは、adopting.md、api.md、toy-minimal、公開 API の文書だけで software factory（5 フェーズ 9 ステージ）を作り、全ランナーを通した。その途中で判断できなかったこと、足りなかったこと、回避したくなったことを 30 項目書いた。作業を止めたのは B1（壊したコードのフィクスチャが検査に拾われる）と B2（例の id が本体の語と重なる）の二つ。
+
+### 各項目の扱い
+
+| 項目 | 扱い | 直したところ |
+| --- | --- | --- |
+| A1 引数と属性が無い | 解消（本体） | docs/api-reference.md を本体の `__all__` と docstring から作り（scripts/api\_reference.py）、本体と食い違えばテストが落ちる。api.md から指す（D-5 の公開 API の文書に加わる） |
+| A2 StageContext の属性の食い違い | 解消（文書） | adopting.md 第5節に stage\_id と visit。docstring |
+| A3 契約が読めない文書を根拠に指す | 解消（文書） | 契約、契約の形式、本体の docstring から、計画書・決定記録・作業ログと番号への参照を除き、根拠を本文に書いた。テストで禁止 |
+| A4 記憶が無い時の read\_memory | 解消（文書） | None と明記（adopting.md 第5節、docstring） |
+| A5 保留中の質問の形 | 解消（文書） | `{"text", "choices"}` と明記（adopting.md 第7節、RunState の docstring） |
+| A6 置き場から状態文書を読む方法 | 解消（文書） | `store.get(SHA-256)`（adopting.md 第15・16節、BlobStore.get の docstring） |
+| A7 by\_target の鍵 | 解消（文書） | `stage:<id>` / `phase:<id>` と明記 |
+| B1 壊したコードのフィクスチャ | 解消（本体の設定） | `examples/*/tests/fixtures/` を ruff、mypy、pytest の収集から外した（pyproject.toml、最上位の conftest.py）。adopting.md 第11節 |
+| B2 例の id と本体の語の重なり | 解消（本体のテスト） | 本体の公開の名前と、本体の例（schema/examples/、contract/conformance/workflows/）にある語を除いて照合し、重なりを一度にすべて報告する。adopting.md 第11節 |
+| B3 args の型 | 解消（文書） | 読み取り専用の Mapping と明記 |
+| B4 費用の高い指標 | 解消（文書） | 内容のハッシュと args で結果を覚えてよいと明記 |
+| B5 変更パスの範囲と writes | 解消（文書） | writes より狭い範囲と比べると明記 |
+| B6 例のテストの時間 | 解消（本体と文書） | `synthesize` を状態の確率を前へ流す計算に書き直した（software factory の設計値のモデルで 7.8 秒 → 0.7 秒、結果は 1e-13 以内で一致）。トリアージの読み込みを追記分だけにした（E3）。adopting.md 第11節に時間の目安 |
+| B7 契約適合テストの意味と置き場 | 解消（本体と文書） | 判定の対象はランタイムの実装で、参照ランタイムを使うハーネスは通す必要が無いと契約 第10節、README、adopting.md 第9節に書いた。シナリオ一式をパッケージに同梱し、`conformance_dir()`、`conformance_scenarios()` を足した |
+| C1 ゲートの不合格を戻すことと優先の書き方 | 解消（文書） | adopting.md 第2.4節に、goal の時にも中身を持てる記憶を carry にするクラスに限ると書いた（F4 の判断をそのまま手引きにした） |
+| C2 goal 到達扱いと後の指標 | 解消（文書） | adopting.md 第7節、ContinueAsGoal の docstring |
+| D1 ユーザーシミュレータに種が届かない | 解消（文書） | 実行ごとにランタイムを組み立てる形と、保留するものを束縛すると下流が観測されないことを adopting.md 第12節に書いた。`UserIO.ask` に種を渡す変更は契約のインターフェースの変更になるので、しない |
+| D2 carry で分布が変わる本体とマルコフモデル | 解消しない（制限として明記） | モデルの区分に carry の有無を入れるのは、合成の仮定の拡張で、実ハーネスでの方法の検証（#6、F5）と合わせて決める。adopting.md 第14節に制限と、偽の本体での置き方を書いた |
+| D3 visit で絞った基準の E[n] | 解消（本体） | `Prediction.evaluations` と `visit_outcomes`（訪問の区分ごとの評価の回数の期待値）を足した。手計算のテスト。adopting.md 第12節 |
+| D4 MarkerClassifier の下でのゲートの分布 | 解消しない（判定は正しい） | ゲートの答えが成果物で決まるなら、それはクラス内で下流が分かれていることそのもので、独立性検証の violated は正しい。種で揺れるゲートを偽の分類器で作るには、分類器に種を渡す（契約のインターフェースの変更）必要がある。adopting.md 第14節に理由と、シナリオで確かめる方法を書いた |
+| D5 実在の指標と偽の本体のクラスの整合 | 解消（文書） | adopting.md 第12節 |
+| D6 種の分布 | 解消（文書） | `random.Random(seed)` にそのまま渡してよいと明記 |
+| E1 コーパスの重複と FlakyClassifier | 解消（本体と文書） | `build_corpus(..., unique_states=True)`。既定は変えない（F3 で確かめた数値を動かさないため）。偽の分類器の docstring |
+| E2 ゲートの項目のラベル | 解消（文書） | adopting.md 第15節 |
+| E3 トリアージの費用 | 解消（本体） | 形式の検査器を使い回し、待ち行列と判定の記録は追記された行だけを検査して読み足す。360 項目の判定で 4.9 秒 → 0.16 秒。検査の回数のテスト |
+| E4 トリアージとコーパスの項目の id | 解消（文書） | 同じ形と明記 |
+| F1 シナリオの inputs にファイルを指せない | 解消（形式の追記） | `inputs` と `expect.starts` の files に `{from: パス}`（ディレクトリも）。契約適合テストのシナリオを一つ足した（inputs\_from\_file）。`dataclasses.replace` を明記 |
+| F2 シナリオと E2E にユーザーシミュレータを束縛できない | 解消（本体） | `run_scenario(..., user=)`、`run_coverage(..., user=)` |
+
+### 推奨
+
+上記のとおり。互換性: シナリオの形式と `Prediction` への追記はどれも省略可能で、既存のシナリオと呼び出しはそのまま動く。契約の版は v0.1 のままとする。

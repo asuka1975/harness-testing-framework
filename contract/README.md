@@ -7,4 +7,4 @@
 - [trace.schema.json](trace.schema.json): 実行記録の一行の形式
 - examples/: 形式の例
 
-Python の束縛は `harness_testing_framework.contract`。契約適合テストは F2 で作る。
+Python の束縛は `harness_testing_framework.contract`。契約適合テストは conformance/ にある。

@@ -2,12 +2,14 @@
 
 待ち行列と判定の記録は JSON Lines のファイル（慣例として reports/triage/）。状態文書は置き場にあり、各項目は
 その SHA-256 を持つ。分類体系の変更（新しいクラス、記述の改訂）は提案として記録するだけで、ワークフロー定義は
-変えない（plan.md 第2節: 記述の改訂は人間の承認を経る）。
+変えない（記述の改訂は人間の承認を経る）。
 """
 
+import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +34,12 @@ class TriageInvalid(ValueError):
 
 @dataclass(frozen=True)
 class TriageItem:
+    """待ち行列の一項目。
+
+    item は `<実行の id>-<評価の seq>` で、分類器の検証のコーパスの項目の id と同じ形。state は状態文書の
+    SHA-256 で、内容は置き場（BlobStore.get）で読める。reason は unknown か low_confidence。
+    """
+
     item: str
     run: int
     seq: int
@@ -59,18 +67,41 @@ class Decision:
         return self.verdict in PROPOSALS
 
 
+@cache
+def _validator(schema: str) -> Draft202012Validator:
+    return Draft202012Validator(load_contract_schema(schema))
+
+
+# 読んだファイルごとの、検査済みの先頭部分（バイト数、その SHA-256、行の数、行の内容）。待ち行列と判定の記録は
+# 追記で育つので、先頭が前に読んだ時のままなら、追記された行だけを検査して読み足す（判定を一件ずつ記録しても、
+# 項目の数の二乗の検査にならない）。先頭が変わっていれば全体を読み直す
+_seen: dict[tuple[Path, str], tuple[int, str, int, list[dict[str, Any]]]] = {}
+
+
 def _read(path: Path, schema: str) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    validator = Draft202012Validator(load_contract_schema(schema))
-    rows = []
-    for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    data = path.read_bytes()
+    key = (path.resolve(), schema)
+    rows: list[dict[str, Any]] = []
+    start = lines = 0
+    if key in _seen:
+        size, digest, seen_lines, seen_rows = _seen[key]
+        if len(data) >= size and hashlib.sha256(data[:size]).hexdigest() == digest:
+            rows, start, lines = list(seen_rows), size, seen_lines
+    validator = _validator(schema)
+    for chunk in data[start:].splitlines(keepends=True):
+        lines += 1
+        line = chunk.decode("utf-8")
         if line.strip():
             row = json.loads(line)
             errors = list(validator.iter_errors(row))
             if errors:
-                raise TriageInvalid(f"{path}:{n}: " + "; ".join(e.message for e in errors))
+                raise TriageInvalid(f"{path}:{lines}: " + "; ".join(e.message for e in errors))
             rows.append(row)
+    # 改行で終わっていない最後の行（書きかけかもしれない）は覚えず、次に読む時にもう一度検査する
+    if data.endswith(b"\n") or not data:
+        _seen[key] = (len(data), hashlib.sha256(data).hexdigest(), lines, list(rows))
     return rows
 
 
@@ -82,6 +113,7 @@ def _append(path: Path, rows: list[Mapping[str, Any]]) -> None:
 
 
 def items(queue: Path) -> list[TriageItem]:
+    """待ち行列の全項目（形式を検査する）。"""
     return [TriageItem(**r) for r in _read(queue, "triage_item.schema.json")]
 
 
@@ -124,6 +156,7 @@ def enqueue(queue: Path, run: RunRecord, *, review_below: float) -> list[TriageI
 
 
 def decisions(record: Path) -> list[Decision]:
+    """判定の記録の全行（形式を検査する）。"""
     return [
         Decision(r["item"], r["verdict"], r["label"], r["note"], r["by"])
         for r in _read(record, "triage_decision.schema.json")
